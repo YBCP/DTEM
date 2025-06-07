@@ -1726,16 +1726,16 @@ def mostrar_error(error):
         st.error(f"❌ Error crítico: {str(e)}")
         st.markdown("### 🆘 Solución de Problemas")
         st.markdown("""
-        **Posibles causas:**
-        1. **Configuración de Google Sheets:** Verifica las credenciales y permisos
-        2. **Conexión a Internet:** Asegúrate de tener conexión estable
-        3. **Estructura de datos:** Verifica que las hojas tengan la estructura correcta
-        
-        **Acciones recomendadas:**
-        - 🔄 Usa el botón "Reconectar" en la parte superior
-        - 🔧 Revisa la configuración en el panel lateral
-        - 📋 Consulta las instrucciones de configuración
-        """)
+            **Posibles causas:**
+            1. **Configuración de Google Sheets:** Verifica las credenciales y permisos
+            2. **Conexión a Internet:** Asegúrate de tener conexión estable
+            3. **Estructura de datos:** Verifica que las hojas tengan la estructura correcta
+            
+            **Acciones recomendadas:**
+            - 🔄 Usa el botón "Reconectar" en la parte superior
+            - 🔧 Revisa la configuración en el panel lateral
+            - 📋 Consulta las instrucciones de configuración
+            """)
 
 if __name__ == "__main__":
     main()
