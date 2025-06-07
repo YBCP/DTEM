@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta, date
 from validaciones_utils import validar_reglas_negocio, mostrar_estado_validaciones, verificar_condiciones_estandares, verificar_condiciones_oficio_cierre
 import io
+import matplotlib
 import base64
 import os
 import re
