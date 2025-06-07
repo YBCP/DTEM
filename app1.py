@@ -1070,6 +1070,40 @@ def main():
         # Agregar sección de ayuda
         mostrar_ayuda()
 
+    except Exception as e:
+        st.error(f"❌ Error crítico: {str(e)}")
+        st.markdown("### 🆘 Solución de Problemas")
+        st.markdown("""
+        **Posibles causas:**
+        1. **Configuración de Google Sheets:** Verifica las credenciales y permisos
+        2. **Conexión a Internet:** Asegúrate de tener conexión estable
+        3. **Estructura de datos:** Verifica que las hojas tengan la estructura correcta
+        
+        **Acciones recomendadas:**
+        - 🔄 Usa el botón "Reconectar" en la parte superior
+        - 🔧 Revisa la configuración en el panel lateral
+        - 📋 Consulta las instrucciones de configuración
+        """)
+
+def mostrar_error(error):
+    """Muestra mensajes de error formateados."""
+    st.error(f"❌ Error al cargar o procesar los datos: {error}")
+    st.info("""
+    **Posibles soluciones:**
+    1. **Google Sheets**: Verifica la configuración de credenciales en el panel lateral
+    2. **Conexión**: Asegúrate de tener conexión a internet estable
+    3. **Permisos**: Confirma que el service account tenga acceso al spreadsheet
+    4. **Estructura**: Verifica que las hojas tengan la estructura correcta
+
+    **Acciones recomendadas:**
+    - 🔄 Usa el botón "Reconectar" 
+    - 🔧 Revisa la configuración en el panel lateral
+    - 📁 Intenta cargar datos desde Excel usando el uploader
+    """)
+
+if __name__ == "__main__":
+    main()
+
 def mostrar_detalle_cronogramas(df_filtrado):
     """Muestra el detalle de los cronogramas con información detallada por entidad."""
     st.markdown('<div class="subtitle">Detalle de Cronogramas por Entidad</div>', unsafe_allow_html=True)
