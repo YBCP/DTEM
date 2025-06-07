@@ -451,7 +451,7 @@ def verificar_estado_fechas(row):
     ]
 
     for campo in campos_fecha:
-        if campo in row and row[campo]:
+        if campo in row and pd.notna(row[campo]) and str(row[campo]).strip() != '':
             fecha = procesar_fecha(row[campo])
             if fecha is not None and pd.notna(fecha):
                 # Si la fecha ya está vencida
@@ -534,12 +534,14 @@ def contar_registros_completados_por_fecha(df, columna_fecha_programada, columna
     """
     count = 0
     for _, row in df.iterrows():
-        if columna_fecha_programada in row and row[columna_fecha_programada]:
+        if columna_fecha_programada in row and pd.notna(row[columna_fecha_programada]) and str(row[columna_fecha_programada]).strip() != '':
             fecha_programada = row[columna_fecha_programada]
 
             # Verificar si hay una fecha de completado
             fecha_completado = None
-            if columna_fecha_completado in row and row[columna_fecha_completado]:
+            if (columna_fecha_completado in row and 
+                pd.notna(row[columna_fecha_completado]) and 
+                str(row[columna_fecha_completado]).strip() != ''):
                 # Intentar procesar como fecha primero
                 fecha_completado = procesar_fecha(row[columna_fecha_completado])
                 # Si no es una fecha, verificar si es un valor booleano positivo
