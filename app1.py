@@ -477,10 +477,10 @@ def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_fi
     if acuerdo_filtro != 'Todos':
         if acuerdo_filtro == 'Suscrito':
             df_filtrado = df_filtrado[
-                (df_filtrado['Suscripción acuerdo de compromiso'].notna()) & 
-                (df_filtrado['Suscripción acuerdo de compromiso'] != '') |
-                (df_filtrado['Entrega acuerdo de compromiso'].notna()) & 
-                (df_filtrado['Entrega acuerdo de compromiso'] != '')
+                ((df_filtrado['Suscripción acuerdo de compromiso'].notna()) & 
+                 (df_filtrado['Suscripción acuerdo de compromiso'] != '')) |
+                ((df_filtrado['Entrega acuerdo de compromiso'].notna()) & 
+                 (df_filtrado['Entrega acuerdo de compromiso'] != ''))
             ]
         else:  # No Suscrito
             df_filtrado = df_filtrado[
