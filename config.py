@@ -5,7 +5,7 @@ import streamlit as st
 def setup_page():
     """Configura la página de Streamlit."""
     st.set_page_config(
-        page_title="Tablero de Control de Cronogramas",
+        page_title="Dashboard de Seguimiento a Datos Temáticos - Ideca",
         page_icon="📊",
         layout="wide"
     )
