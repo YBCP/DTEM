@@ -70,10 +70,10 @@ def fecha_desde_selector_a_string(fecha):
 
 def mostrar_configuracion_sheets():
     """Muestra la configuración y estado de Google Sheets"""
-    with st.sidebar.expander("🔧 Configuración Google Sheets"):
+    with st.sidebar.expander("Configuración Google Sheets"):
         st.markdown("### Estado de Conexión")
         
-        if st.button("🔄 Probar Conexión", help="Verifica la conexión con Google Sheets"):
+        if st.button("Probar Conexión", help="Verifica la conexión con Google Sheets"):
             with st.spinner("Probando conexión..."):
                 test_connection()
         
@@ -88,12 +88,12 @@ def mostrar_configuracion_sheets():
         
         st.markdown("---")
         st.markdown("**¿Necesitas configurar Google Sheets?**")
-        st.markdown("[📋 Ver instrucciones completas](https://github.com/tu-repo/INSTRUCCIONES_CONFIGURACION.md)")
-        st.info("🔒 Los datos se guardan de forma segura en Google Sheets con autenticación OAuth2")
+        st.markdown("[Ver instrucciones completas](https://github.com/tu-repo/INSTRUCCIONES_CONFIGURACION.md)")
+        st.info("Los datos se guardan de forma segura en Google Sheets con autenticación OAuth2")
 
 def mostrar_carga_archivos():
     """Muestra la sección de carga de archivos Excel/CSV"""
-    with st.sidebar.expander("📁 Cargar Datos desde Excel"):
+    with st.sidebar.expander("Cargar Datos desde Excel"):
         st.markdown("### Subir Archivo Excel")
         
         uploaded_file = st.file_uploader(
@@ -103,22 +103,22 @@ def mostrar_carga_archivos():
         )
         
         if uploaded_file is not None:
-            if st.button("🔄 Sincronizar con Google Sheets"):
+            if st.button("Sincronizar con Google Sheets"):
                 with st.spinner("Procesando y sincronizando archivo..."):
                     nuevos_registros, nuevas_metas = cargar_datos_desde_excel(uploaded_file)
                     
                     if nuevos_registros is not None:
-                        st.success("✅ Archivo sincronizado exitosamente!")
-                        st.info("🔄 Recargando la aplicación con los nuevos datos...")
+                        st.success("Archivo sincronizado exitosamente!")
+                        st.info("Recargando la aplicación con los nuevos datos...")
                         st.rerun()
                     else:
-                        st.error("❌ Error al procesar el archivo")
+                        st.error("Error al procesar el archivo")
         
         st.markdown("---")
         st.markdown("**Formato esperado:**")
         st.markdown("- **Hoja 'Registros':** Datos principales")
         st.markdown("- **Hoja 'Metas':** Metas quincenales")
-        st.warning("⚠️ La sincronización sobrescribirá los datos existentes en Google Sheets")
+        st.warning("La sincronización sobrescribirá los datos existentes en Google Sheets")
 
 # ========== FUNCIÓN DE EDICIÓN RESTAURADA Y MEJORADA ==========
 
@@ -291,671 +291,9 @@ def mostrar_edicion_registros(registros_df):
                             registros_df.at[registros_df.index[indice_seleccionado], 'Funcionario'] = funcionario_final
                             edited = True
 
-            # ===== SECCIÓN 2: ACTA DE COMPROMISO =====
-            st.markdown("### 2. Acta de Compromiso")
-
-            # Actas de acercamiento (RESTAURADO)
-            if 'Actas de acercamiento y manifestación de interés' in row:
-                col1, col2 = st.columns(2)
-                with col1:
-                    actas_acercamiento = st.selectbox(
-                        "Actas de acercamiento",
-                        options=["", "Si", "No"],
-                        index=1 if row['Actas de acercamiento y manifestación de interés'].upper() in ["SI", "SÍ",
-                                                                                                       "YES",
-                                                                                                       "Y"] else (
-                            2 if row['Actas de acercamiento y manifestación de interés'].upper() == "NO" else 0),
-                        key=f"actas_acercamiento_{indice_seleccionado}",
-                        on_change=on_change_callback
-                    )
-                    if actas_acercamiento != row['Actas de acercamiento y manifestación de interés']:
-                        registros_df.at[registros_df.index[
-                            indice_seleccionado], 'Actas de acercamiento y manifestación de interés'] = actas_acercamiento
-                        edited = True
-
-            # Fechas de compromiso
-            col1, col2, col3 = st.columns(3)
-            
-            # Suscripción acuerdo de compromiso (RESTAURADO)
-            if 'Suscripción acuerdo de compromiso' in row:
-                with col1:
-                    fecha_suscripcion_dt = fecha_para_selector(row['Suscripción acuerdo de compromiso'])
-                    nueva_fecha_suscripcion = st.date_input(
-                        "Suscripción acuerdo de compromiso",
-                        value=fecha_suscripcion_dt,
-                        format="DD/MM/YYYY",
-                        key=f"fecha_suscripcion_{indice_seleccionado}",
-                        on_change=on_change_callback
-                    )
-                    nueva_fecha_suscripcion_str = fecha_desde_selector_a_string(
-                        nueva_fecha_suscripcion) if nueva_fecha_suscripcion else ""
-
-                    fecha_original = "" if pd.isna(row['Suscripción acuerdo de compromiso']) else row[
-                        'Suscripción acuerdo de compromiso']
-                    if nueva_fecha_suscripcion_str != fecha_original:
-                        registros_df.at[registros_df.index[
-                            indice_seleccionado], 'Suscripción acuerdo de compromiso'] = nueva_fecha_suscripcion_str
-                        edited = True
-
-            with col2:
-                # Entrega acuerdo de compromiso
-                fecha_entrega_dt = fecha_para_selector(row['Entrega acuerdo de compromiso'])
-                nueva_fecha_entrega = st.date_input(
-                    "Entrega acuerdo de compromiso",
-                    value=fecha_entrega_dt,
-                    format="DD/MM/YYYY",
-                    key=f"fecha_entrega_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-
-                nueva_fecha_entrega_str = fecha_desde_selector_a_string(
-                    nueva_fecha_entrega) if nueva_fecha_entrega else ""
-
-                fecha_original = "" if pd.isna(row['Entrega acuerdo de compromiso']) else row[
-                    'Entrega acuerdo de compromiso']
-
-                if nueva_fecha_entrega_str != fecha_original:
-                    registros_df.at[registros_df.index[
-                        indice_seleccionado], 'Entrega acuerdo de compromiso'] = nueva_fecha_entrega_str
-                    edited = True
-
-            with col3:
-                # Acuerdo de compromiso
-                nuevo_acuerdo = st.selectbox(
-                    "Acuerdo de compromiso",
-                    options=["", "Si", "No"],
-                    index=1 if row['Acuerdo de compromiso'].upper() in ["SI", "SÍ", "YES", "Y"] else (
-                        2 if row['Acuerdo de compromiso'].upper() == "NO" else 0),
-                    key=f"acuerdo_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                if nuevo_acuerdo != row['Acuerdo de compromiso']:
-                    registros_df.at[
-                        registros_df.index[indice_seleccionado], 'Acuerdo de compromiso'] = nuevo_acuerdo
-                    edited = True
-
-            # ===== SECCIÓN 3: ANÁLISIS Y CRONOGRAMA =====
-            st.markdown("### 3. Análisis y Cronograma")
-
-            # Gestión acceso a datos (RESTAURADO)
-            if 'Gestion acceso a los datos y documentos requeridos ' in row:
-                gestion_acceso = st.selectbox(
-                    "Gestión acceso a los datos",
-                    options=["", "Si", "No"],
-                    index=1 if row['Gestion acceso a los datos y documentos requeridos '].upper() in ["SI", "SÍ",
-                                                                                                      "YES",
-                                                                                                      "Y"] else (
-                        2 if row['Gestion acceso a los datos y documentos requeridos '].upper() == "NO" else 0),
-                    key=f"gestion_acceso_analisis_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                if gestion_acceso != row['Gestion acceso a los datos y documentos requeridos ']:
-                    registros_df.at[registros_df.index[
-                        indice_seleccionado], 'Gestion acceso a los datos y documentos requeridos '] = gestion_acceso
-                    edited = True
-
-            col1, col2, col3 = st.columns(3)
-
-            # Campos de análisis (RESTAURADOS)
-            with col1:
-                if 'Análisis de información' in row:
-                    analisis_info = st.selectbox(
-                        "Análisis de información",
-                        options=["", "Si", "No"],
-                        index=1 if row['Análisis de información'].upper() in ["SI", "SÍ", "YES", "Y"] else (
-                            2 if row['Análisis de información'].upper() == "NO" else 0),
-                        key=f"analisis_info_{indice_seleccionado}",
-                        on_change=on_change_callback
-                    )
-                    if analisis_info != row['Análisis de información']:
-                        registros_df.at[
-                            registros_df.index[indice_seleccionado], 'Análisis de información'] = analisis_info
-                        edited = True
-
-            with col2:
-                if 'Cronograma Concertado' in row:
-                    cronograma_concertado = st.selectbox(
-                        "Cronograma Concertado",
-                        options=["", "Si", "No"],
-                        index=1 if row['Cronograma Concertado'].upper() in ["SI", "SÍ", "YES", "Y"] else (
-                            2 if row['Cronograma Concertado'].upper() == "NO" else 0),
-                        key=f"cronograma_concertado_{indice_seleccionado}",
-                        on_change=on_change_callback
-                    )
-                    if cronograma_concertado != row['Cronograma Concertado']:
-                        registros_df.at[registros_df.index[
-                            indice_seleccionado], 'Cronograma Concertado'] = cronograma_concertado
-                        edited = True
-
-            with col3:
-                if 'Seguimiento a los acuerdos' in row:
-                    seguimiento_acuerdos = st.selectbox(
-                        "Seguimiento a los acuerdos",
-                        options=["", "Si", "No"],
-                        index=1 if row['Seguimiento a los acuerdos'].upper() in ["SI", "SÍ", "YES", "Y"] else (
-                            2 if row['Seguimiento a los acuerdos'].upper() == "NO" else 0),
-                        key=f"seguimiento_acuerdos_{indice_seleccionado}",
-                        on_change=on_change_callback
-                    )
-                    if seguimiento_acuerdos != row['Seguimiento a los acuerdos']:
-                        registros_df.at[registros_df.index[
-                            indice_seleccionado], 'Seguimiento a los acuerdos'] = seguimiento_acuerdos
-                        edited = True
-
-            # Fechas de análisis y cronograma
-            col1, col2 = st.columns(2)
-
-            with col1:
-                # Fecha de entrega de información con cálculo automático de plazos
-                fecha_entrega_info_dt = fecha_para_selector(row['Fecha de entrega de información'])
-                nueva_fecha_entrega_info = st.date_input(
-                    "Fecha de entrega de información",
-                    value=fecha_entrega_info_dt,
-                    format="DD/MM/YYYY",
-                    key=f"fecha_entrega_info_{indice_seleccionado}"
-                )
-
-                nueva_fecha_entrega_info_str = fecha_desde_selector_a_string(
-                    nueva_fecha_entrega_info) if nueva_fecha_entrega_info else ""
-
-                fecha_original = "" if pd.isna(row['Fecha de entrega de información']) else row[
-                    'Fecha de entrega de información']
-
-                if nueva_fecha_entrega_info_str != fecha_original:
-                    registros_df.at[registros_df.index[
-                        indice_seleccionado], 'Fecha de entrega de información'] = nueva_fecha_entrega_info_str
-                    edited = True
-
-                    # Actualizar automáticamente todos los plazos
-                    registros_df = actualizar_plazo_analisis(registros_df)
-                    registros_df = actualizar_plazo_cronograma(registros_df)
-                    registros_df = actualizar_plazo_oficio_cierre(registros_df)
-
-                    # Guardar cambios inmediatamente
-                    with st.spinner("💾 Recalculando plazos..."):
-                        exito, mensaje = guardar_datos_editados_rapido(registros_df)
-                        if exito:
-                            st.success("✅ Fecha actualizada y plazos recalculados")
-                            st.rerun()
-
-            with col2:
-                # Fecha real de análisis y cronograma
-                fecha_analisis_dt = fecha_para_selector(row['Análisis y cronograma'])
-                nueva_fecha_analisis = st.date_input(
-                    "Análisis y cronograma (fecha real)",
-                    value=fecha_analisis_dt,
-                    format="DD/MM/YYYY",
-                    key=f"fecha_analisis_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-
-                nueva_fecha_analisis_str = fecha_desde_selector_a_string(
-                    nueva_fecha_analisis) if nueva_fecha_analisis else ""
-
-                fecha_original = "" if pd.isna(row['Análisis y cronograma']) else row['Análisis y cronograma']
-                if nueva_fecha_analisis_str != fecha_original:
-                    registros_df.at[
-                        registros_df.index[indice_seleccionado], 'Análisis y cronograma'] = nueva_fecha_analisis_str
-                    edited = True
-
-            # Mostrar plazos calculados automáticamente
-            col1, col2 = st.columns(2)
-            with col1:
-                plazo_analisis = row['Plazo de análisis'] if 'Plazo de análisis' in row and pd.notna(
-                    row['Plazo de análisis']) else ""
-                st.text_input(
-                    "Plazo de análisis (calculado automáticamente)",
-                    value=plazo_analisis,
-                    disabled=True,
-                    key=f"plazo_analisis_{indice_seleccionado}"
-                )
-
-            with col2:
-                plazo_cronograma = row['Plazo de cronograma'] if 'Plazo de cronograma' in row and pd.notna(
-                    row['Plazo de cronograma']) else ""
-                st.text_input(
-                    "Plazo de cronograma (calculado automáticamente)",
-                    value=plazo_cronograma,
-                    disabled=True,
-                    key=f"plazo_cronograma_{indice_seleccionado}"
-                )
-
-            st.info(
-                "Los plazos se calculan automáticamente: Análisis (5 días hábiles después de entrega), Cronograma (3 días hábiles después del análisis)."
-            )
-
-            # ===== SECCIÓN 4: ESTÁNDARES =====
-            st.markdown("### 4. Estándares")
-            col1, col2 = st.columns(2)
-
-            with col1:
-                # Fecha programada para estándares
-                if 'Estándares (fecha programada)' in row:
-                    fecha_estandares_prog_dt = fecha_para_selector(row['Estándares (fecha programada)'])
-                    nueva_fecha_estandares_prog = st.date_input(
-                        "Estándares (fecha programada)",
-                        value=fecha_estandares_prog_dt,
-                        format="DD/MM/YYYY",
-                        key=f"fecha_estandares_prog_{indice_seleccionado}",
-                        on_change=on_change_callback
-                    )
-                    nueva_fecha_estandares_prog_str = fecha_desde_selector_a_string(
-                        nueva_fecha_estandares_prog) if nueva_fecha_estandares_prog else ""
-
-                    fecha_original = "" if pd.isna(row['Estándares (fecha programada)']) else row[
-                        'Estándares (fecha programada)']
-                    if nueva_fecha_estandares_prog_str != fecha_original:
-                        registros_df.at[registros_df.index[
-                            indice_seleccionado], 'Estándares (fecha programada)'] = nueva_fecha_estandares_prog_str
-                        edited = True
-
-            with col2:
-                # Fecha real de estándares
-                fecha_estandares_dt = fecha_para_selector(row['Estándares'])
-                nueva_fecha_estandares = st.date_input(
-                    "Fecha de estándares (real)",
-                    value=fecha_estandares_dt,
-                    format="DD/MM/YYYY",
-                    key=f"fecha_estandares_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-
-                nueva_fecha_estandares_str = fecha_desde_selector_a_string(
-                    nueva_fecha_estandares) if nueva_fecha_estandares else ""
-
-                fecha_original = "" if pd.isna(row['Estándares']) else row['Estándares']
-
-                if nueva_fecha_estandares_str and nueva_fecha_estandares_str != fecha_original:
-                    registros_df.at[
-                        registros_df.index[indice_seleccionado], 'Estándares'] = nueva_fecha_estandares_str
-                    
-                    # Actualizar campos de estándares que no estén "Completo" a "No aplica"
-                    campos_estandares = ['Registro (completo)', 'ET (completo)', 'CO (completo)', 'DD (completo)',
-                                         'REC (completo)', 'SERVICIO (completo)']
-                    
-                    campos_actualizados = []
-                    for campo in campos_estandares:
-                        if campo in registros_df.columns:
-                            valor_actual = str(registros_df.iloc[indice_seleccionado][campo]).strip()
-                            if valor_actual.upper() != "COMPLETO":
-                                registros_df.at[registros_df.index[indice_seleccionado], campo] = "No aplica"
-                                nombre_campo = campo.split(' (')[0]
-                                campos_actualizados.append(nombre_campo)
-                    
-                    if campos_actualizados:
-                        st.info(f"Los siguientes estándares se actualizaron a 'No aplica': {', '.join(campos_actualizados)}")
-                    
-                    edited = True
-
-                    # Guardar cambios inmediatamente
-                    with st.spinner("💾 Guardando cambios..."):
-                        registros_df = validar_reglas_negocio(registros_df)
-                        exito, mensaje = guardar_datos_editados_rapido(registros_df)
-                        if exito:
-                            st.success("✅ Estándares actualizados")
-                            st.rerun()
-
-            # Sección: Cumplimiento de estándares (RESTAURADA)
-            st.markdown("#### Cumplimiento de estándares")
-
-            # Mostrar campos de estándares con lista desplegable
-            campos_estandares_completo = ['Registro (completo)', 'ET (completo)', 'CO (completo)', 'DD (completo)',
-                                          'REC (completo)', 'SERVICIO (completo)']
-            cols = st.columns(3)
-
-            for i, campo in enumerate(campos_estandares_completo):
-                # Verificar si el campo existe en el registro
-                if campo not in registros_df.iloc[indice_seleccionado]:
-                    registros_df.at[registros_df.index[indice_seleccionado], campo] = "Sin iniciar"
-
-                # Obtener el valor actual directamente del DataFrame
-                valor_actual = registros_df.iloc[indice_seleccionado][campo] if pd.notna(
-                    registros_df.iloc[indice_seleccionado][campo]) else "Sin iniciar"
-
-                with cols[i % 3]:
-                    # Determinar el índice correcto para el valor actual
-                    opciones = ["Sin iniciar", "En proceso", "Completo", "No aplica"]
-                    indice_opcion = 0  # Por defecto "Sin iniciar"
-
-                    if valor_actual in opciones:
-                        indice_opcion = opciones.index(valor_actual)
-                    elif str(valor_actual).lower() == "en proceso":
-                        indice_opcion = 1
-                    elif str(valor_actual).lower() == "completo":
-                        indice_opcion = 2
-                    elif str(valor_actual).lower() == "no aplica":
-                        indice_opcion = 3
-
-                    # Extraer nombre sin el sufijo para mostrar en la interfaz
-                    nombre_campo = campo.split(' (')[0]
-
-                    # Crear el selectbox con las opciones
-                    nuevo_valor = st.selectbox(
-                        f"{nombre_campo}",
-                        options=opciones,
-                        index=indice_opcion,
-                        key=f"estandar_{campo}_{indice_seleccionado}",
-                        help=f"Estado de cumplimiento para {nombre_campo}"
-                    )
-
-                    # Actualizar el valor si ha cambiado
-                    if nuevo_valor != valor_actual:
-                        registros_df.at[registros_df.index[indice_seleccionado], campo] = nuevo_valor
-                        edited = True
-
-                        # Guardar cambios inmediatamente
-                        with st.spinner("💾 Guardando..."):
-                            registros_df = validar_reglas_negocio(registros_df)
-                            exito, mensaje = guardar_datos_editados_rapido(registros_df)
-                            if exito:
-                                st.success(f"✅ {nombre_campo} actualizado")
-                                st.rerun()
-
-            # Validaciones adicionales (RESTAURADAS)
-            if 'Resultados de orientación técnica' in row or 'Verificación del servicio web geográfico' in row:
-                st.markdown("#### Validaciones")
-                cols = st.columns(3)
-
-                campos_validaciones = [
-                    'Resultados de orientación técnica',
-                    'Verificación del servicio web geográfico',
-                    'Verificar Aprobar Resultados',
-                    'Revisar y validar los datos cargados en la base de datos',
-                    'Aprobación resultados obtenidos en la rientación'
-                ]
-
-                for i, campo in enumerate(campos_validaciones):
-                    if campo in row:
-                        with cols[i % 3]:
-                            valor_actual = row[campo]
-                            nuevo_valor = st.selectbox(
-                                f"{campo}",
-                                options=["", "Si", "No"],
-                                index=1 if valor_actual == "Si" or valor_actual.upper() in ["SI", "SÍ", "YES",
-                                                                                            "Y"] else (
-                                    2 if valor_actual == "No" or valor_actual.upper() == "NO" else 0
-                                ),
-                                key=f"{campo}_{indice_seleccionado}",
-                                on_change=on_change_callback
-                            )
-                            if nuevo_valor != valor_actual:
-                                registros_df.at[registros_df.index[indice_seleccionado], campo] = nuevo_valor
-                                edited = True
-
-            # ===== SECCIÓN 5: PUBLICACIÓN =====
-            st.markdown("### 5. Publicación")
-            col1, col2, col3 = st.columns(3)
-
-            with col1:
-                # Disponer datos temáticos (RESTAURADO)
-                if 'Disponer datos temáticos' in row:
-                    disponer_datos = st.selectbox(
-                        "Disponer datos temáticos",
-                        options=["", "Si", "No"],
-                        index=1 if row['Disponer datos temáticos'].upper() in ["SI", "SÍ", "YES", "Y"] else (
-                            2 if row['Disponer datos temáticos'].upper() == "NO" else 0),
-                        key=f"disponer_datos_{indice_seleccionado}",
-                        on_change=on_change_callback
-                    )
-                    if disponer_datos != row['Disponer datos temáticos']:
-                        registros_df.at[
-                            registros_df.index[indice_seleccionado], 'Disponer datos temáticos'] = disponer_datos
-                        edited = True
-
-            with col2:
-                # Fecha programada para publicación
-                if 'Fecha de publicación programada' in row:
-                    fecha_publicacion_prog_dt = fecha_para_selector(row['Fecha de publicación programada'])
-                    nueva_fecha_publicacion_prog = st.date_input(
-                        "Fecha de publicación programada",
-                        value=fecha_publicacion_prog_dt,
-                        format="DD/MM/YYYY",
-                        key=f"fecha_publicacion_prog_{indice_seleccionado}",
-                        on_change=on_change_callback
-                    )
-                    nueva_fecha_publicacion_prog_str = fecha_desde_selector_a_string(
-                        nueva_fecha_publicacion_prog) if nueva_fecha_publicacion_prog else ""
-
-                    fecha_original = "" if pd.isna(row['Fecha de publicación programada']) else row[
-                        'Fecha de publicación programada']
-                    if nueva_fecha_publicacion_prog_str != fecha_original:
-                        registros_df.at[registros_df.index[
-                            indice_seleccionado], 'Fecha de publicación programada'] = nueva_fecha_publicacion_prog_str
-                        edited = True
-
-            with col3:
-                # Fecha real de publicación
-                fecha_publicacion_dt = fecha_para_selector(row['Publicación'])
-                nueva_fecha_publicacion = st.date_input(
-                    "Fecha de publicación (real)",
-                    value=fecha_publicacion_dt,
-                    format="DD/MM/YYYY",
-                    key=f"fecha_publicacion_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-
-                nueva_fecha_publicacion_str = fecha_desde_selector_a_string(
-                    nueva_fecha_publicacion) if nueva_fecha_publicacion else ""
-
-                fecha_original = "" if pd.isna(row['Publicación']) else row['Publicación']
-
-                if nueva_fecha_publicacion_str and nueva_fecha_publicacion_str != fecha_original:
-                    # Actualizar automáticamente "Disponer datos temáticos" a "Si"
-                    if 'Disponer datos temáticos' in registros_df.columns:
-                        registros_df.at[registros_df.index[indice_seleccionado], 'Disponer datos temáticos'] = 'Si'
-                        st.info("Se ha actualizado automáticamente 'Disponer datos temáticos' a 'Si'")
-                    
-                    # Actualizar la fecha de publicación
-                    registros_df.at[
-                        registros_df.index[indice_seleccionado], 'Publicación'] = nueva_fecha_publicacion_str
-                    edited = True
-
-                    # Recalcular el plazo de oficio de cierre
-                    registros_df = actualizar_plazo_oficio_cierre(registros_df)
-
-                    # Guardar cambios inmediatamente
-                    with st.spinner("💾 Guardando y recalculando plazos..."):
-                        registros_df = validar_reglas_negocio(registros_df)
-                        exito, mensaje = guardar_datos_editados_rapido(registros_df)
-                        if exito:
-                            st.success("✅ Publicación actualizada y plazo de cierre recalculado")
-                            st.rerun()
-
-            # Mostrar plazo de oficio de cierre
-            col1, col2 = st.columns(2)
-            with col1:
-                plazo_oficio_cierre = row[
-                    'Plazo de oficio de cierre'] if 'Plazo de oficio de cierre' in row and pd.notna(
-                    row['Plazo de oficio de cierre']) else ""
-
-                st.text_input(
-                    "Plazo de oficio de cierre (calculado automáticamente)",
-                    value=plazo_oficio_cierre,
-                    disabled=True,
-                    key=f"plazo_oficio_cierre_{indice_seleccionado}"
-                )
-
-                st.info(
-                    "El plazo de oficio de cierre se calcula automáticamente como 7 días hábiles después de la fecha de publicación."
-                )
-
-            # Catálogo y oficios de cierre (RESTAURADOS)
-            if 'Catálogo de recursos geográficos' in row or 'Oficios de cierre' in row:
-                col1, col2, col3 = st.columns(3)
-
-                # Catálogo de recursos geográficos
-                if 'Catálogo de recursos geográficos' in row:
-                    with col1:
-                        catalogo_recursos = st.selectbox(
-                            "Catálogo de recursos geográficos",
-                            options=["", "Si", "No"],
-                            index=1 if row['Catálogo de recursos geográficos'].upper() in ["SI", "SÍ", "YES",
-                                                                                           "Y"] else (
-                                2 if row['Catálogo de recursos geográficos'].upper() == "NO" else 0),
-                            key=f"catalogo_recursos_{indice_seleccionado}",
-                            on_change=on_change_callback
-                        )
-                        if catalogo_recursos != row['Catálogo de recursos geográficos']:
-                            registros_df.at[registros_df.index[
-                                indice_seleccionado], 'Catálogo de recursos geográficos'] = catalogo_recursos
-                            edited = True
-
-                # Oficios de cierre
-                if 'Oficios de cierre' in row:
-                    with col2:
-                        oficios_cierre = st.selectbox(
-                            "Oficios de cierre",
-                            options=["", "Si", "No"],
-                            index=1 if row['Oficios de cierre'].upper() in ["SI", "SÍ", "YES", "Y"] else (
-                                2 if row['Oficios de cierre'].upper() == "NO" else 0),
-                            key=f"oficios_cierre_{indice_seleccionado}",
-                            on_change=on_change_callback
-                        )
-                        if oficios_cierre != row['Oficios de cierre']:
-                            registros_df.at[
-                                registros_df.index[indice_seleccionado], 'Oficios de cierre'] = oficios_cierre
-                            edited = True
-
-                # Fecha de oficio de cierre (RESTAURADO CON VALIDACIONES)
-                if 'Fecha de oficio de cierre' in row:
-                    with col3:
-                        fecha_oficio_dt = fecha_para_selector(row['Fecha de oficio de cierre'])
-                        nueva_fecha_oficio = st.date_input(
-                            "Fecha de oficio de cierre",
-                            value=fecha_oficio_dt,
-                            format="DD/MM/YYYY",
-                            key=f"fecha_oficio_{indice_seleccionado}",
-                            on_change=on_change_callback
-                        )
-                        nueva_fecha_oficio_str = fecha_desde_selector_a_string(
-                            nueva_fecha_oficio) if nueva_fecha_oficio else ""
-
-                        fecha_original = "" if pd.isna(row['Fecha de oficio de cierre']) else row[
-                            'Fecha de oficio de cierre']
-
-                        # Si se ha introducido una nueva fecha de oficio de cierre
-                        if nueva_fecha_oficio_str and nueva_fecha_oficio_str != fecha_original:
-                            # Validar que la publicación esté completada
-                            tiene_publicacion = (
-                                'Publicación' in row and 
-                                pd.notna(row['Publicación']) and 
-                                row['Publicación'] != ""
-                            )
-
-                            if not tiene_publicacion:
-                                st.error(
-                                    "No es posible diligenciar la Fecha de oficio de cierre. Debe completar primero la etapa de Publicación.")
-                            else:
-                                # Actualizar fecha de oficio de cierre
-                                registros_df.at[registros_df.index[
-                                    indice_seleccionado], 'Fecha de oficio de cierre'] = nueva_fecha_oficio_str
-
-                                # Actualizar Estado a "Completado" automáticamente
-                                registros_df.at[registros_df.index[indice_seleccionado], 'Estado'] = 'Completado'
-
-                                # Recalcular el porcentaje de avance (ahora será 100% automáticamente)
-                                registros_df.at[registros_df.index[indice_seleccionado], 'Porcentaje Avance'] = calcular_porcentaje_avance(registros_df.iloc[indice_seleccionado])
-
-                                edited = True
-                                # Guardar cambios
-                                with st.spinner("💾 Guardando cambios finales..."):
-                                    registros_df = validar_reglas_negocio(registros_df)
-                                    exito, mensaje = guardar_datos_editados_rapido(registros_df)
-                                    if exito:
-                                        st.success(
-                                            "✅ Oficio de cierre actualizado. Estado: 'Completado', Avance: 100%")
-                                        st.rerun()
-
-                        # Si se está borrando la fecha
-                        elif nueva_fecha_oficio_str != fecha_original:
-                            # Permitir borrar la fecha y actualizar Estado a "En proceso"
-                            registros_df.at[registros_df.index[
-                                indice_seleccionado], 'Fecha de oficio de cierre'] = nueva_fecha_oficio_str
-
-                            # Si se borra la fecha de oficio, cambiar estado a "En proceso"
-                            if registros_df.at[registros_df.index[indice_seleccionado], 'Estado'] == 'Completado':
-                                registros_df.at[registros_df.index[indice_seleccionado], 'Estado'] = 'En proceso'
-                                st.info(
-                                    "El estado ha sido cambiado a 'En proceso' porque se eliminó la fecha de oficio de cierre.")
-
-                            edited = True
-                            # Guardar cambios
-                            with st.spinner("💾 Guardando cambios..."):
-                                registros_df = validar_reglas_negocio(registros_df)
-                                exito, mensaje = guardar_datos_editados_rapido(registros_df)
-                                if exito:
-                                    st.success("✅ Fecha de oficio de cierre actualizada")
-                                    st.rerun()
-
-            # ===== SECCIÓN 6: ESTADO Y OBSERVACIONES =====
-            st.markdown("### 6. Estado y Observaciones")
-            col1, col2 = st.columns(2)
-
-            # Estado general (RESTAURADO CON VALIDACIONES)
-            if 'Estado' in row:
-                with col1:
-                    # Verificar si hay fecha de oficio de cierre válida
-                    tiene_fecha_oficio = (
-                            'Fecha de oficio de cierre' in row and
-                            pd.notna(row['Fecha de oficio de cierre']) and
-                            row['Fecha de oficio de cierre'] != ""
-                    )
-
-                    # Si no hay fecha de oficio, no se debe permitir estado Completado
-                    opciones_estado = ["", "En proceso", "En proceso oficio de cierre", "Finalizado"]
-                    if tiene_fecha_oficio:
-                        opciones_estado = ["", "En proceso", "En proceso oficio de cierre", "Completado",
-                                           "Finalizado"]
-
-                    # Determinar el índice actual del estado
-                    indice_estado = 0
-                    if row['Estado'] in opciones_estado:
-                        indice_estado = opciones_estado.index(row['Estado'])
-
-                    # Crear el selector de estado
-                    nuevo_estado = st.selectbox(
-                        "Estado",
-                        options=opciones_estado,
-                        index=indice_estado,
-                        key=f"estado_{indice_seleccionado}",
-                        on_change=on_change_callback
-                    )
-
-                    # Si intenta seleccionar Completado sin fecha de oficio, mostrar mensaje
-                    if nuevo_estado == "Completado" and not tiene_fecha_oficio:
-                        st.error(
-                            "No es posible establecer el estado como 'Completado' sin una fecha de oficio de cierre válida.")
-                        nuevo_estado = row['Estado']
-
-                    # Actualizar el estado si ha cambiado
-                    if nuevo_estado != row['Estado']:
-                        registros_df.at[registros_df.index[indice_seleccionado], 'Estado'] = nuevo_estado
-                        edited = True
-
-                        # Guardar y validar inmediatamente
-                        with st.spinner("💾 Guardando estado..."):
-                            registros_df = validar_reglas_negocio(registros_df)
-                            exito, mensaje = guardar_datos_editados_rapido(registros_df)
-                            if exito:
-                                st.success("✅ Estado actualizado")
-                                st.rerun()
-
-            # Observaciones (RESTAURADO)
-            if 'Observación' in row:
-                with col2:
-                    nueva_observacion = st.text_area(
-                        "Observación",
-                        value=row['Observación'] if pd.notna(row['Observación']) else "",
-                        key=f"observacion_{indice_seleccionado}",
-                        on_change=on_change_callback
-                    )
-                    if nueva_observacion != row['Observación']:
-                        registros_df.at[registros_df.index[indice_seleccionado], 'Observación'] = nueva_observacion
-                        edited = True
-
             # Botón de guardar general (RESTAURADO)
             if edited or st.session_state.cambios_pendientes:
-                if st.button("💾 Guardar Todos los Cambios", key=f"guardar_{indice_seleccionado}", type="primary"):
+                if st.button("Guardar Todos los Cambios", key=f"guardar_{indice_seleccionado}", type="primary"):
                     # Aplicar validaciones de reglas de negocio antes de guardar
                     registros_df = validar_reglas_negocio(registros_df)
 
@@ -965,7 +303,7 @@ def mostrar_edicion_registros(registros_df):
                     registros_df = actualizar_plazo_oficio_cierre(registros_df)
 
                     # Guardar los datos en Google Sheets
-                    with st.spinner("💾 Guardando todos los cambios en Google Sheets..."):
+                    with st.spinner("Guardando todos los cambios en Google Sheets..."):
                         exito, mensaje = guardar_datos_editados(registros_df, crear_backup=True)
 
                     if exito:
@@ -976,7 +314,7 @@ def mostrar_edicion_registros(registros_df):
                         st.session_state.mensaje_guardado = ("error", mensaje)
 
             # Botón para actualizar vista
-            if st.button("🔄 Actualizar Vista", key=f"actualizar_{indice_seleccionado}"):
+            if st.button("Actualizar Vista", key=f"actualizar_{indice_seleccionado}"):
                 st.rerun()
 
     except Exception as e:
@@ -984,7 +322,7 @@ def mostrar_edicion_registros(registros_df):
 
     return registros_df
 
-# ========== FUNCIONES COMPLETAS RESTAURADAS ==========
+# ========== FUNCIÓN DASHBOARD MODIFICADA ==========
 
 def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registros_df, 
                      entidad_seleccionada, funcionario_seleccionado, nivel_seleccionado):
@@ -1120,7 +458,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
             st.warning("No hay datos suficientes para crear el diagrama de Gantt con los filtros aplicados.")
     else:
         # Mostrar mensaje cuando no hay filtros aplicados
-        st.info("📊 **Para visualizar el diagrama de Gantt seleccione la entidad o funcionario de su interés.**")
+        st.info("Para visualizar el diagrama de Gantt seleccione la entidad o funcionario de su interés.")
 
     # Tabla de registros con porcentaje de avance
     st.markdown('<div class="subtitle">Detalle de Registros</div>', unsafe_allow_html=True)
@@ -1181,7 +519,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
 
             excel_data = output.getvalue()
             st.download_button(
-                label="📊 Descargar datos filtrados (Excel)",
+                label="Descargar datos filtrados (Excel)",
                 data=excel_data,
                 file_name="registros_filtrados.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1210,7 +548,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
 
             # Botón para descargar todos los registros
             st.download_button(
-                label="📥 Descargar TODOS los registros (Excel)",
+                label="Descargar TODOS los registros (Excel)",
                 data=excel_data_completo,
                 file_name="todos_los_registros.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1229,250 +567,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         if 'columnas_mostrar_existentes' in locals():
             st.dataframe(df_filtrado[columnas_mostrar_existentes])
 
-def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_filtro, 
-                    estandares_filtro, publicacion_filtro, finalizado_filtro):
-    """Muestra la pestaña de reportes con tabla completa y filtros específicos - VERSIÓN COMPLETA."""
-    st.markdown('<div class="subtitle">Reportes de Registros</div>', unsafe_allow_html=True)
-    
-    # Aplicar filtros
-    df_filtrado = registros_df.copy()
-    
-    # Filtro por tipo de dato
-    if tipo_dato_filtro != 'Todos':
-        df_filtrado = df_filtrado[df_filtrado['TipoDato'].str.upper() == tipo_dato_filtro.upper()]
-    
-    # Filtro por acuerdo de compromiso suscrito
-    if acuerdo_filtro != 'Todos':
-        if acuerdo_filtro == 'Suscrito':
-            df_filtrado = df_filtrado[
-                ((df_filtrado['Suscripción acuerdo de compromiso'].notna()) & 
-                 (df_filtrado['Suscripción acuerdo de compromiso'] != '')) |
-                ((df_filtrado['Entrega acuerdo de compromiso'].notna()) & 
-                 (df_filtrado['Entrega acuerdo de compromiso'] != ''))
-            ]
-        else:  # No Suscrito
-            df_filtrado = df_filtrado[
-                ((df_filtrado['Suscripción acuerdo de compromiso'].isna()) | 
-                 (df_filtrado['Suscripción acuerdo de compromiso'] == '')) &
-                ((df_filtrado['Entrega acuerdo de compromiso'].isna()) | 
-                 (df_filtrado['Entrega acuerdo de compromiso'] == ''))
-            ]
-    
-    # Filtro por análisis y cronograma
-    if analisis_filtro != 'Todos':
-        if analisis_filtro == 'Completado':
-            df_filtrado = df_filtrado[
-                (df_filtrado['Análisis y cronograma'].notna()) & 
-                (df_filtrado['Análisis y cronograma'] != '')
-            ]
-        else:  # No Completado
-            df_filtrado = df_filtrado[
-                (df_filtrado['Análisis y cronograma'].isna()) | 
-                (df_filtrado['Análisis y cronograma'] == '')
-            ]
-    
-    # Filtro por estándares completado
-    if estandares_filtro != 'Todos':
-        if estandares_filtro == 'Completado':
-            df_filtrado = df_filtrado[
-                (df_filtrado['Estándares'].notna()) & 
-                (df_filtrado['Estándares'] != '')
-            ]
-        else:  # No Completado
-            df_filtrado = df_filtrado[
-                (df_filtrado['Estándares'].isna()) | 
-                (df_filtrado['Estándares'] == '')
-            ]
-    
-    # Filtro por publicación
-    if publicacion_filtro != 'Todos':
-        if publicacion_filtro == 'Completado':
-            df_filtrado = df_filtrado[
-                (df_filtrado['Publicación'].notna()) & 
-                (df_filtrado['Publicación'] != '')
-            ]
-        else:  # No Completado
-            df_filtrado = df_filtrado[
-                (df_filtrado['Publicación'].isna()) | 
-                (df_filtrado['Publicación'] == '')
-            ]
-    
-    # Filtro por finalizado
-    if finalizado_filtro != 'Todos':
-        if finalizado_filtro == 'Finalizado':
-            df_filtrado = df_filtrado[
-                (df_filtrado['Fecha de oficio de cierre'].notna()) & 
-                (df_filtrado['Fecha de oficio de cierre'] != '')
-            ]
-        else:  # No Finalizado
-            df_filtrado = df_filtrado[
-                (df_filtrado['Fecha de oficio de cierre'].isna()) | 
-                (df_filtrado['Fecha de oficio de cierre'] == '')
-            ]
-    
-    # Mostrar estadísticas del filtrado
-    st.markdown("### Resumen de Registros Filtrados")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        total_filtrados = len(df_filtrado)
-        st.markdown(f"""
-        <div class="metric-card">
-            <p style="font-size: 1rem; color: #64748b;">Total Filtrados</p>
-            <p style="font-size: 2.5rem; font-weight: bold; color: #1E40AF;">{total_filtrados}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        if total_filtrados > 0:
-            avance_promedio = df_filtrado['Porcentaje Avance'].mean()
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="font-size: 1rem; color: #64748b;">Avance Promedio</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #047857;">{avance_promedio:.1f}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="font-size: 1rem; color: #64748b;">Avance Promedio</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #047857;">0%</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-    with col3:
-        if total_filtrados > 0:
-            completados = len(df_filtrado[df_filtrado['Porcentaje Avance'] == 100])
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="font-size: 1rem; color: #64748b;">Completados</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #B45309;">{completados}</p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="font-size: 1rem; color: #64748b;">Completados</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #B45309;">0</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-    with col4:
-        if total_filtrados > 0:
-            porcentaje_completados = (len(df_filtrado[df_filtrado['Porcentaje Avance'] == 100]) / total_filtrados * 100)
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="font-size: 1rem; color: #64748b;">% Completados</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #BE185D;">{porcentaje_completados:.1f}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="font-size: 1rem; color: #64748b;">% Completados</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #BE185D;">0%</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-    # Mostrar tabla de registros filtrados
-    st.markdown("### Tabla de Registros")
-    
-    if df_filtrado.empty:
-        st.warning("No se encontraron registros que coincidan con los filtros seleccionados.")
-        return
-    
-    # Definir columnas a mostrar
-    columnas_mostrar = [
-        'Cod', 'Entidad', 'Nivel Información ', 'Funcionario',
-        'Frecuencia actualizacion ', 'TipoDato',
-        'Suscripción acuerdo de compromiso', 'Entrega acuerdo de compromiso',
-        'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
-        'Análisis y cronograma',
-        'Registro (completo)', 'ET (completo)', 'CO (completo)', 'DD (completo)', 'REC (completo)',
-        'SERVICIO (completo)',
-        'Estándares (fecha programada)', 'Estándares',
-        'Fecha de publicación programada', 'Publicación',
-        'Plazo de oficio de cierre', 'Fecha de oficio de cierre',
-        'Estado', 'Observación', 'Porcentaje Avance'
-    ]
-    
-    # Verificar que todas las columnas existan
-    columnas_mostrar_existentes = [col for col in columnas_mostrar if col in df_filtrado.columns]
-    df_mostrar = df_filtrado[columnas_mostrar_existentes].copy()
-    
-    # Aplicar formato a las fechas
-    columnas_fecha = [
-        'Suscripción acuerdo de compromiso', 'Entrega acuerdo de compromiso',
-        'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
-        'Análisis y cronograma', 'Estándares (fecha programada)', 'Estándares',
-        'Fecha de publicación programada', 'Publicación',
-        'Plazo de oficio de cierre', 'Fecha de oficio de cierre'
-    ]
-    
-    for col in columnas_fecha:
-        if col in df_mostrar.columns:
-            df_mostrar[col] = df_mostrar[col].apply(lambda x: formatear_fecha(x) if es_fecha_valida(x) else "")
-    
-    # Mostrar dataframe con formato
-    st.dataframe(
-        df_mostrar
-        .style.format({'Porcentaje Avance': '{:.2f}%'})
-        .apply(highlight_estado_fechas, axis=1)
-        .background_gradient(cmap='RdYlGn', subset=['Porcentaje Avance']),
-        use_container_width=True
-    )
-    
-    # Botón para descargar reporte
-    st.markdown("### Descargar Reporte")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Descargar como Excel
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df_mostrar.to_excel(writer, sheet_name='Reporte Filtrado', index=False)
-
-        excel_data = output.getvalue()
-        st.download_button(
-            label="📊 Descargar reporte como Excel",
-            data=excel_data,
-            file_name=f"reporte_registros_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            help="Descarga el reporte filtrado en formato Excel"
-        )
-    
-    with col2:
-        # Descargar como CSV
-        csv = df_mostrar.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📄 Descargar reporte como CSV",
-            data=csv,
-            file_name=f"reporte_registros_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            mime="text/csv",
-            help="Descarga el reporte filtrado en formato CSV"
-        )
-    
-    # Información adicional sobre los filtros aplicados
-    filtros_aplicados = []
-    if tipo_dato_filtro != 'Todos':
-        filtros_aplicados.append(f"Tipo de Dato: {tipo_dato_filtro}")
-    if acuerdo_filtro != 'Todos':
-        filtros_aplicados.append(f"Acuerdo de Compromiso: {acuerdo_filtro}")
-    if analisis_filtro != 'Todos':
-        filtros_aplicados.append(f"Análisis y Cronograma: {analisis_filtro}")
-    if estandares_filtro != 'Todos':
-        filtros_aplicados.append(f"Estándares: {estandares_filtro}")
-    if publicacion_filtro != 'Todos':
-        filtros_aplicados.append(f"Publicación: {publicacion_filtro}")
-    if finalizado_filtro != 'Todos':
-        filtros_aplicados.append(f"Finalizado: {finalizado_filtro}")
-    
-    if filtros_aplicados:
-        st.info(f"**Filtros aplicados:** {', '.join(filtros_aplicados)}")
-    else:
-        st.info("**Mostrando todos los registros** (sin filtros aplicados)")
+# ========== FUNCIÓN ALERTAS COMPLETA ==========
 
 def mostrar_alertas_vencimientos(registros_df):
     """Muestra alertas de vencimientos de fechas en los registros - VERSIÓN COMPLETA RESTAURADA."""
@@ -1856,11 +951,408 @@ def mostrar_alertas_vencimientos(registros_df):
             num_retrasados = len(df_alertas[df_alertas['Estado'] == 'Completado con retraso'])
             st.markdown(f"""
             <div class="metric-card" style="background-color: #dbeafe;">
-                <p style="font-size: 1rem; color: #1e40af;">Completados con retraso
+                <p style="font-size: 1rem; color: #1e40af;">Completados con retraso</p>
+                <p style="font-size: 2.5rem; font-weight: bold; color: #1e40af;">{num_retrasados}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Gráfico de alertas por tipo
+        try:
+            st.markdown("### Alertas por Tipo")
+
+            alertas_por_tipo = df_alertas.groupby(['Tipo Alerta', 'Estado']).size().unstack(fill_value=0)
+
+            # Asegurar que existan todas las columnas
+            for estado in ['Vencido', 'Próximo a vencer', 'Completado con retraso']:
+                if estado not in alertas_por_tipo.columns:
+                    alertas_por_tipo[estado] = 0
+
+            # Reordenar las columnas
+            columnas_orden = ['Vencido', 'Próximo a vencer', 'Completado con retraso']
+            columnas_disponibles = [col for col in columnas_orden if col in alertas_por_tipo.columns]
+
+            fig = px.bar(
+                alertas_por_tipo.reset_index(),
+                x='Tipo Alerta',
+                y=columnas_disponibles,
+                barmode='group',
+                title='Distribución de Alertas por Tipo y Estado',
+                color_discrete_map={
+                    'Vencido': '#b91c1c',
+                    'Próximo a vencer': '#b45309',
+                    'Completado con retraso': '#1e40af'
+                }
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.warning(f"Error al generar el gráfico de alertas: {e}")
+
+        # Filtros para la tabla de alertas
+        st.markdown("### Filtrar Alertas")
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            tipo_alerta_filtro = st.multiselect(
+                "Tipo de Alerta",
+                options=df_alertas['Tipo Alerta'].unique().tolist(),
+                default=df_alertas['Tipo Alerta'].unique().tolist()
+            )
+
+        with col2:
+            estado_filtro = st.multiselect(
+                "Estado",
+                options=df_alertas['Estado'].unique().tolist(),
+                default=df_alertas['Estado'].unique().tolist()
+            )
+
+        with col3:
+            if 'Funcionario' in df_alertas.columns and not df_alertas['Funcionario'].isna().all():
+                funcionarios = [f for f in df_alertas['Funcionario'].dropna().unique().tolist() if f]
+                if funcionarios:
+                    funcionario_filtro = st.multiselect(
+                        "Funcionario",
+                        options=["Todos"] + sorted(funcionarios),
+                        default=["Todos"]
+                    )
+                else:
+                    funcionario_filtro = ["Todos"]
+            else:
+                funcionario_filtro = ["Todos"]
+
+        with col4:
+            tipos_dato_alertas = ['Todos'] + sorted(registros_df['TipoDato'].dropna().unique().tolist())
+            tipo_dato_filtro_alertas = st.multiselect(
+                "Tipo de Dato",
+                options=tipos_dato_alertas,
+                default=["Todos"]
+            )
+
+        # Aplicar filtros
+        df_alertas_filtrado = df_alertas.copy()
+
+        if tipo_alerta_filtro:
+            df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Tipo Alerta'].isin(tipo_alerta_filtro)]
+
+        if estado_filtro:
+            df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Estado'].isin(estado_filtro)]
+
+        if 'Funcionario' in df_alertas.columns and funcionario_filtro and "Todos" not in funcionario_filtro:
+            df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Funcionario'].isin(funcionario_filtro)]
+
+        if tipo_dato_filtro_alertas and "Todos" not in tipo_dato_filtro_alertas:
+            # Obtener códigos de registros que coinciden con el tipo de dato
+            codigos_tipo_dato = registros_df[registros_df['TipoDato'].isin(tipo_dato_filtro_alertas)]['Cod'].tolist()
+            df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Cod'].isin(codigos_tipo_dato)]
+
+        # Mostrar tabla de alertas con formato
+        st.markdown("### Listado de Alertas")
+
+        # Definir columnas a mostrar
+        columnas_alertas = [
+            'Cod', 'Entidad', 'Nivel Información', 'Funcionario', 'Tipo Alerta',
+            'Estado', 'Fecha Programada', 'Fecha Real', 'Días Rezago', 'Descripción'
+        ]
+
+        # Verificar que todas las columnas existan
+        columnas_alertas_existentes = [col for col in columnas_alertas if col in df_alertas_filtrado.columns]
+
+        try:
+            # Ordenar por estado (vencidos primero) y días de rezago
+            df_alertas_filtrado['Estado_orden'] = df_alertas_filtrado['Estado'].map({
+                'Vencido': 1,
+                'Próximo a vencer': 2,
+                'Completado con retraso': 3
+            })
+
+            df_alertas_filtrado = df_alertas_filtrado.sort_values(
+                by=['Estado_orden', 'Días Rezago'],
+                ascending=[True, False]
+            )
+
+            # Mostrar tabla con formato
+            st.dataframe(
+                df_alertas_filtrado[columnas_alertas_existentes]
+                .style.applymap(lambda _: '',
+                                subset=['Cod', 'Entidad', 'Nivel Información', 'Funcionario', 'Tipo Alerta',
+                                        'Fecha Programada', 'Fecha Real', 'Descripción'])
+                .applymap(highlight_estado, subset=['Estado'])
+                .format({'Días Rezago': '{:+d}'})  # Mostrar signo + o - en días rezago
+            )
+
+            # Botón para descargar alertas
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df_alertas_filtrado[columnas_alertas_existentes].to_excel(writer, sheet_name='Alertas', index=False)
+
+            excel_data = output.getvalue()
+            st.download_button(
+                label="Descargar alertas como Excel",
+                data=excel_data,
+                file_name="alertas_vencimientos.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                help="Descarga las alertas filtradas en formato Excel"
+            )
+        except Exception as e:
+            st.error(f"Error al mostrar la tabla de alertas: {e}")
+            # Mostrar tabla sin formato como último recurso
+            st.dataframe(df_alertas_filtrado[columnas_alertas_existentes])
+    else:
+        st.success("¡No hay alertas de vencimientos pendientes!")
+
+# ========== FUNCIÓN REPORTES ==========
+
+def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_filtro, 
+                    estandares_filtro, publicacion_filtro, finalizado_filtro):
+    """Muestra la pestaña de reportes con tabla completa y filtros específicos - VERSIÓN COMPLETA."""
+    st.markdown('<div class="subtitle">Reportes de Registros</div>', unsafe_allow_html=True)
+    
+    # Aplicar filtros
+    df_filtrado = registros_df.copy()
+    
+    # Filtro por tipo de dato
+    if tipo_dato_filtro != 'Todos':
+        df_filtrado = df_filtrado[df_filtrado['TipoDato'].str.upper() == tipo_dato_filtro.upper()]
+    
+    # Filtro por acuerdo de compromiso suscrito
+    if acuerdo_filtro != 'Todos':
+        if acuerdo_filtro == 'Suscrito':
+            df_filtrado = df_filtrado[
+                ((df_filtrado['Suscripción acuerdo de compromiso'].notna()) & 
+                 (df_filtrado['Suscripción acuerdo de compromiso'] != '')) |
+                ((df_filtrado['Entrega acuerdo de compromiso'].notna()) & 
+                 (df_filtrado['Entrega acuerdo de compromiso'] != ''))
+            ]
+        else:  # No Suscrito
+            df_filtrado = df_filtrado[
+                ((df_filtrado['Suscripción acuerdo de compromiso'].isna()) | 
+                 (df_filtrado['Suscripción acuerdo de compromiso'] == '')) &
+                ((df_filtrado['Entrega acuerdo de compromiso'].isna()) | 
+                 (df_filtrado['Entrega acuerdo de compromiso'] == ''))
+            ]
+    
+    # Filtro por análisis y cronograma
+    if analisis_filtro != 'Todos':
+        if analisis_filtro == 'Completado':
+            df_filtrado = df_filtrado[
+                (df_filtrado['Análisis y cronograma'].notna()) & 
+                (df_filtrado['Análisis y cronograma'] != '')
+            ]
+        else:  # No Completado
+            df_filtrado = df_filtrado[
+                (df_filtrado['Análisis y cronograma'].isna()) | 
+                (df_filtrado['Análisis y cronograma'] == '')
+            ]
+    
+    # Filtro por estándares completado
+    if estandares_filtro != 'Todos':
+        if estandares_filtro == 'Completado':
+            df_filtrado = df_filtrado[
+                (df_filtrado['Estándares'].notna()) & 
+                (df_filtrado['Estándares'] != '')
+            ]
+        else:  # No Completado
+            df_filtrado = df_filtrado[
+                (df_filtrado['Estándares'].isna()) | 
+                (df_filtrado['Estándares'] == '')
+            ]
+    
+    # Filtro por publicación
+    if publicacion_filtro != 'Todos':
+        if publicacion_filtro == 'Completado':
+            df_filtrado = df_filtrado[
+                (df_filtrado['Publicación'].notna()) & 
+                (df_filtrado['Publicación'] != '')
+            ]
+        else:  # No Completado
+            df_filtrado = df_filtrado[
+                (df_filtrado['Publicación'].isna()) | 
+                (df_filtrado['Publicación'] == '')
+            ]
+    
+    # Filtro por finalizado
+    if finalizado_filtro != 'Todos':
+        if finalizado_filtro == 'Finalizado':
+            df_filtrado = df_filtrado[
+                (df_filtrado['Fecha de oficio de cierre'].notna()) & 
+                (df_filtrado['Fecha de oficio de cierre'] != '')
+            ]
+        else:  # No Finalizado
+            df_filtrado = df_filtrado[
+                (df_filtrado['Fecha de oficio de cierre'].isna()) | 
+                (df_filtrado['Fecha de oficio de cierre'] == '')
+            ]
+    
+    # Mostrar estadísticas del filtrado
+    st.markdown("### Resumen de Registros Filtrados")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        total_filtrados = len(df_filtrado)
+        st.markdown(f"""
+        <div class="metric-card">
+            <p style="font-size: 1rem; color: #64748b;">Total Filtrados</p>
+            <p style="font-size: 2.5rem; font-weight: bold; color: #1E40AF;">{total_filtrados}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        if total_filtrados > 0:
+            avance_promedio = df_filtrado['Porcentaje Avance'].mean()
+            st.markdown(f"""
+            <div class="metric-card">
+                <p style="font-size: 1rem; color: #64748b;">Avance Promedio</p>
+                <p style="font-size: 2.5rem; font-weight: bold; color: #047857;">{avance_promedio:.1f}%</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p style="font-size: 1rem; color: #64748b;">Avance Promedio</p>
+                <p style="font-size: 2.5rem; font-weight: bold; color: #047857;">0%</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    with col3:
+        if total_filtrados > 0:
+            completados = len(df_filtrado[df_filtrado['Porcentaje Avance'] == 100])
+            st.markdown(f"""
+            <div class="metric-card">
+                <p style="font-size: 1rem; color: #64748b;">Completados</p>
+                <p style="font-size: 2.5rem; font-weight: bold; color: #B45309;">{completados}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p style="font-size: 1rem; color: #64748b;">Completados</p>
+                <p style="font-size: 2.5rem; font-weight: bold; color: #B45309;">0</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    with col4:
+        if total_filtrados > 0:
+            porcentaje_completados = (len(df_filtrado[df_filtrado['Porcentaje Avance'] == 100]) / total_filtrados * 100)
+            st.markdown(f"""
+            <div class="metric-card">
+                <p style="font-size: 1rem; color: #64748b;">% Completados</p>
+                <p style="font-size: 2.5rem; font-weight: bold; color: #BE185D;">{porcentaje_completados:.1f}%</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p style="font-size: 1rem; color: #64748b;">% Completados</p>
+                <p style="font-size: 2.5rem; font-weight: bold; color: #BE185D;">0%</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # Mostrar tabla de registros filtrados
+    st.markdown("### Tabla de Registros")
+    
+    if df_filtrado.empty:
+        st.warning("No se encontraron registros que coincidan con los filtros seleccionados.")
+        return
+    
+    # Definir columnas a mostrar
+    columnas_mostrar = [
+        'Cod', 'Entidad', 'Nivel Información ', 'Funcionario',
+        'Frecuencia actualizacion ', 'TipoDato',
+        'Suscripción acuerdo de compromiso', 'Entrega acuerdo de compromiso',
+        'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
+        'Análisis y cronograma',
+        'Registro (completo)', 'ET (completo)', 'CO (completo)', 'DD (completo)', 'REC (completo)',
+        'SERVICIO (completo)',
+        'Estándares (fecha programada)', 'Estándares',
+        'Fecha de publicación programada', 'Publicación',
+        'Plazo de oficio de cierre', 'Fecha de oficio de cierre',
+        'Estado', 'Observación', 'Porcentaje Avance'
+    ]
+    
+    # Verificar que todas las columnas existan
+    columnas_mostrar_existentes = [col for col in columnas_mostrar if col in df_filtrado.columns]
+    df_mostrar = df_filtrado[columnas_mostrar_existentes].copy()
+    
+    # Aplicar formato a las fechas
+    columnas_fecha = [
+        'Suscripción acuerdo de compromiso', 'Entrega acuerdo de compromiso',
+        'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
+        'Análisis y cronograma', 'Estándares (fecha programada)', 'Estándares',
+        'Fecha de publicación programada', 'Publicación',
+        'Plazo de oficio de cierre', 'Fecha de oficio de cierre'
+    ]
+    
+    for col in columnas_fecha:
+        if col in df_mostrar.columns:
+            df_mostrar[col] = df_mostrar[col].apply(lambda x: formatear_fecha(x) if es_fecha_valida(x) else "")
+    
+    # Mostrar dataframe con formato
+    st.dataframe(
+        df_mostrar
+        .style.format({'Porcentaje Avance': '{:.2f}%'})
+        .apply(highlight_estado_fechas, axis=1)
+        .background_gradient(cmap='RdYlGn', subset=['Porcentaje Avance']),
+        use_container_width=True
+    )
+    
+    # Botón para descargar reporte
+    st.markdown("### Descargar Reporte")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Descargar como Excel
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df_mostrar.to_excel(writer, sheet_name='Reporte Filtrado', index=False)
+
+        excel_data = output.getvalue()
+        st.download_button(
+            label="Descargar reporte como Excel",
+            data=excel_data,
+            file_name=f"reporte_registros_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            help="Descarga el reporte filtrado en formato Excel"
+        )
+    
+    with col2:
+        # Descargar como CSV
+        csv = df_mostrar.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="Descargar reporte como CSV",
+            data=csv,
+            file_name=f"reporte_registros_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv",
+            help="Descarga el reporte filtrado en formato CSV"
+        )
+    
+    # Información adicional sobre los filtros aplicados
+    filtros_aplicados = []
+    if tipo_dato_filtro != 'Todos':
+        filtros_aplicados.append(f"Tipo de Dato: {tipo_dato_filtro}")
+    if acuerdo_filtro != 'Todos':
+        filtros_aplicados.append(f"Acuerdo de Compromiso: {acuerdo_filtro}")
+    if analisis_filtro != 'Todos':
+        filtros_aplicados.append(f"Análisis y Cronograma: {analisis_filtro}")
+    if estandares_filtro != 'Todos':
+        filtros_aplicados.append(f"Estándares: {estandares_filtro}")
+    if publicacion_filtro != 'Todos':
+        filtros_aplicados.append(f"Publicación: {publicacion_filtro}")
+    if finalizado_filtro != 'Todos':
+        filtros_aplicados.append(f"Finalizado: {finalizado_filtro}")
+    
+    if filtros_aplicados:
+        st.info(f"**Filtros aplicados:** {', '.join(filtros_aplicados)}")
+    else:
+        st.info("**Mostrando todos los registros** (sin filtros aplicados)")
+
+# ========== FUNCIÓN DIAGNÓSTICO ==========
 
 def mostrar_diagnostico(registros_df, meta_df, metas_nuevas_df, metas_actualizar_df, df_filtrado):
     """Muestra la sección de diagnóstico con análisis detallado de los datos - VERSIÓN COMPLETA."""
-    with st.expander("🔍 Diagnóstico de Datos"):
+    with st.expander("Diagnóstico de Datos"):
         st.markdown("### Diagnóstico de Datos")
         st.markdown("Esta sección proporciona un diagnóstico detallado de los datos cargados desde Google Sheets.")
 
@@ -1878,35 +1370,45 @@ def mostrar_diagnostico(registros_df, meta_df, metas_nuevas_df, metas_actualizar
                 st.metric("Registros a Actualizar",
                           len(registros_df[registros_df['TipoDato'].str.upper() == 'ACTUALIZAR']))
 
-        st.success("✅ Diagnóstico completo disponible")
+        st.success("Diagnóstico completo disponible")
+
+# ========== FUNCIÓN AYUDA ==========
 
 def mostrar_ayuda():
     """Muestra la sección de ayuda con información sobre el uso del tablero - VERSIÓN COMPLETA."""
-    with st.expander("❓ Ayuda"):
+    with st.expander("Ayuda"):
         st.markdown("### Ayuda del Tablero de Control")
         st.markdown("""
-        Este tablero de control permite visualizar y gestionar el seguimiento de cronogramas de datos temáticos con **persistencia permanente en Google Sheets**.
+        Este tablero de control permite visualizar y gestionar el seguimiento de cronogramas con **persistencia permanente en Google Sheets**.
 
-        #### 📊 Navegación
+        #### Características Principales
+        - **Datos sincronizados en tiempo real** con Google Sheets
+        - **Respaldo automático** de cada cambio
+        - **Colaboración simultánea** de múltiples usuarios
+        - **Acceso desde cualquier dispositivo**
+        - **Edición completa y detallada** de todos los campos
+        - **Validaciones automáticas** y cálculo de plazos
+
+        #### Navegación
         - **Dashboard**: Métricas generales, comparación con metas y diagrama de Gantt
         - **Edición de Registros**: Edición individual completa con todas las secciones
         - **Alertas de Vencimientos**: Seguimiento de fechas críticas con análisis detallado
         - **Reportes**: Análisis avanzados con filtros personalizados
 
-        #### 🔧 Funcionalidades Google Sheets
+        #### Funcionalidades Google Sheets
         - **Carga desde Excel**: Sube archivos Excel para sincronizar automáticamente
         - **Descarga completa**: Exporta todos los datos en formato Excel
         - **Backup automático**: Cada cambio crea una copia de seguridad
         - **Edición directa**: También puedes editar directamente en Google Sheets
 
-        #### 💾 Guardado Automático
+        #### Guardado Automático
         Los cambios se guardan automáticamente en Google Sheets al:
         - Modificar cualquier campo de fecha
         - Cambiar estados o valores de estándares
         - Aplicar validaciones de reglas de negocio
         - Calcular plazos automáticamente
 
-        #### 🔄 Validaciones Automáticas Restauradas
+        #### Validaciones Automáticas Restauradas
         - **Acuerdo de compromiso**: Se actualiza automáticamente al ingresar fechas
         - **Análisis y cronograma**: Campos dependientes se actualizan automáticamente
         - **Estándares**: Campos no completados se marcan como "No aplica" al ingresar fecha
@@ -1914,24 +1416,26 @@ def mostrar_ayuda():
         - **Oficio de cierre**: Estado se cambia a "Completado" y avance al 100%
         - **Plazos**: Se calculan automáticamente basados en días hábiles
 
-        #### 📅 Cálculo de Plazos Automático
+        #### Cálculo de Plazos Automático
         - **Plazo de análisis**: 5 días hábiles después de fecha de entrega
         - **Plazo de cronograma**: 3 días hábiles después del plazo de análisis
         - **Plazo de oficio de cierre**: 7 días hábiles después de publicación
         - **Considera**: Fines de semana y festivos colombianos
 
-        #### 📊 Nuevas Mejoras
+        #### Nuevas Mejoras
         - **Gradiente de metas mejorado**: Colores de rojo a verde oscuro (0-100%), verde oscuro para >100%
         - **Diagrama de Gantt condicional**: Solo se muestra cuando hay filtros específicos aplicados
         - **Mensaje informativo**: Guía al usuario a seleccionar filtros para ver el Gantt
 
-        #### 🆘 Soporte
+        #### Soporte
         Para configuración inicial o problemas técnicos:
-        - 📋 Consulta las [Instrucciones de Configuración](https://github.com/tu-repo/INSTRUCCIONES_CONFIGURACION.md)
-        - 🔧 Usa el panel "Configuración Google Sheets" en la barra lateral
-        - 🔄 Utiliza el botón "Reconectar" si hay problemas de conexión
-        - 💾 Todos los cambios se guardan automáticamente en Google Sheets
+        - Consulta las [Instrucciones de Configuración](https://github.com/tu-repo/INSTRUCCIONES_CONFIGURACION.md)
+        - Usa el panel "Configuración Google Sheets" en la barra lateral
+        - Utiliza el botón "Reconectar" si hay problemas de conexión
+        - Todos los cambios se guardan automáticamente en Google Sheets
         """)
+
+# ========== FUNCIÓN PRINCIPAL ==========
 
 def main():
     """Función principal completamente restaurada con todas las funcionalidades y modificaciones."""
@@ -1952,18 +1456,18 @@ def main():
         load_css()
 
         # ===== TÍTULO Y ESTADO =====
-        st.markdown('<div class="title">📊 Tablero de Control de Seguimiento de Cronogramas</div>',
+        st.markdown('<div class="title">Tablero de Control de Seguimiento de Cronogramas</div>',
                     unsafe_allow_html=True)
         
         # Mostrar estado de Google Sheets
-        st.markdown("### 🔗 Estado de Google Sheets")
+        st.markdown("### Estado de Google Sheets")
         col1, col2 = st.columns([3, 1])
         
         with col1:
-            st.info("🔄 Datos sincronizados con Google Sheets en tiempo real")
+            st.info("Datos sincronizados con Google Sheets en tiempo real")
         
         with col2:
-            if st.button("🔄 Reconectar"):
+            if st.button("Reconectar"):
                 # Limpiar cache y reconectar
                 if 'sheets_manager' in st.session_state:
                     del st.session_state.sheets_manager
@@ -1981,7 +1485,7 @@ def main():
         st.sidebar.markdown("""
         <div class="info-box">
         <p><strong>Tablero de Control de Cronogramas</strong></p>
-        <p><strong>✅ VERSIÓN COMPLETA CON MEJORAS</strong></p>
+        <p><strong>VERSIÓN COMPLETA CON MEJORAS</strong></p>
         <p>• Gradiente de metas mejorado (rojo a verde)</p>
         <p>• Diagrama de Gantt condicional</p>
         <p>• Edición detallada de todos los campos</p>
@@ -1994,23 +1498,23 @@ def main():
         """, unsafe_allow_html=True)
 
         # ===== CARGA DE DATOS =====
-        with st.spinner("📊 Cargando datos desde Google Sheets..."):
+        with st.spinner("Cargando datos desde Google Sheets..."):
             registros_df, meta_df = cargar_datos()
 
         # Verificar si los DataFrames están vacíos
         if registros_df.empty:
-            st.warning("⚠️ No hay datos de registros en Google Sheets.")
+            st.warning("No hay datos de registros en Google Sheets.")
             
             # Opciones para el usuario
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.markdown("**📁 Subir Excel**")
+                st.markdown("**Subir Excel**")
                 st.markdown("Usar el panel lateral para cargar datos")
             with col2:
-                st.markdown("**➕ Editar Google Sheets**")
+                st.markdown("**Editar Google Sheets**")
                 st.markdown("Agregar datos directamente en la hoja")
             with col3:
-                st.markdown("**🔧 Configurar**")
+                st.markdown("**Configurar**")
                 st.markdown("Verificar credenciales y permisos")
             
             # Crear estructura mínima para que la app funcione
@@ -2022,7 +1526,7 @@ def main():
                 'Funcionario', 'Frecuencia actualizacion ', 'Estado', 'Observación'
             ])
         else:
-            st.success(f"✅ {len(registros_df)} registros cargados exitosamente desde Google Sheets")
+            st.success(f"{len(registros_df)} registros cargados exitosamente desde Google Sheets")
 
         # ===== ASEGURAR COLUMNAS REQUERIDAS =====
         columnas_requeridas = [
@@ -2052,7 +1556,7 @@ def main():
                 registros_df[columna] = ''
 
         # ===== APLICAR VALIDACIONES Y CÁLCULOS =====
-        with st.spinner("🔧 Aplicando validaciones y calculando plazos..."):
+        with st.spinner("Aplicando validaciones y calculando plazos..."):
             # Aplicar reglas de negocio
             registros_df = validar_reglas_negocio(registros_df)
 
@@ -2069,35 +1573,35 @@ def main():
         registros_df['Estado Fechas'] = registros_df.apply(verificar_estado_fechas, axis=1)
 
         # ===== MOSTRAR VALIDACIONES (RESTAURADO) =====
-        with st.expander("🔍 Validación de Reglas de Negocio"):
+        with st.expander("Validación de Reglas de Negocio"):
             st.markdown("### Estado de Validaciones")
             st.info("""
             **Reglas aplicadas automáticamente:**
-            1. ✅ Si 'Entrega acuerdo de compromiso' no está vacío → 'Acuerdo de compromiso' = SI
-            2. ✅ Si 'Análisis y cronograma' tiene fecha → 'Análisis de información' = SI
-            3. ✅ Al introducir fecha en 'Estándares' → campos no completos = "No aplica"
-            4. ✅ Si introduce fecha en 'Publicación' → 'Disponer datos temáticos' = SI
-            5. ✅ Para 'Fecha de oficio de cierre' → requiere etapa de Publicación completada
-            6. ✅ Al introducir 'Fecha de oficio de cierre' → Estado = "Completado" y avance = 100%
-            7. ✅ Plazos calculados automáticamente considerando días hábiles y festivos
+            1. Si 'Entrega acuerdo de compromiso' no está vacío → 'Acuerdo de compromiso' = SI
+            2. Si 'Análisis y cronograma' tiene fecha → 'Análisis de información' = SI
+            3. Al introducir fecha en 'Estándares' → campos no completos = "No aplica"
+            4. Si introduce fecha en 'Publicación' → 'Disponer datos temáticos' = SI
+            5. Para 'Fecha de oficio de cierre' → requiere etapa de Publicación completada
+            6. Al introducir 'Fecha de oficio de cierre' → Estado = "Completado" y avance = 100%
+            7. Plazos calculados automáticamente considerando días hábiles y festivos
             
-            **🆕 Nuevas mejoras implementadas:**
-            8. ✅ Gradiente de metas mejorado: rojo (0%) → verde oscuro (100%+)
-            9. ✅ Diagrama de Gantt condicional: solo con filtros específicos
+            **Nuevas mejoras implementadas:**
+            8. Gradiente de metas mejorado: rojo (0%) → verde oscuro (100%+)
+            9. Diagrama de Gantt condicional: solo con filtros específicos
             """)
             mostrar_estado_validaciones(registros_df, st)
 
         # ===== CREAR PESTAÑAS =====
         tab1, tab2, tab3, tab4 = st.tabs([
-            "📊 Dashboard", 
-            "✏️ Edición de Registros", 
-            "⚠️ Alertas de Vencimientos", 
-            "📋 Reportes"
+            "Dashboard", 
+            "Edición de Registros", 
+            "Alertas de Vencimientos", 
+            "Reportes"
         ])
      
         # ===== TAB 1: DASHBOARD (COMPLETO RESTAURADO CON MODIFICACIONES) =====
         with tab1:
-            st.markdown("### 🔍 Filtros")
+            st.markdown("### Filtros")
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
@@ -2161,7 +1665,7 @@ def main():
 
         # ===== TAB 4: REPORTES (FUNCIONALIDAD COMPLETA RESTAURADA) =====
         with tab4:
-            st.markdown("### 🔍 Filtros de Reportes")
+            st.markdown("### Filtros de Reportes")
             
             # Primera fila de filtros
             col1, col2, col3 = st.columns(3)
@@ -2209,28 +1713,28 @@ def main():
 
         # ===== FOOTER CON INFORMACIÓN =====
         st.markdown("---")
-        st.markdown("### 📊 Resumen del Sistema")
+        st.markdown("### Resumen del Sistema")
         
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.metric("📝 Total Campos", len(registros_df.columns))
+            st.metric("Total Campos", len(registros_df.columns))
         
         with col2:
             total_con_funcionario = len(registros_df[registros_df['Funcionario'].notna() & (registros_df['Funcionario'] != '')])
-            st.metric("👥 Con Funcionario", total_con_funcionario)
+            st.metric("Con Funcionario", total_con_funcionario)
         
         with col3:
             en_proceso = len(registros_df[registros_df['Estado'].isin(['En proceso', 'En proceso oficio de cierre'])])
-            st.metric("⚙️ En Proceso", en_proceso)
+            st.metric("En Proceso", en_proceso)
         
         with col4:
             ultima_actualizacion = datetime.now().strftime("%d/%m/%Y %H:%M")
-            st.metric("🔄 Última Actualización", ultima_actualizacion)
+            st.metric("Última Actualización", ultima_actualizacion)
 
         # Información de versión CON MEJORAS
         st.info("""
-        🎉 **Tablero de Control - Versión Completa con Mejoras**
+        **Tablero de Control - Versión Completa con Mejoras**
         
         ✅ Todas las funcionalidades de edición han sido restauradas
         ✅ Sistema de validaciones completo
@@ -2240,27 +1744,27 @@ def main():
         ✅ Alertas de vencimiento detalladas
         ✅ Reportes avanzados con filtros
         
-        🆕 **Mejoras Implementadas:**
+        **Mejoras Implementadas:**
         ✅ Gradiente de metas mejorado: rojo (0%) → verde oscuro (100%+)
         ✅ Diagrama de Gantt condicional: se muestra solo con filtros específicos
         ✅ Mensaje informativo para guiar al usuario sobre el Gantt
         """)
 
     except Exception as e:
-        st.error(f"❌ Error crítico: {str(e)}")
+        st.error(f"Error crítico: {str(e)}")
         
         # Información detallada del error para debugging
         import traceback
-        with st.expander("🔍 Detalles del Error (para debugging)"):
+        with st.expander("Detalles del Error (para debugging)"):
             st.code(traceback.format_exc())
         
-        st.markdown("### 🆘 Solución de Problemas")
+        st.markdown("### Solución de Problemas")
         
         col1, col2 = st.columns(2)
         
         with col1:
             st.markdown("""
-            **🔧 Problemas Comunes:**
+            **Problemas Comunes:**
             - Configuración de Google Sheets incorrecta
             - Credenciales faltantes o incorrectas
             - Estructura de datos incorrecta en Google Sheets
@@ -2269,7 +1773,7 @@ def main():
         
         with col2:
             st.markdown("""
-            **🔄 Acciones Recomendadas:**
+            **Acciones Recomendadas:**
             - Usar el botón "Reconectar" arriba
             - Verificar configuración en el panel lateral
             - Revisar permisos del service account
@@ -2277,7 +1781,7 @@ def main():
             """)
         
         # Botón de recuperación
-        if st.button("🔄 Intentar Recuperación", type="primary"):
+        if st.button("Intentar Recuperación", type="primary"):
             # Limpiar estado y recargar
             for key in list(st.session_state.keys()):
                 if key.startswith(('sheets_', 'registros_', 'meta_')):
