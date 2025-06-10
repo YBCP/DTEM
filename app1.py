@@ -1884,15 +1884,7 @@ def mostrar_ayuda():
     with st.expander("❓ Ayuda"):
         st.markdown("### Ayuda del Tablero de Control")
         st.markdown("""
-        Este tablero de control permite visualizar y gestionar el seguimiento de cronogramas con **persistencia permanente en Google Sheets**.
-
-        #### 🔗 Características Principales
-        - **✅ Datos sincronizados en tiempo real** con Google Sheets
-        - **🔒 Respaldo automático** de cada cambio
-        - **👥 Colaboración simultánea** de múltiples usuarios
-        - **📱 Acceso desde cualquier dispositivo**
-        - **🔧 Edición completa y detallada** de todos los campos
-        - **⚡ Validaciones automáticas** y cálculo de plazos
+        Este tablero de control permite visualizar y gestionar el seguimiento de cronogramas de datos temáticos con **persistencia permanente en Google Sheets**.
 
         #### 📊 Navegación
         - **Dashboard**: Métricas generales, comparación con metas y diagrama de Gantt
