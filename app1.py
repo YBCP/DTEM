@@ -2045,7 +2045,7 @@ def main():
         load_css()
 
         # ===== TÍTULO Y ESTADO =====
-        st.markdown('<div class="title">📊 Tablero de Control de Seguimiento de Cronogramas</div>',
+        st.markdown('<div class="title">📊 Dashboard de Seguimiento a Datos Temáticos - Ideca</div>',
                     unsafe_allow_html=True)
         
         # Mostrar estado de Google Sheets
