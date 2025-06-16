@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 import streamlit as st
 import pandas as pd
@@ -72,7 +73,7 @@ def fecha_desde_selector_a_string(fecha):
 def mostrar_configuracion_sheets():
     """Muestra la configuración y estado de Google Sheets"""
     with st.sidebar.expander("Configuración Google Sheets", expanded=False):
-        st.markdown("### Estado de Conexión"
+        st.markdown("### Estado de Conexión")
         
         if st.button("Probar Conexión", help="Verifica la conexión con Google Sheets"):
             with st.spinner("Probando conexión..."):
