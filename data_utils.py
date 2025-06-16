@@ -55,9 +55,9 @@ def cargar_datos():
         # Intentar cargar desde Google Sheets primero
         sheets_manager = get_sheets_manager()
         
-        # Lista de columnas requeridas para asegurar que existan
+        # Lista de columnas requeridas para asegurar que existan (CON MES PROYECTADO)
         columnas_requeridas = [
-            'Cod', 'Entidad', 'TipoDato', 'Nivel Información ',
+            'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
             'Acuerdo de compromiso', 'Análisis y cronograma',
             'Estándares', 'Publicación', 'Fecha de entrega de información',
             'Plazo de análisis', 'Plazo de cronograma', 'Plazo de oficio de cierre'
@@ -121,9 +121,9 @@ def cargar_datos():
         st.error(f"❌ Error general al cargar los datos: {e}")
         st.info("🔄 Cargando estructura mínima para que la aplicación funcione...")
         
-        # Crear DataFrames mínimos como último recurso
+        # Crear DataFrames mínimos como último recurso (CON MES PROYECTADO)
         registros_df = pd.DataFrame(columns=[
-            'Cod', 'Entidad', 'TipoDato', 'Nivel Información ',
+            'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
             'Acuerdo de compromiso', 'Análisis y cronograma',
             'Estándares', 'Publicación', 'Fecha de entrega de información',
             'Plazo de análisis', 'Plazo de cronograma', 'Plazo de oficio de cierre'
@@ -339,13 +339,6 @@ def calcular_porcentaje_avance(registro):
             pd.notna(registro['Análisis y cronograma']) and
             str(registro['Análisis y cronograma']).strip() != ''):
             avance += 20
-
-        # Verificar estándares - VERIFICADO: basado en la fecha (30%)
-        if ('Estándares' in registro and 
-            registro['Estándares'] and 
-            pd.notna(registro['Estándares']) and
-            str(registro['Estándares']).strip() != ''):
-            avance += 30
 
         # Verificar publicación - VERIFICADO: basado en la fecha (25%)
         if ('Publicación' in registro and 
