@@ -1524,8 +1524,8 @@ def mostrar_alertas_vencimientos(registros_df):
             else:
                 st.warning("⚠️ Sesión no administrativa - Carga de datos restringida")
     
-        except Exception as e:
-            st.error(f"Error crítico: {str(e)}")
+            except Exception as e:
+                st.error(f"Error crítico: {str(e)}")
             
             # Información detallada del error para debugging
             import traceback
