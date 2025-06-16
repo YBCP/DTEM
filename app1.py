@@ -71,8 +71,8 @@ def fecha_desde_selector_a_string(fecha):
 
 def mostrar_configuracion_sheets():
     """Muestra la configuración y estado de Google Sheets"""
-    with st.sidebar.expander("Configuración Google Sheets"):
-        st.markdown("### Estado de Conexión")
+    with st.sidebar.expander("Configuración Google Sheets", expanded=False):
+        st.markdown("### Estado de Conexión"
         
         if st.button("Probar Conexión", help="Verifica la conexión con Google Sheets"):
             with st.spinner("Probando conexión..."):
@@ -99,7 +99,7 @@ def cargar_datos_desde_excel_autenticado(uploaded_file):
 
 def mostrar_carga_archivos():
     """Muestra la sección de carga de archivos Excel/CSV con autenticación"""
-    with st.sidebar.expander("🔒 Cargar Datos desde Excel (Admin)"):
+    with st.sidebar.expander("🔒 Cargar Datos desde Excel (Admin)", expanded=False):
         st.markdown("### Subir Archivo Excel")
         
         if not verificar_autenticacion():
@@ -895,9 +895,9 @@ def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_fi
                 (df_filtrado['Fecha de oficio de cierre'] == '')
             ]
     
-    # NUEVO FILTRO: Mes Proyectado
+    # FILTRO: Mes Programado
     if mes_filtro != 'Todos':
-        df_filtrado = df_filtrado[df_filtrado['Mes Proyectado'] == mes_filtro]
+        df_filtrado = df_filtrado[df_filtrado['Mes Programado'] == mes_filtro]
     
     # Mostrar estadísticas del filtrado
     st.markdown("### Resumen de Registros Filtrados")
@@ -1051,7 +1051,7 @@ def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_fi
     if finalizado_filtro != 'Todos':
         filtros_aplicados.append(f"Finalizado: {finalizado_filtro}")
     if mes_filtro != 'Todos':
-        filtros_aplicados.append(f"Mes Proyectado: {mes_filtro}")
+        filtros_aplicados.append(f"Mes Programado: {mes_filtro}")
     
     if filtros_aplicados:
         st.info(f"**Filtros aplicados:** {', '.join(filtros_aplicados)}")
@@ -1293,12 +1293,12 @@ def main():
                 analisis_filtro = st.selectbox('Análisis y Cronograma', analisis_opciones, key="reporte_analisis")
             
             with col4:
-                # NUEVO FILTRO: Mes Proyectado
+                # FILTRO: Mes Programado
                 meses_disponibles = ['Todos']
-                if 'Mes Proyectado' in registros_df.columns:
-                    meses_unicos = [m for m in registros_df['Mes Proyectado'].dropna().unique().tolist() if m]
+                if 'Mes Programado' in registros_df.columns:
+                    meses_unicos = [m for m in registros_df['Mes Programado'].dropna().unique().tolist() if m]
                     meses_disponibles += sorted(meses_unicos)
-                mes_filtro = st.selectbox('Mes Proyectado', meses_disponibles, key="reporte_mes")
+                mes_filtro = st.selectbox('Mes Programado', meses_disponibles, key="reporte_mes")
             
             # Segunda fila de filtros
             col5, col6, col7 = st.columns(3)
