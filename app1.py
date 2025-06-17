@@ -836,14 +836,49 @@ def mostrar_edicion_registros(registros_df):
 
 # ========== FUNCIÓN DASHBOARD MODIFICADA ==========
 
-# Modificación en la función mostrar_dashboard() de app1.py
-# Modificación en la función mostrar_dashboard() de app1.py
-
 def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registros_df, 
                      entidad_seleccionada, funcionario_seleccionado, nivel_seleccionado):
     """Muestra el dashboard principal con métricas y gráficos - VERSIÓN COMPLETA RESTAURADA CON MODIFICACIONES."""
-    
-    # ... [todo el código anterior hasta la comparación con metas se mantiene igual] ...
+    # Mostrar métricas generales
+    st.markdown('<div class="subtitle">Métricas Generales</div>', unsafe_allow_html=True)
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        total_registros = len(df_filtrado)
+        st.markdown(f"""
+        <div class="metric-card">
+            <p style="font-size: 1rem; color: #64748b;">Total Registros</p>
+            <p style="font-size: 2.5rem; font-weight: bold; color: #1E40AF;">{total_registros}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        avance_promedio = df_filtrado['Porcentaje Avance'].mean() if not df_filtrado.empty else 0
+        st.markdown(f"""
+        <div class="metric-card">
+            <p style="font-size: 1rem; color: #64748b;">Avance Promedio</p>
+            <p style="font-size: 2.5rem; font-weight: bold; color: #047857;">{avance_promedio:.2f}%</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col3:
+        registros_completados = len(df_filtrado[df_filtrado['Porcentaje Avance'] == 100])
+        st.markdown(f"""
+        <div class="metric-card">
+            <p style="font-size: 1rem; color: #64748b;">Registros Completados</p>
+            <p style="font-size: 2.5rem; font-weight: bold; color: #B45309;">{registros_completados}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col4:
+        porcentaje_completados = (registros_completados / total_registros * 100) if total_registros > 0 else 0
+        st.markdown(f"""
+        <div class="metric-card">
+            <p style="font-size: 1rem; color: #64748b;">% Completados</p>
+            <p style="font-size: 2.5rem; font-weight: bold; color: #BE185D;">{porcentaje_completados:.2f}%</p>
+        </div>
+        """, unsafe_allow_html=True)
 
     # Comparación con metas
     st.markdown('<div class="subtitle">Comparación con Metas Quincenales</div>', unsafe_allow_html=True)
@@ -855,10 +890,34 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
     # Mostrar fecha de la meta
     st.markdown(f"**Meta más cercana a la fecha actual: {fecha_meta.strftime('%d/%m/%Y')}**")
 
-    # CAMBIO: Función para crear visualización estilo Opción 3
+    # MODIFICACIÓN 1: Crear función para gradiente personalizado
+    def crear_gradiente_personalizado(df_comparacion):
+        """Crea un gradiente personalizado de rojo a verde oscuro para porcentajes 0-100, verde oscuro para >100"""
+        def aplicar_color(val):
+            if pd.isna(val):
+                return ''
+            if val <= 0:
+                return 'background-color: #dc2626; color: white'  # Rojo intenso
+            elif val <= 25:
+                return 'background-color: #ef4444; color: white'  # Rojo
+            elif val <= 50:
+                return 'background-color: #f97316; color: white'  # Naranja
+            elif val <= 75:
+                return 'background-color: #eab308; color: black'  # Amarillo
+            elif val < 100:
+                return 'background-color: #84cc16; color: black'  # Verde claro
+            else:  # val >= 100
+                return 'background-color: #166534; color: white'  # Verde oscuro
+        
+        return df_comparacion.style.format({
+            'Porcentaje': '{:.2f}%'
+        }).applymap(aplicar_color, subset=['Porcentaje'])
+
+    # Función para crear visualización estilo Opción 3
     def crear_visualizacion_barras_cumplimiento(df_comparacion, titulo, tipo_registro):
         """Crea visualización de barras con indicador de cumplimiento (Opción 3)"""
-        st.markdown(f"### {titulo}")
+        if titulo:
+            st.markdown(f"#### {titulo}")
         
         # Crear HTML personalizado para las barras de cumplimiento
         html_content = ""
@@ -940,7 +999,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         </div>
         """, unsafe_allow_html=True)
 
-    # CAMBIO: Conservar las tablas existentes y solo reemplazar los gráficos
+    # Mostrar comparación en dos columnas
     col1, col2 = st.columns(2)
 
     with col1:
@@ -988,10 +1047,6 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
                 color_discrete_map={'Completados': '#4B5563', 'Meta': '#047857'}
             )
             st.plotly_chart(fig_actualizar, use_container_width=True)
-
-    # ... [resto del código de la función se mantiene igual] ...
-
-  
 
     # MODIFICACIÓN 2: Diagrama de Gantt condicionado
     st.markdown('<div class="subtitle">Diagrama de Gantt - Cronograma de Hitos por Nivel de Información</div>',
@@ -1115,7 +1170,6 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         st.error(f"Error al mostrar la tabla de registros: {e}")
         if 'columnas_mostrar_existentes' in locals():
             st.dataframe(df_filtrado[columnas_mostrar_existentes])
-
 # ========== FUNCIÓN ALERTAS COMPLETA RESTAURADA ==========
 
 def mostrar_alertas_vencimientos(registros_df):
