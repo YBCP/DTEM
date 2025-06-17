@@ -1866,6 +1866,8 @@ def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_fi
 
 # ========== FUNCIÓN PRINCIPAL ==========
 
+# Cambio en la función main() de app1.py
+
 def main():
     """Función principal de la aplicación"""
     try:
@@ -1881,31 +1883,10 @@ def main():
         if 'mensaje_guardado' not in st.session_state:
             st.session_state.mensaje_guardado = None
 
-        # ===== TÍTULO Y ESTADO =====
+        # ===== TÍTULO =====
         st.markdown('<div class="title">🔐 Tablero de Control de Seguimiento de Datos Temáticos - Ideca</div>',
                     unsafe_allow_html=True)
         
-        # Mostrar estado de Google Sheets y autenticación
-        # CAMBIO: Convertir "Estado del Sistema" en un expander colapsable
-        with st.expander("Estado del Sistema"):
-            col1, col2, col3 = st.columns([2, 2, 1])
-            
-            with col1:
-                st.info("📊 Datos sincronizados con Google Sheets en tiempo real")
-            
-            with col2:
-                if verificar_autenticacion():
-                    st.success("🔐 Sesión administrativa activa")
-                else:
-                    st.warning("⚠️ Sesión no administrativa")
-            
-            with col3:
-                if st.button("🔄 Reconectar"):
-                    # Limpiar cache y reconectar
-                    if 'sheets_manager' in st.session_state:
-                        del st.session_state.sheets_manager
-                    st.rerun()
-
         # ===== SIDEBAR CON AUTENTICACIÓN =====
         # Sistema de autenticación
         mostrar_login()
@@ -1937,24 +1918,48 @@ def main():
         </div>
         """, unsafe_allow_html=True)
 
-        # ===== CARGA DE DATOS =====
-        with st.spinner("Cargando datos desde Google Sheets..."):
-            registros_df, meta_df = cargar_datos()
-
-        # Verificar si los DataFrames están vacíos
-        if registros_df.empty:
-            st.warning("No hay datos de registros en Google Sheets.")
+        # CAMBIO: Mover la carga de datos dentro del expander "Estado del Sistema"
+        with st.expander("Estado del Sistema"):
+            # Estado de conexión y autenticación
+            col1, col2, col3 = st.columns([2, 2, 1])
             
-            # Crear estructura mínima para que la app funcione
-            registros_df = pd.DataFrame(columns=[
-                'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
-                'Acuerdo de compromiso', 'Análisis y cronograma',
-                'Estándares', 'Publicación', 'Fecha de entrega de información',
-                'Plazo de análisis', 'Plazo de cronograma', 'Plazo de oficio de cierre',
-                'Funcionario', 'Frecuencia actualizacion ', 'Estado', 'Observación'
-            ])
-        else:
-            st.success(f"✅ {len(registros_df)} registros cargados exitosamente desde Google Sheets")
+            with col1:
+                st.info("📊 Datos sincronizados con Google Sheets en tiempo real")
+            
+            with col2:
+                if verificar_autenticacion():
+                    st.success("🔐 Sesión administrativa activa")
+                else:
+                    st.warning("⚠️ Sesión no administrativa")
+            
+            with col3:
+                if st.button("🔄 Reconectar"):
+                    # Limpiar cache y reconectar
+                    if 'sheets_manager' in st.session_state:
+                        del st.session_state.sheets_manager
+                    st.rerun()
+            
+            # CAMBIO: Mover aquí la carga de datos
+            st.markdown("---")
+            st.markdown("**Carga de Datos:**")
+            
+            with st.spinner("Cargando datos desde Google Sheets..."):
+                registros_df, meta_df = cargar_datos()
+
+            # Verificar si los DataFrames están vacíos
+            if registros_df.empty:
+                st.warning("No hay datos de registros en Google Sheets.")
+                
+                # Crear estructura mínima para que la app funcione
+                registros_df = pd.DataFrame(columns=[
+                    'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
+                    'Acuerdo de compromiso', 'Análisis y cronograma',
+                    'Estándares', 'Publicación', 'Fecha de entrega de información',
+                    'Plazo de análisis', 'Plazo de cronograma', 'Plazo de oficio de cierre',
+                    'Funcionario', 'Frecuencia actualizacion ', 'Estado', 'Observación'
+                ])
+            else:
+                st.success(f"✅ {len(registros_df)} registros cargados exitosamente desde Google Sheets")
 
         # ===== ASEGURAR COLUMNAS REQUERIDAS =====
         columnas_requeridas = [
@@ -1970,15 +1975,14 @@ def main():
             if columna not in registros_df.columns:
                 registros_df[columna] = ''
 
-        # ===== APLICAR VALIDACIONES Y CÁLCULOS =====
-        with st.spinner("Aplicando validaciones y calculando plazos..."):
-            # Aplicar reglas de negocio
-            registros_df = validar_reglas_negocio(registros_df)
+        # ===== APLICAR VALIDACIONES Y CÁLCULOS (sin spinner visible) =====
+        # Aplicar reglas de negocio
+        registros_df = validar_reglas_negocio(registros_df)
 
-            # Actualizar plazos automáticamente
-            registros_df = actualizar_plazo_analisis(registros_df)
-            registros_df = actualizar_plazo_cronograma(registros_df)
-            registros_df = actualizar_plazo_oficio_cierre(registros_df)
+        # Actualizar plazos automáticamente
+        registros_df = actualizar_plazo_analisis(registros_df)
+        registros_df = actualizar_plazo_cronograma(registros_df)
+        registros_df = actualizar_plazo_oficio_cierre(registros_df)
 
         # Procesar las metas
         metas_nuevas_df, metas_actualizar_df = procesar_metas(meta_df)
