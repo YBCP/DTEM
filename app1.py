@@ -838,7 +838,8 @@ def mostrar_edicion_registros(registros_df):
 
 def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registros_df, 
                      entidad_seleccionada, funcionario_seleccionado, nivel_seleccionado):
-    """Muestra el dashboard principal con métricas y gráficos - VERSIÓN COMPLETA RESTAURADA CON MODIFICACIONES."""
+    """Muestra el dashboard principal con métricas y gráficos - VERSIÓN COMPLETA CON MEDIDORES CORREGIDOS."""
+    
     # Mostrar métricas generales
     st.markdown('<div class="subtitle">Métricas Generales</div>', unsafe_allow_html=True)
 
@@ -890,7 +891,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
     # Mostrar fecha de la meta
     st.markdown(f"**Meta más cercana a la fecha actual: {fecha_meta.strftime('%d/%m/%Y')}**")
 
-    # MODIFICACIÓN 1: Crear función para gradiente personalizado
+    # Función para gradiente personalizado
     def crear_gradiente_personalizado(df_comparacion):
         """Crea un gradiente personalizado de rojo a verde oscuro para porcentajes 0-100, verde oscuro para >100"""
         def aplicar_color(val):
@@ -1004,21 +1005,21 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
 
     with col1:
         st.markdown("### Registros Nuevos")
-        # CONSERVAR: La tabla con gradiente personalizado
+        # La tabla con gradiente personalizado
         st.dataframe(crear_gradiente_personalizado(comparacion_nuevos))
         
-        # CAMBIO: Reemplazar el gráfico de Plotly con la nueva visualización
+        # La nueva visualización de barras
         crear_visualizacion_barras_cumplimiento(comparacion_nuevos, "", "nuevos")
 
     with col2:
         st.markdown("### Registros a Actualizar")
-        # CONSERVAR: La tabla con gradiente personalizado
+        # La tabla con gradiente personalizado
         st.dataframe(crear_gradiente_personalizado(comparacion_actualizar))
         
-        # CAMBIO: Reemplazar el gráfico de Plotly con la nueva visualización
+        # La nueva visualización de barras
         crear_visualizacion_barras_cumplimiento(comparacion_actualizar, "", "actualizar")
 
-    # Medidores de Cumplimiento Trimestral
+    # ===== MEDIDORES DE CUMPLIMIENTO TRIMESTRAL - SECCIÓN CORREGIDA =====
     st.markdown('<div class="subtitle">Medidores de Cumplimiento Trimestral</div>', unsafe_allow_html=True)
     
     # Función para calcular publicados por trimestre
@@ -1026,26 +1027,29 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         """Calcula los publicados por trimestre para un tipo de dato específico"""
         # Filtrar por tipo de dato
         if tipo_dato.upper() == 'NUEVO':
-            df_filtrado = df_registros[df_registros['TipoDato'].str.upper() == 'NUEVO']
+            df_filtrado_tipo = df_registros[df_registros['TipoDato'].str.upper() == 'NUEVO']
         else:
-            df_filtrado = df_registros[df_registros['TipoDato'].str.upper() == 'ACTUALIZAR']
+            df_filtrado_tipo = df_registros[df_registros['TipoDato'].str.upper() == 'ACTUALIZAR']
         
         publicados_trimestre = {'Marzo': 0, 'Junio': 0, 'Septiembre': 0, 'Diciembre': 0}
         
-        for _, row in df_filtrado.iterrows():
+        for _, row in df_filtrado_tipo.iterrows():
             if 'Publicación' in row and pd.notna(row['Publicación']) and str(row['Publicación']).strip() != '':
-                fecha_pub = procesar_fecha(row['Publicación'])
-                if fecha_pub is not None:
-                    mes = fecha_pub.month
-                    # Agrupar por trimestres
-                    if mes <= 3:  # Enero-Marzo
-                        publicados_trimestre['Marzo'] += 1
-                    elif mes <= 6:  # Abril-Junio
-                        publicados_trimestre['Junio'] += 1
-                    elif mes <= 9:  # Julio-Septiembre
-                        publicados_trimestre['Septiembre'] += 1
-                    else:  # Octubre-Diciembre
-                        publicados_trimestre['Diciembre'] += 1
+                try:
+                    fecha_pub = procesar_fecha(row['Publicación'])
+                    if fecha_pub is not None:
+                        mes = fecha_pub.month
+                        # Agrupar por trimestres
+                        if mes <= 3:  # Enero-Marzo
+                            publicados_trimestre['Marzo'] += 1
+                        elif mes <= 6:  # Abril-Junio
+                            publicados_trimestre['Junio'] += 1
+                        elif mes <= 9:  # Julio-Septiembre
+                            publicados_trimestre['Septiembre'] += 1
+                        else:  # Octubre-Diciembre
+                            publicados_trimestre['Diciembre'] += 1
+                except Exception:
+                    continue
         
         return publicados_trimestre
     
@@ -1077,9 +1081,9 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         
         return metas_trimestre
     
-    # Función para crear medidores circulares
+    # Función para crear medidores circulares CORREGIDA
     def crear_medidor_circular(porcentaje, trimestre, completados, meta):
-        """Crea un medidor circular estilo gauge"""
+        """Crea un medidor circular estilo gauge - VERSIÓN CORREGIDA"""
         if porcentaje < 50:
             color = '#dc2626'
         elif porcentaje < 80:
@@ -1089,15 +1093,27 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         
         porcentaje_visual = min(porcentaje, 100)
         
+        # Calcular stroke-dashoffset correctamente
+        circumference = 2 * 3.14159 * 50  # 2πr donde r=50
+        dash_offset = circumference - (circumference * porcentaje_visual / 100)
+        
         html_medidor = f"""
-        <div style="text-align: center; margin: 10px;">
+        <div style="display: inline-block; text-align: center; margin: 10px; vertical-align: top; width: 140px;">
             <div style="position: relative; width: 120px; height: 120px; margin: 0 auto;">
                 <svg width="120" height="120" style="transform: rotate(-90deg);">
-                    <circle cx="60" cy="60" r="50" stroke="#e5e7eb" stroke-width="8" fill="none" />
-                    <circle cx="60" cy="60" r="50" stroke="{color}" stroke-width="8"
-                            stroke-dasharray="314.16"
-                            stroke-dashoffset="{314.16 - (314.16 * porcentaje_visual / 100)}"
-                            stroke-linecap="round" fill="none"
+                    <!-- Círculo de fondo -->
+                    <circle cx="60" cy="60" r="50" 
+                            stroke="#e5e7eb" 
+                            stroke-width="8" 
+                            fill="none" />
+                    <!-- Círculo de progreso -->
+                    <circle cx="60" cy="60" r="50" 
+                            stroke="{color}" 
+                            stroke-width="8"
+                            stroke-dasharray="{circumference}"
+                            stroke-dashoffset="{dash_offset}"
+                            stroke-linecap="round" 
+                            fill="none"
                             style="transition: stroke-dashoffset 1s ease-in-out;" />
                 </svg>
                 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
@@ -1132,7 +1148,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
     
         with col1:
             st.markdown("#### 📊 Registros Nuevos")
-            html_medidores_nuevos = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
+            html_medidores_nuevos = '<div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 5px;">'
             for trimestre in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']:
                 completados = publicados_nuevos.get(trimestre, 0)
                 meta = metas_nuevos_trim.get(trimestre, 1)
@@ -1143,7 +1159,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
     
         with col2:
             st.markdown("#### 🔄 Registros a Actualizar")
-            html_medidores_actualizar = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
+            html_medidores_actualizar = '<div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 5px;">'
             for trimestre in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']:
                 completados = publicados_actualizar.get(trimestre, 0)
                 meta = metas_actualizar_trim.get(trimestre, 1)
@@ -1165,8 +1181,8 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("####Registros Nuevos")
-            html_ejemplo_nuevos = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
+            st.markdown("#### 📊 Registros Nuevos")
+            html_ejemplo_nuevos = '<div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 5px;">'
             for trimestre, datos in datos_ejemplo.items():
                 porcentaje = (datos['nuevos'] / datos['meta_nuevos'] * 100)
                 html_ejemplo_nuevos += crear_medidor_circular(porcentaje, trimestre, datos['nuevos'], datos['meta_nuevos'])
@@ -1174,8 +1190,8 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
             st.markdown(html_ejemplo_nuevos, unsafe_allow_html=True)
     
         with col2:
-            st.markdown("####Registros a Actualizar")
-            html_ejemplo_actualizar = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
+            st.markdown("#### 🔄 Registros a Actualizar")
+            html_ejemplo_actualizar = '<div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 5px;">'
             for trimestre, datos in datos_ejemplo.items():
                 porcentaje = (datos['actualizar'] / datos['meta_actualizar'] * 100)
                 html_ejemplo_actualizar += crear_medidor_circular(porcentaje, trimestre, datos['actualizar'], datos['meta_actualizar'])
@@ -1186,10 +1202,10 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
     st.markdown("---")
     st.info("""
     **📋 Explicación de los Medidores Trimestrales:**
-    - **Marzo**: Publicados en el trimestre I
-    - **Junio**: Publicados en el trimestre II  
-    - **Septiembre**: Publicados en el trimestre III
-    - **Diciembre**: Publicados en el trimestre IV
+    - **Marzo**: Publicaciones de Enero - Marzo
+    - **Junio**: Publicaciones de Abril - Junio  
+    - **Septiembre**: Publicaciones de Julio - Septiembre
+    - **Diciembre**: Publicaciones de Octubre - Diciembre
     
     **🎯 Interpretación de Colores:**
     - 🟢 **Verde**: ≥80% de cumplimiento
@@ -1228,7 +1244,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
             st.info("Los datos de la tabla no están disponibles en este momento.")
              
                          
-    # MODIFICACIÓN 2: Diagrama de Gantt condicionado
+    # Diagrama de Gantt condicionado
     st.markdown('<div class="subtitle">Diagrama de Gantt - Cronograma de Hitos por Nivel de Información</div>',
                 unsafe_allow_html=True)
 
@@ -1350,6 +1366,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         st.error(f"Error al mostrar la tabla de registros: {e}")
         if 'columnas_mostrar_existentes' in locals():
             st.dataframe(df_filtrado[columnas_mostrar_existentes])
+            
 # ========== FUNCIÓN ALERTAS COMPLETA RESTAURADA ==========
 
 def mostrar_alertas_vencimientos(registros_df):
