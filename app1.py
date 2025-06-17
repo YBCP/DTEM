@@ -1018,36 +1018,6 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         # CAMBIO: Reemplazar el gráfico de Plotly con la nueva visualización
         crear_visualizacion_barras_cumplimiento(comparacion_actualizar, "", "actualizar")
 
-    # OPCIONAL: Mantener una versión más compacta de los gráficos originales para referencia
-    with st.expander("Ver Gráficos de Barras Tradicionales", expanded=False):
-        col1_exp, col2_exp = st.columns(2)
-        
-        with col1_exp:
-            st.markdown("#### Registros Nuevos - Vista Tradicional")
-            fig_nuevos = px.bar(
-                comparacion_nuevos.reset_index(),
-                x='index',
-                y=['Completados', 'Meta'],
-                barmode='group',
-                labels={'index': 'Hito', 'value': 'Cantidad', 'variable': 'Tipo'},
-                title='Comparación de Avance vs. Meta - Registros Nuevos',
-                color_discrete_map={'Completados': '#4B5563', 'Meta': '#1E40AF'}
-            )
-            st.plotly_chart(fig_nuevos, use_container_width=True)
-
-        with col2_exp:
-            st.markdown("#### Registros a Actualizar - Vista Tradicional")
-            fig_actualizar = px.bar(
-                comparacion_actualizar.reset_index(),
-                x='index',
-                y=['Completados', 'Meta'],
-                barmode='group',
-                labels={'index': 'Hito', 'value': 'Cantidad', 'variable': 'Tipo'},
-                title='Comparación de Avance vs. Meta - Registros a Actualizar',
-                color_discrete_map={'Completados': '#4B5563', 'Meta': '#047857'}
-            )
-            st.plotly_chart(fig_actualizar, use_container_width=True)
-
     # MODIFICACIÓN 2: Diagrama de Gantt condicionado
     st.markdown('<div class="subtitle">Diagrama de Gantt - Cronograma de Hitos por Nivel de Información</div>',
                 unsafe_allow_html=True)
