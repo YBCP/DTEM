@@ -837,6 +837,7 @@ def mostrar_edicion_registros(registros_df):
 # ========== FUNCIÓN DASHBOARD MODIFICADA ==========
 
 # Modificación en la función mostrar_dashboard() de app1.py
+# Modificación en la función mostrar_dashboard() de app1.py
 
 def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registros_df, 
                      entidad_seleccionada, funcionario_seleccionado, nivel_seleccionado):
@@ -939,14 +940,24 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         </div>
         """, unsafe_allow_html=True)
 
-    # CAMBIO: Usar la nueva visualización en lugar de los gráficos de Plotly
+    # CAMBIO: Conservar las tablas existentes y solo reemplazar los gráficos
     col1, col2 = st.columns(2)
 
     with col1:
-        crear_visualizacion_barras_cumplimiento(comparacion_nuevos, "Registros Nuevos", "nuevos")
+        st.markdown("### Registros Nuevos")
+        # CONSERVAR: La tabla con gradiente personalizado
+        st.dataframe(crear_gradiente_personalizado(comparacion_nuevos))
+        
+        # CAMBIO: Reemplazar el gráfico de Plotly con la nueva visualización
+        crear_visualizacion_barras_cumplimiento(comparacion_nuevos, "", "nuevos")
 
     with col2:
-        crear_visualizacion_barras_cumplimiento(comparacion_actualizar, "Registros a Actualizar", "actualizar")
+        st.markdown("### Registros a Actualizar")
+        # CONSERVAR: La tabla con gradiente personalizado
+        st.dataframe(crear_gradiente_personalizado(comparacion_actualizar))
+        
+        # CAMBIO: Reemplazar el gráfico de Plotly con la nueva visualización
+        crear_visualizacion_barras_cumplimiento(comparacion_actualizar, "", "actualizar")
 
     # OPCIONAL: Mantener una versión más compacta de los gráficos originales para referencia
     with st.expander("Ver Gráficos de Barras Tradicionales", expanded=False):
@@ -977,6 +988,8 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
                 color_discrete_map={'Completados': '#4B5563', 'Meta': '#047857'}
             )
             st.plotly_chart(fig_actualizar, use_container_width=True)
+
+    # ... [resto del código de la función se mantiene igual] ...
 
   
 
