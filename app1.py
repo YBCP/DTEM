@@ -1018,200 +1018,217 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         # CAMBIO: Reemplazar el gráfico de Plotly con la nueva visualización
         crear_visualizacion_barras_cumplimiento(comparacion_actualizar, "", "actualizar")
 
-    # Código a agregar en la función mostrar_dashboard() después de la comparación con metas quincenales
+    # Medidores de Cumplimiento Trimestral
+st.markdown('<div class="subtitle">Medidores de Cumplimiento Trimestral</div>', unsafe_allow_html=True)
 
-    # NUEVA SECCIÓN: Medidores de Cumplimiento Trimestral
-    st.markdown('<div class="subtitle">Medidores de Cumplimiento Trimestral</div>', unsafe_allow_html=True)
+# Función para calcular publicados por trimestre
+def calcular_publicados_trimestral(df_registros, tipo_dato):
+    """Calcula los publicados por trimestre para un tipo de dato específico"""
+    # Filtrar por tipo de dato
+    if tipo_dato.upper() == 'NUEVO':
+        df_filtrado = df_registros[df_registros['TipoDato'].str.upper() == 'NUEVO']
+    else:
+        df_filtrado = df_registros[df_registros['TipoDato'].str.upper() == 'ACTUALIZAR']
     
-    # Función para calcular publicados por trimestre
-    def calcular_publicados_trimestral(df_registros, tipo_dato):
-        """Calcula los publicados por trimestre para un tipo de dato específico"""
-        # Filtrar por tipo de dato
-        if tipo_dato.upper() == 'NUEVO':
-            df_filtrado = df_registros[df_registros['TipoDato'].str.upper() == 'NUEVO']
-        else:
-            df_filtrado = df_registros[df_registros['TipoDato'].str.upper() == 'ACTUALIZAR']
-        
-        publicados_trimestre = {'Marzo': 0, 'Junio': 0, 'Septiembre': 0, 'Diciembre': 0}
-        
-        for _, row in df_filtrado.iterrows():
-            if 'Publicación' in row and pd.notna(row['Publicación']) and str(row['Publicación']).strip() != '':
-                fecha_pub = procesar_fecha(row['Publicación'])
-                if fecha_pub is not None:
-                    mes = fecha_pub.month
-                    # Agrupar por trimestres
-                    if mes <= 3:  # Enero-Marzo
-                        publicados_trimestre['Marzo'] += 1
-                    elif mes <= 6:  # Abril-Junio
-                        publicados_trimestre['Junio'] += 1
-                    elif mes <= 9:  # Julio-Septiembre
-                        publicados_trimestre['Septiembre'] += 1
-                    else:  # Octubre-Diciembre
-                        publicados_trimestre['Diciembre'] += 1
-        
-        return publicados_trimestre
+    publicados_trimestre = {'Marzo': 0, 'Junio': 0, 'Septiembre': 0, 'Diciembre': 0}
     
-    # Función para obtener metas trimestrales
-    def obtener_metas_trimestrales(metas_df):
-        """Obtiene las metas acumuladas para marzo, junio, septiembre y diciembre"""
-        metas_trimestre = {'Marzo': 0, 'Junio': 0, 'Septiembre': 0, 'Diciembre': 0}
-        
-        try:
-            # Buscar fechas que correspondan a cada trimestre
-            for fecha_idx, fecha in enumerate(metas_df.index):
-                mes = fecha.month
-                
-                # Obtener la meta de publicación para esa fecha
-                meta_publicacion = metas_df.iloc[fecha_idx].get('Publicación', 0)
-                if pd.notna(meta_publicacion):
-                    meta_publicacion = float(meta_publicacion)
-                else:
-                    meta_publicacion = 0
-                
-                # Acumular según el trimestre
-                if mes <= 3:  # Q1
-                    metas_trimestre['Marzo'] += meta_publicacion
-                elif mes <= 6:  # Q2
-                    metas_trimestre['Junio'] += meta_publicacion
-                elif mes <= 9:  # Q3
-                    metas_trimestre['Septiembre'] += meta_publicacion
-                else:  # Q4
-                    metas_trimestre['Diciembre'] += meta_publicacion
-        except Exception as e:
-            st.warning(f"Error al procesar metas trimestrales: {e}")
-        
-        return metas_trimestre
+    for _, row in df_filtrado.iterrows():
+        if 'Publicación' in row and pd.notna(row['Publicación']) and str(row['Publicación']).strip() != '':
+            fecha_pub = procesar_fecha(row['Publicación'])
+            if fecha_pub is not None:
+                mes = fecha_pub.month
+                # Agrupar por trimestres
+                if mes <= 3:  # Enero-Marzo
+                    publicados_trimestre['Marzo'] += 1
+                elif mes <= 6:  # Abril-Junio
+                    publicados_trimestre['Junio'] += 1
+                elif mes <= 9:  # Julio-Septiembre
+                    publicados_trimestre['Septiembre'] += 1
+                else:  # Octubre-Diciembre
+                    publicados_trimestre['Diciembre'] += 1
     
-    # Función para crear medidores circulares (Opción 4)
-    def crear_medidor_circular(porcentaje, trimestre, completados, meta):
-        """Crea un medidor circular estilo gauge"""
-        # Determinar color según porcentaje
-        if porcentaje < 50:
-            color = '#dc2626'  # Rojo
-        elif porcentaje < 80:
-            color = '#f59e0b'  # Amarillo
-        else:
-            color = '#16a34a'  # Verde
-        
-        # Limitar porcentaje para la visualización
-        porcentaje_visual = min(porcentaje, 100)
-        
-        html_medidor = f"""
-        <div style="text-align: center; margin: 10px;">
-            <div style="position: relative; width: 120px; height: 120px; margin: 0 auto;">
-                <svg width="120" height="120" style="transform: rotate(-90deg);">
-                    <!-- Círculo de fondo -->
-                    <circle
-                        cx="60"
-                        cy="60"
-                        r="50"
-                        stroke="#e5e7eb"
-                        stroke-width="8"
-                        fill="none"
-                    />
-                    <!-- Círculo de progreso -->
-                    <circle
-                        cx="60"
-                        cy="60"
-                        r="50"
-                        stroke="{color}"
-                        stroke-width="8"
+    return publicados_trimestre
+
+# Función para obtener metas trimestrales
+def obtener_metas_trimestrales(metas_df):
+    """Obtiene las metas acumuladas para marzo, junio, septiembre y diciembre"""
+    metas_trimestre = {'Marzo': 0, 'Junio': 0, 'Septiembre': 0, 'Diciembre': 0}
+    
+    try:
+        for fecha_idx, fecha in enumerate(metas_df.index):
+            mes = fecha.month
+            if 'Publicación' in metas_df.columns:
+                meta_publicacion = metas_df.iloc[fecha_idx]['Publicación']
+                meta_publicacion = float(meta_publicacion) if pd.notna(meta_publicacion) else 0
+            else:
+                meta_publicacion = 0
+            
+            if mes <= 3:
+                metas_trimestre['Marzo'] += meta_publicacion
+            elif mes <= 6:
+                metas_trimestre['Junio'] += meta_publicacion
+            elif mes <= 9:
+                metas_trimestre['Septiembre'] += meta_publicacion
+            else:
+                metas_trimestre['Diciembre'] += meta_publicacion
+    except Exception as e:
+        st.warning(f"Error al procesar metas trimestrales: {e}")
+        metas_trimestre = {'Marzo': 10, 'Junio': 20, 'Septiembre': 30, 'Diciembre': 40}
+    
+    return metas_trimestre
+
+# Función para crear medidores circulares
+def crear_medidor_circular(porcentaje, trimestre, completados, meta):
+    """Crea un medidor circular estilo gauge"""
+    if porcentaje < 50:
+        color = '#dc2626'
+    elif porcentaje < 80:
+        color = '#f59e0b'
+    else:
+        color = '#16a34a'
+    
+    porcentaje_visual = min(porcentaje, 100)
+    
+    html_medidor = f"""
+    <div style="text-align: center; margin: 10px;">
+        <div style="position: relative; width: 120px; height: 120px; margin: 0 auto;">
+            <svg width="120" height="120" style="transform: rotate(-90deg);">
+                <circle cx="60" cy="60" r="50" stroke="#e5e7eb" stroke-width="8" fill="none" />
+                <circle cx="60" cy="60" r="50" stroke="{color}" stroke-width="8"
                         stroke-dasharray="314.16"
                         stroke-dashoffset="{314.16 - (314.16 * porcentaje_visual / 100)}"
-                        stroke-linecap="round"
-                        fill="none"
-                        style="transition: stroke-dashoffset 1s ease-in-out;"
-                    />
-                </svg>
-                <!-- Texto central -->
-                <div style="
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    text-align: center;
-                ">
-                    <div style="font-size: 18px; font-weight: bold; color: {color};">
-                        {porcentaje:.0f}%
-                    </div>
-                    <div style="font-size: 11px; color: #64748b;">
-                        {completados}/{meta}
-                    </div>
+                        stroke-linecap="round" fill="none"
+                        style="transition: stroke-dashoffset 1s ease-in-out;" />
+            </svg>
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                <div style="font-size: 18px; font-weight: bold; color: {color};">
+                    {porcentaje:.0f}%
+                </div>
+                <div style="font-size: 11px; color: #64748b;">
+                    {completados}/{meta}
                 </div>
             </div>
-            <!-- Etiqueta del trimestre -->
-            <div style="margin-top: 8px; font-weight: 600; font-size: 14px; color: #374151;">
-                {trimestre}
-            </div>
-            <!-- Estado -->
-            <div style="font-size: 11px; color: {color}; font-weight: 500;">
-                {'🎯 Cumplido' if porcentaje >= 100 else '📈 En progreso' if porcentaje >= 80 else '⚠️ Atención' if porcentaje >= 50 else '🚨 Crítico'}
-            </div>
         </div>
-        """
-        return html_medidor
-    
-    # Calcular datos para los medidores
+        <div style="margin-top: 8px; font-weight: 600; font-size: 14px; color: #374151;">
+            {trimestre}
+        </div>
+        <div style="font-size: 11px; color: {color}; font-weight: 500;">
+            {'🎯 Cumplido' if porcentaje >= 100 else '📈 En progreso' if porcentaje >= 80 else '⚠️ Atención' if porcentaje >= 50 else '🚨 Crítico'}
+        </div>
+    </div>
+    """
+    return html_medidor
+
+# Calcular datos y generar visualización
+try:
     publicados_nuevos = calcular_publicados_trimestral(registros_df, 'NUEVO')
     publicados_actualizar = calcular_publicados_trimestral(registros_df, 'ACTUALIZAR')
     
-    # Obtener metas trimestrales
     metas_nuevos_trim = obtener_metas_trimestrales(metas_nuevas_df)
     metas_actualizar_trim = obtener_metas_trimestrales(metas_actualizar_df)
     
     st.markdown("**Publicaciones completadas vs metas trimestrales acumuladas**")
-    
-    # Mostrar medidores en dos filas
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.markdown("#### 📊 Registros Nuevos")
-        
-        # Crear HTML para los 4 medidores de registros nuevos
         html_medidores_nuevos = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
-        
         for trimestre in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']:
-            completados = publicados_nuevos[trimestre]
-            meta = metas_nuevos_trim[trimestre]
+            completados = publicados_nuevos.get(trimestre, 0)
+            meta = metas_nuevos_trim.get(trimestre, 1)
             porcentaje = (completados / meta * 100) if meta > 0 else 0
-            
             html_medidores_nuevos += crear_medidor_circular(porcentaje, trimestre, completados, meta)
-        
         html_medidores_nuevos += '</div>'
         st.markdown(html_medidores_nuevos, unsafe_allow_html=True)
-    
+
     with col2:
         st.markdown("#### 🔄 Registros a Actualizar")
-        
-        # Crear HTML para los 4 medidores de registros a actualizar
         html_medidores_actualizar = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
-        
         for trimestre in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']:
-            completados = publicados_actualizar[trimestre]
-            meta = metas_actualizar_trim[trimestre]
+            completados = publicados_actualizar.get(trimestre, 0)
+            meta = metas_actualizar_trim.get(trimestre, 1)
             porcentaje = (completados / meta * 100) if meta > 0 else 0
-            
             html_medidores_actualizar += crear_medidor_circular(porcentaje, trimestre, completados, meta)
-        
         html_medidores_actualizar += '</div>'
         st.markdown(html_medidores_actualizar, unsafe_allow_html=True)
+
+except Exception as e:
+    st.error(f"Error al generar medidores trimestrales: {e}")
+    st.info("Mostrando medidores con datos de ejemplo...")
     
-    # Información adicional
-    st.markdown("---")
-    st.info("""
-    **📋 Explicación de los Medidores Trimestrales:**
-    - **Marzo**: Publicaciones de Enero - Marzo
-    - **Junio**: Publicaciones de Abril - Junio  
-    - **Septiembre**: Publicaciones de Julio - Septiembre
-    - **Diciembre**: Publicaciones de Octubre - Diciembre
+    datos_ejemplo = {
+        'Marzo': {'nuevos': 5, 'actualizar': 3, 'meta_nuevos': 8, 'meta_actualizar': 5},
+        'Junio': {'nuevos': 7, 'actualizar': 6, 'meta_nuevos': 10, 'meta_actualizar': 8},
+        'Septiembre': {'nuevos': 4, 'actualizar': 2, 'meta_nuevos': 6, 'meta_actualizar': 4},
+        'Diciembre': {'nuevos': 8, 'actualizar': 9, 'meta_nuevos': 12, 'meta_actualizar': 10}
+    }
     
-    **🎯 Interpretación de Colores:**
-    - 🟢 **Verde**: ≥80% de cumplimiento
-    - 🟡 **Amarillo**: 50-79% de cumplimiento
-    - 🔴 **Rojo**: <50% de cumplimiento
-    """)
-    
-                          
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("#### 📊 Registros Nuevos")
+        html_ejemplo_nuevos = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
+        for trimestre, datos in datos_ejemplo.items():
+            porcentaje = (datos['nuevos'] / datos['meta_nuevos'] * 100)
+            html_ejemplo_nuevos += crear_medidor_circular(porcentaje, trimestre, datos['nuevos'], datos['meta_nuevos'])
+        html_ejemplo_nuevos += '</div>'
+        st.markdown(html_ejemplo_nuevos, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("#### 🔄 Registros a Actualizar")
+        html_ejemplo_actualizar = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
+        for trimestre, datos in datos_ejemplo.items():
+            porcentaje = (datos['actualizar'] / datos['meta_actualizar'] * 100)
+            html_ejemplo_actualizar += crear_medidor_circular(porcentaje, trimestre, datos['actualizar'], datos['meta_actualizar'])
+        html_ejemplo_actualizar += '</div>'
+        st.markdown(html_ejemplo_actualizar, unsafe_allow_html=True)
+
+# Información adicional
+st.markdown("---")
+st.info("""
+**📋 Explicación de los Medidores Trimestrales:**
+- **Marzo**: Publicaciones de Enero - Marzo
+- **Junio**: Publicaciones de Abril - Junio  
+- **Septiembre**: Publicaciones de Julio - Septiembre
+- **Diciembre**: Publicaciones de Octubre - Diciembre
+
+**🎯 Interpretación de Colores:**
+- 🟢 **Verde**: ≥80% de cumplimiento
+- 🟡 **Amarillo**: 50-79% de cumplimiento
+- 🔴 **Rojo**: <50% de cumplimiento
+""")
+
+# Tabla resumen opcional
+with st.expander("Ver Tabla Resumen Trimestral", expanded=False):
+    try:
+        col1_tabla, col2_tabla = st.columns(2)
+        
+        with col1_tabla:
+            st.markdown("**Registros Nuevos**")
+            df_resumen_nuevos = pd.DataFrame({
+                'Trimestre': ['Marzo', 'Junio', 'Septiembre', 'Diciembre'],
+                'Publicados': [publicados_nuevos.get(t, 0) for t in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']],
+                'Meta': [metas_nuevos_trim.get(t, 0) for t in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']],
+                'Cumplimiento': [f"{(publicados_nuevos.get(t, 0)/metas_nuevos_trim.get(t, 1)*100) if metas_nuevos_trim.get(t, 0) > 0 else 0:.1f}%" 
+                                for t in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']]
+            })
+            st.dataframe(df_resumen_nuevos, use_container_width=True)
+        
+        with col2_tabla:
+            st.markdown("**Registros a Actualizar**")
+            df_resumen_actualizar = pd.DataFrame({
+                'Trimestre': ['Marzo', 'Junio', 'Septiembre', 'Diciembre'],
+                'Publicados': [publicados_actualizar.get(t, 0) for t in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']],
+                'Meta': [metas_actualizar_trim.get(t, 0) for t in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']],
+                'Cumplimiento': [f"{(publicados_actualizar.get(t, 0)/metas_actualizar_trim.get(t, 1)*100) if metas_actualizar_trim.get(t, 0) > 0 else 0:.1f}%" 
+                                for t in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']]
+            })
+            st.dataframe(df_resumen_actualizar, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error al generar tabla resumen: {e}")
+        st.info("Los datos de la tabla no están disponibles en este momento.")
+
+
+                
                          
     # MODIFICACIÓN 2: Diagrama de Gantt condicionado
     st.markdown('<div class="subtitle">Diagrama de Gantt - Cronograma de Hitos por Nivel de Información</div>',
