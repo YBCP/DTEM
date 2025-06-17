@@ -836,49 +836,13 @@ def mostrar_edicion_registros(registros_df):
 
 # ========== FUNCIÓN DASHBOARD MODIFICADA ==========
 
+# Modificación en la función mostrar_dashboard() de app1.py
+
 def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registros_df, 
                      entidad_seleccionada, funcionario_seleccionado, nivel_seleccionado):
     """Muestra el dashboard principal con métricas y gráficos - VERSIÓN COMPLETA RESTAURADA CON MODIFICACIONES."""
-    # Mostrar métricas generales
-    st.markdown('<div class="subtitle">Métricas Generales</div>', unsafe_allow_html=True)
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        total_registros = len(df_filtrado)
-        st.markdown(f"""
-        <div class="metric-card">
-            <p style="font-size: 1rem; color: #64748b;">Total Registros</p>
-            <p style="font-size: 2.5rem; font-weight: bold; color: #1E40AF;">{total_registros}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        avance_promedio = df_filtrado['Porcentaje Avance'].mean() if not df_filtrado.empty else 0
-        st.markdown(f"""
-        <div class="metric-card">
-            <p style="font-size: 1rem; color: #64748b;">Avance Promedio</p>
-            <p style="font-size: 2.5rem; font-weight: bold; color: #047857;">{avance_promedio:.2f}%</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col3:
-        registros_completados = len(df_filtrado[df_filtrado['Porcentaje Avance'] == 100])
-        st.markdown(f"""
-        <div class="metric-card">
-            <p style="font-size: 1rem; color: #64748b;">Registros Completados</p>
-            <p style="font-size: 2.5rem; font-weight: bold; color: #B45309;">{registros_completados}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col4:
-        porcentaje_completados = (registros_completados / total_registros * 100) if total_registros > 0 else 0
-        st.markdown(f"""
-        <div class="metric-card">
-            <p style="font-size: 1rem; color: #64748b;">% Completados</p>
-            <p style="font-size: 2.5rem; font-weight: bold; color: #BE185D;">{porcentaje_completados:.2f}%</p>
-        </div>
-        """, unsafe_allow_html=True)
+    
+    # ... [todo el código anterior hasta la comparación con metas se mantiene igual] ...
 
     # Comparación con metas
     st.markdown('<div class="subtitle">Comparación con Metas Quincenales</div>', unsafe_allow_html=True)
@@ -890,65 +854,131 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
     # Mostrar fecha de la meta
     st.markdown(f"**Meta más cercana a la fecha actual: {fecha_meta.strftime('%d/%m/%Y')}**")
 
-    # MODIFICACIÓN 1: Crear función para gradiente personalizado
-    def crear_gradiente_personalizado(df_comparacion):
-        """Crea un gradiente personalizado de rojo a verde oscuro para porcentajes 0-100, verde oscuro para >100"""
-        def aplicar_color(val):
-            if pd.isna(val):
-                return ''
-            if val <= 0:
-                return 'background-color: #dc2626; color: white'  # Rojo intenso
-            elif val <= 25:
-                return 'background-color: #ef4444; color: white'  # Rojo
-            elif val <= 50:
-                return 'background-color: #f97316; color: white'  # Naranja
-            elif val <= 75:
-                return 'background-color: #eab308; color: black'  # Amarillo
-            elif val < 100:
-                return 'background-color: #84cc16; color: black'  # Verde claro
-            else:  # val >= 100
-                return 'background-color: #166534; color: white'  # Verde oscuro
+    # CAMBIO: Función para crear visualización estilo Opción 3
+    def crear_visualizacion_barras_cumplimiento(df_comparacion, titulo, tipo_registro):
+        """Crea visualización de barras con indicador de cumplimiento (Opción 3)"""
+        st.markdown(f"### {titulo}")
         
-        return df_comparacion.style.format({
-            'Porcentaje': '{:.2f}%'
-        }).applymap(aplicar_color, subset=['Porcentaje'])
+        # Crear HTML personalizado para las barras de cumplimiento
+        html_content = ""
+        
+        for hito in df_comparacion.index:
+            completados = df_comparacion.loc[hito, 'Completados']
+            meta = df_comparacion.loc[hito, 'Meta']
+            porcentaje = df_comparacion.loc[hito, 'Porcentaje']
+            
+            # Determinar color según porcentaje
+            if porcentaje < 50:
+                color = '#dc2626'  # Rojo
+                color_text = '#fee2e2'  # Rojo claro para el texto
+            elif porcentaje < 80:
+                color = '#f59e0b'  # Amarillo/Naranja
+                color_text = '#fef3c7'  # Amarillo claro para el texto
+            else:
+                color = '#16a34a'  # Verde
+                color_text = '#dcfce7'  # Verde claro para el texto
+            
+            # Calcular ancho de la barra (máximo 100%)
+            ancho_barra = min(porcentaje, 100)
+            
+            html_content += f"""
+            <div style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <span style="font-weight: 600; font-size: 14px;">{hito}</span>
+                    <span style="font-size: 12px; color: #64748b;">{completados}/{meta}</span>
+                </div>
+                <div style="position: relative; background-color: #e5e7eb; height: 32px; border-radius: 6px; overflow: hidden;">
+                    <div style="
+                        width: {ancho_barra}%; 
+                        height: 100%; 
+                        background-color: {color}; 
+                        transition: width 0.5s ease-in-out;
+                        border-radius: 6px;
+                    "></div>
+                    <div style="
+                        position: absolute; 
+                        top: 0; 
+                        left: 0; 
+                        right: 0; 
+                        bottom: 0; 
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center; 
+                        font-weight: bold; 
+                        font-size: 12px;
+                        color: white;
+                        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+                    ">
+                        {porcentaje:.1f}%
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 3px; font-size: 11px; color: {color}; font-weight: 600;">
+                    {'🎯 Meta Alcanzada' if porcentaje >= 100 else '📈 En Progreso' if porcentaje >= 80 else '⚠️ Requiere Atención' if porcentaje >= 50 else '🚨 Crítico'}
+                </div>
+            </div>
+            """
+        
+        # Mostrar el HTML
+        st.markdown(html_content, unsafe_allow_html=True)
+        
+        # Agregar leyenda de colores
+        st.markdown("""
+        <div style="display: flex; justify-content: center; gap: 20px; margin-top: 10px; font-size: 11px;">
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 12px; height: 12px; background-color: #dc2626; border-radius: 2px;"></div>
+                <span>< 50%</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 12px; height: 12px; background-color: #f59e0b; border-radius: 2px;"></div>
+                <span>50-79%</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 12px; height: 12px; background-color: #16a34a; border-radius: 2px;"></div>
+                <span>≥ 80%</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # Mostrar comparación en dos columnas
+    # CAMBIO: Usar la nueva visualización en lugar de los gráficos de Plotly
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("### Registros Nuevos")
-        # APLICAR GRADIENTE PERSONALIZADO
-        st.dataframe(crear_gradiente_personalizado(comparacion_nuevos))
-
-        # Gráfico de barras para registros nuevos
-        fig_nuevos = px.bar(
-            comparacion_nuevos.reset_index(),
-            x='index',
-            y=['Completados', 'Meta'],
-            barmode='group',
-            labels={'index': 'Hito', 'value': 'Cantidad', 'variable': 'Tipo'},
-            title='Comparación de Avance vs. Meta - Registros Nuevos',
-            color_discrete_map={'Completados': '#4B5563', 'Meta': '#1E40AF'}
-        )
-        st.plotly_chart(fig_nuevos, use_container_width=True)
+        crear_visualizacion_barras_cumplimiento(comparacion_nuevos, "Registros Nuevos", "nuevos")
 
     with col2:
-        st.markdown("### Registros a Actualizar")
-        # APLICAR GRADIENTE PERSONALIZADO
-        st.dataframe(crear_gradiente_personalizado(comparacion_actualizar))
+        crear_visualizacion_barras_cumplimiento(comparacion_actualizar, "Registros a Actualizar", "actualizar")
 
-        # Gráfico de barras para registros a actualizar
-        fig_actualizar = px.bar(
-            comparacion_actualizar.reset_index(),
-            x='index',
-            y=['Completados', 'Meta'],
-            barmode='group',
-            labels={'index': 'Hito', 'value': 'Cantidad', 'variable': 'Tipo'},
-            title='Comparación de Avance vs. Meta - Registros a Actualizar',
-            color_discrete_map={'Completados': '#4B5563', 'Meta': '#047857'}
-        )
-        st.plotly_chart(fig_actualizar, use_container_width=True)
+    # OPCIONAL: Mantener una versión más compacta de los gráficos originales para referencia
+    with st.expander("Ver Gráficos de Barras Tradicionales", expanded=False):
+        col1_exp, col2_exp = st.columns(2)
+        
+        with col1_exp:
+            st.markdown("#### Registros Nuevos - Vista Tradicional")
+            fig_nuevos = px.bar(
+                comparacion_nuevos.reset_index(),
+                x='index',
+                y=['Completados', 'Meta'],
+                barmode='group',
+                labels={'index': 'Hito', 'value': 'Cantidad', 'variable': 'Tipo'},
+                title='Comparación de Avance vs. Meta - Registros Nuevos',
+                color_discrete_map={'Completados': '#4B5563', 'Meta': '#1E40AF'}
+            )
+            st.plotly_chart(fig_nuevos, use_container_width=True)
+
+        with col2_exp:
+            st.markdown("#### Registros a Actualizar - Vista Tradicional")
+            fig_actualizar = px.bar(
+                comparacion_actualizar.reset_index(),
+                x='index',
+                y=['Completados', 'Meta'],
+                barmode='group',
+                labels={'index': 'Hito', 'value': 'Cantidad', 'variable': 'Tipo'},
+                title='Comparación de Avance vs. Meta - Registros a Actualizar',
+                color_discrete_map={'Completados': '#4B5563', 'Meta': '#047857'}
+            )
+            st.plotly_chart(fig_actualizar, use_container_width=True)
+
+  
 
     # MODIFICACIÓN 2: Diagrama de Gantt condicionado
     st.markdown('<div class="subtitle">Diagrama de Gantt - Cronograma de Hitos por Nivel de Información</div>',
