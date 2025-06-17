@@ -1904,17 +1904,6 @@ def main():
         <div class="info-box">
         <p><strong>Tablero de Control de Cronogramas</strong></p>
         <p><strong>VERSIÓN COMPLETA CON MEJORAS Y AUTENTICACIÓN</strong></p>
-        <p>• 🔐 Sistema de autenticación para admin</p>
-        <p>• 📅 Campo "Mes Proyectado" agregado</p>
-        <p>• 🔍 Filtro por mes en reportes</p>
-        <p>• 🌈 Gradiente de metas mejorado</p>
-        <p>• 📊 Diagrama de Gantt condicional</p>
-        <p>• ✏️ Edición detallada de todos los campos</p>
-        <p>• ✅ Validaciones automáticas completas</p>
-        <p>• ⏰ Cálculo de plazos automático</p>
-        <p>• 💾 Guardado inteligente en Google Sheets</p>
-        <p>• 👥 Sistema de funcionarios dinámico</p>
-        <p>• ⚠️ Alertas de vencimiento detalladas</p>
         </div>
         """, unsafe_allow_html=True)
 
