@@ -2216,25 +2216,7 @@ def main():
         st.info("""
         **Tablero de Control - Versión Completa con Mejoras y Autenticación**
         
-        ✅ Todas las funcionalidades de edición han sido restauradas
-        ✅ Sistema de validaciones completo
-        ✅ Cálculo automático de plazos con días hábiles
-        ✅ Gestión dinámica de funcionarios
-        ✅ Guardado inteligente en Google Sheets
-        ✅ Alertas de vencimiento detalladas
-        ✅ Reportes avanzados con filtros
-        
-        **Mejoras Implementadas:**
-        ✅ Gradiente de metas mejorado: rojo (0%) → verde oscuro (100%+)
-        ✅ Diagrama de Gantt condicional: se muestra solo con filtros específicos
-        ✅ Mensaje informativo para guiar al usuario sobre el Gantt
-        
-        **Nuevas Funcionalidades:**
-        ✅ 🔐 Sistema de autenticación para administrador
-        ✅ 📅 Campo "Mes Proyectado" en información básica
-        ✅ 🔍 Filtro por mes proyectado en reportes
-        ✅ 🔒 Protección de carga de datos Excel solo para admin
-        """)
+       """)
         
         # Mostrar estado de autenticación en footer
         if verificar_autenticacion():
