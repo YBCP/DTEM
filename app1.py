@@ -1020,10 +1020,132 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         crear_visualizacion_barras_cumplimiento(comparacion_actualizar, "", "actualizar")
 
     # ===== MEDIDORES DE CUMPLIMIENTO TRIMESTRAL - SECCIÓN CORREGIDA =====
-    st.markdown('<div class="subtitle">Medidores de Cumplimiento Trimestral</div>', unsafe_allow_html=True)
+    seccion_medidores_trimestrales_corregida(registros_df, metas_nuevas_df, metas_actualizar_df)
+             
+    # Diagrama de Gantt condicionado
+    st.markdown('<div class="subtitle">Diagrama de Gantt - Cronograma de Hitos por Nivel de Información</div>',
+                unsafe_allow_html=True)
+
+    # Verificar si hay filtros específicos aplicados
+    filtros_aplicados = (
+        entidad_seleccionada != 'Todas' or 
+        funcionario_seleccionado != 'Todos' or 
+        nivel_seleccionado != 'Todos'
+    )
+
+    if filtros_aplicados:
+        # Crear el diagrama de Gantt solo si hay filtros
+        fig_gantt = crear_gantt(df_filtrado)
+        if fig_gantt is not None:
+            st.plotly_chart(fig_gantt, use_container_width=True)
+        else:
+            st.warning("No hay datos suficientes para crear el diagrama de Gantt con los filtros aplicados.")
+    else:
+        # Mostrar mensaje cuando no hay filtros aplicados
+        st.info("Para visualizar el diagrama de Gantt seleccione la entidad o funcionario de su interés.")
+
+    # Tabla de registros con porcentaje de avance
+    st.markdown('<div class="subtitle">Detalle de Registros</div>', unsafe_allow_html=True)
+
+    # Definir el orden de las columnas
+    columnas_mostrar = [
+        'Cod', 'Entidad', 'Nivel Información ', 'Funcionario', 'Mes Proyectado',
+        'Frecuencia actualizacion ', 'TipoDato',
+        'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
+        'Análisis y cronograma',
+        'Estándares', 'Publicación',
+        'Plazo de oficio de cierre', 'Fecha de oficio de cierre',
+        'Estado', 'Observación', 'Porcentaje Avance'
+    ]
+
+    # Mostrar tabla con colores por estado de fechas
+    try:
+        # Verificar que todas las columnas existan
+        columnas_mostrar_existentes = [col for col in columnas_mostrar if col in df_filtrado.columns]
+        df_mostrar = df_filtrado[columnas_mostrar_existentes].copy()
+
+        # Aplicar formato a las fechas
+        columnas_fecha = [
+            'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
+            'Análisis y cronograma', 'Estándares',
+            'Publicación', 'Plazo de oficio de cierre', 'Fecha de oficio de cierre'
+        ]
+
+        for col in columnas_fecha:
+            if col in df_mostrar.columns:
+                df_mostrar[col] = df_mostrar[col].apply(lambda x: formatear_fecha(x) if es_fecha_valida(x) else "")
+
+        # Mostrar el dataframe con formato
+        st.dataframe(
+            df_mostrar
+            .style.format({'Porcentaje Avance': '{:.2f}%'})
+            .apply(highlight_estado_fechas, axis=1)
+            .background_gradient(cmap='RdYlGn', subset=['Porcentaje Avance']),
+            use_container_width=True
+        )
+
+        # SECCIÓN DE DESCARGA
+        st.markdown("### Descargar Datos")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # Botón para descargar los datos filtrados
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df_mostrar.to_excel(writer, sheet_name='Registros Filtrados', index=False)
+
+            excel_data = output.getvalue()
+            st.download_button(
+                label="Descargar datos filtrados (Excel)",
+                data=excel_data,
+                file_name="registros_filtrados.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                help="Descarga los datos filtrados en formato Excel"
+            )
+
+        with col2:
+            # BOTÓN PARA DESCARGAR TODOS LOS REGISTROS
+            output_completo = io.BytesIO()
+            with pd.ExcelWriter(output_completo, engine='openpyxl') as writer:
+                registros_df.to_excel(writer, sheet_name='Registros Completos', index=False)
+
+                # Añadir hojas adicionales con categorías
+                if 'TipoDato' in registros_df.columns:
+                    # Hoja para registros nuevos
+                    registros_nuevos = registros_df[registros_df['TipoDato'].str.upper() == 'NUEVO']
+                    if not registros_nuevos.empty:
+                        registros_nuevos.to_excel(writer, sheet_name='Registros Nuevos', index=False)
+
+                    # Hoja para registros a actualizar
+                    registros_actualizar_excel = registros_df[registros_df['TipoDato'].str.upper() == 'ACTUALIZAR']
+                    if not registros_actualizar_excel.empty:
+                        registros_actualizar_excel.to_excel(writer, sheet_name='Registros a Actualizar', index=False)
+
+            excel_data_completo = output_completo.getvalue()
+
+            # Botón para descargar todos los registros
+            st.download_button(
+                label="Descargar TODOS los registros (Excel)",
+                data=excel_data_completo,
+                file_name="todos_los_registros.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                help="Descarga todos los registros en formato Excel, sin filtros aplicados",
+                use_container_width=True
+            )
+
+        # Información sobre el contenido
+        num_registros = len(registros_df)
+        num_campos = len(registros_df.columns)
+        st.info(
+            f"El archivo de TODOS los registros incluirá {num_registros} registros con {num_campos} campos originales.")
+
+    except Exception as e:
+        st.error(f"Error al mostrar la tabla de registros: {e}")
+        if 'columnas_mostrar_existentes' in locals():
+            st.dataframe(df_filtrado[columnas_mostrar_existentes])
     
-    # REEMPLAZO COMPLETO DE LA SECCIÓN DE MEDIDORES TRIMESTRALES
-# Esta sección debe reemplazar completamente la parte de medidores en mostrar_dashboard
+
 
 def seccion_medidores_trimestrales_corregida(registros_df, metas_nuevas_df, metas_actualizar_df):
     """Sección completa de medidores trimestrales con debug y correcciones"""
