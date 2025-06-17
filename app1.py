@@ -1018,7 +1018,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         # CAMBIO: Reemplazar el gráfico de Plotly con la nueva visualización
         crear_visualizacion_barras_cumplimiento(comparacion_actualizar, "", "actualizar")
 
-    # Medidores de Cumplimiento Trimestral
+# Medidores de Cumplimiento Trimestral
 st.markdown('<div class="subtitle">Medidores de Cumplimiento Trimestral</div>', unsafe_allow_html=True)
 
 # Función para calcular publicados por trimestre
@@ -1182,8 +1182,51 @@ except Exception as e:
         html_ejemplo_actualizar += '</div>'
         st.markdown(html_ejemplo_actualizar, unsafe_allow_html=True)
 
+# Información adicional
+st.markdown("---")
+st.info("""
+**📋 Explicación de los Medidores Trimestrales:**
+- **Marzo**: Publicaciones de Enero - Marzo
+- **Junio**: Publicaciones de Abril - Junio  
+- **Septiembre**: Publicaciones de Julio - Septiembre
+- **Diciembre**: Publicaciones de Octubre - Diciembre
 
-                
+**🎯 Interpretación de Colores:**
+- 🟢 **Verde**: ≥80% de cumplimiento
+- 🟡 **Amarillo**: 50-79% de cumplimiento
+- 🔴 **Rojo**: <50% de cumplimiento
+""")
+
+# Tabla resumen opcional
+with st.expander("Ver Tabla Resumen Trimestral", expanded=False):
+    try:
+        col1_tabla, col2_tabla = st.columns(2)
+        
+        with col1_tabla:
+            st.markdown("**Registros Nuevos**")
+            df_resumen_nuevos = pd.DataFrame({
+                'Trimestre': ['Marzo', 'Junio', 'Septiembre', 'Diciembre'],
+                'Publicados': [publicados_nuevos.get(t, 0) for t in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']],
+                'Meta': [metas_nuevos_trim.get(t, 0) for t in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']],
+                'Cumplimiento': [f"{(publicados_nuevos.get(t, 0)/metas_nuevos_trim.get(t, 1)*100) if metas_nuevos_trim.get(t, 0) > 0 else 0:.1f}%" 
+                                for t in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']]
+            })
+            st.dataframe(df_resumen_nuevos, use_container_width=True)
+        
+        with col2_tabla:
+            st.markdown("**Registros a Actualizar**")
+            df_resumen_actualizar = pd.DataFrame({
+                'Trimestre': ['Marzo', 'Junio', 'Septiembre', 'Diciembre'],
+                'Publicados': [publicados_actualizar.get(t, 0) for t in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']],
+                'Meta': [metas_actualizar_trim.get(t, 0) for t in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']],
+                'Cumplimiento': [f"{(publicados_actualizar.get(t, 0)/metas_actualizar_trim.get(t, 1)*100) if metas_actualizar_trim.get(t, 0) > 0 else 0:.1f}%" 
+                                for t in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']]
+            })
+            st.dataframe(df_resumen_actualizar, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error al generar tabla resumen: {e}")
+        st.info("Los datos de la tabla no están disponibles en este momento.")
+         
                          
     # MODIFICACIÓN 2: Diagrama de Gantt condicionado
     st.markdown('<div class="subtitle">Diagrama de Gantt - Cronograma de Hitos por Nivel de Información</div>',
