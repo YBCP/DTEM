@@ -1497,7 +1497,7 @@ def mostrar_alertas_vencimientos(registros_df):
         # Filtros para la tabla de alertas
         st.markdown("### Filtrar Alertas")
 
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
 
         with col1:
             tipo_alerta_filtro = st.multiselect(
@@ -1535,7 +1535,17 @@ def mostrar_alertas_vencimientos(registros_df):
                 default=["Todos"]
             )
 
-        
+        with col5:
+            meses_disponibles_alertas = ['Todos']
+            if 'Mes Proyectado' in registros_df.columns:
+                meses_unicos_alertas = [m for m in registros_df['Mes Proyectado'].dropna().unique().tolist() if m]
+                meses_disponibles_alertas += sorted(meses_unicos_alertas)
+            mes_filtro_alertas = st.multiselect(
+                "Mes Proyectado",
+                options=meses_disponibles_alertas,
+                default=["Todos"]
+            )
+            
         # Aplicar filtros
         df_alertas_filtrado = df_alertas.copy()
 
@@ -1553,6 +1563,12 @@ def mostrar_alertas_vencimientos(registros_df):
             codigos_tipo_dato = registros_df[registros_df['TipoDato'].isin(tipo_dato_filtro_alertas)]['Cod'].tolist()
             df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Cod'].isin(codigos_tipo_dato)]
 
+        # Agregar después de los otros filtros
+        if mes_filtro_alertas and "Todos" not in mes_filtro_alertas:
+            # Obtener códigos de registros que coinciden con el mes proyectado
+            codigos_mes_proyectado = registros_df[registros_df['Mes Proyectado'].isin(mes_filtro_alertas)]['Cod'].tolist()
+            df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Cod'].isin(codigos_mes_proyectado)]
+        
         # Mostrar tabla de alertas con formato
         st.markdown("### Listado de Alertas")
 
