@@ -1165,7 +1165,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("#### 📊 Registros Nuevos")
+            st.markdown("####Registros Nuevos")
             html_ejemplo_nuevos = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
             for trimestre, datos in datos_ejemplo.items():
                 porcentaje = (datos['nuevos'] / datos['meta_nuevos'] * 100)
@@ -1174,7 +1174,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
             st.markdown(html_ejemplo_nuevos, unsafe_allow_html=True)
     
         with col2:
-            st.markdown("#### 🔄 Registros a Actualizar")
+            st.markdown("####Registros a Actualizar")
             html_ejemplo_actualizar = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
             for trimestre, datos in datos_ejemplo.items():
                 porcentaje = (datos['actualizar'] / datos['meta_actualizar'] * 100)
@@ -1186,10 +1186,10 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
     st.markdown("---")
     st.info("""
     **📋 Explicación de los Medidores Trimestrales:**
-    - **Marzo**: Publicaciones de Enero - Marzo
-    - **Junio**: Publicaciones de Abril - Junio  
-    - **Septiembre**: Publicaciones de Julio - Septiembre
-    - **Diciembre**: Publicaciones de Octubre - Diciembre
+    - **Marzo**: Publicados en el trimestre I
+    - **Junio**: Publicados en el trimestre II  
+    - **Septiembre**: Publicados en el trimestre III
+    - **Diciembre**: Publicados en el trimestre IV
     
     **🎯 Interpretación de Colores:**
     - 🟢 **Verde**: ≥80% de cumplimiento
