@@ -1886,24 +1886,25 @@ def main():
                     unsafe_allow_html=True)
         
         # Mostrar estado de Google Sheets y autenticación
-        st.markdown("### Estado del Sistema")
-        col1, col2, col3 = st.columns([2, 2, 1])
-        
-        with col1:
-            st.info("📊 Datos sincronizados con Google Sheets en tiempo real")
-        
-        with col2:
-            if verificar_autenticacion():
-                st.success("🔐 Sesión administrativa activa")
-            else:
-                st.warning("⚠️ Sesión no administrativa")
-        
-        with col3:
-            if st.button("🔄 Reconectar"):
-                # Limpiar cache y reconectar
-                if 'sheets_manager' in st.session_state:
-                    del st.session_state.sheets_manager
-                st.rerun()
+        # CAMBIO: Convertir "Estado del Sistema" en un expander colapsable
+        with st.expander("Estado del Sistema"):
+            col1, col2, col3 = st.columns([2, 2, 1])
+            
+            with col1:
+                st.info("📊 Datos sincronizados con Google Sheets en tiempo real")
+            
+            with col2:
+                if verificar_autenticacion():
+                    st.success("🔐 Sesión administrativa activa")
+                else:
+                    st.warning("⚠️ Sesión no administrativa")
+            
+            with col3:
+                if st.button("🔄 Reconectar"):
+                    # Limpiar cache y reconectar
+                    if 'sheets_manager' in st.session_state:
+                        del st.session_state.sheets_manager
+                    st.rerun()
 
         # ===== SIDEBAR CON AUTENTICACIÓN =====
         # Sistema de autenticación
