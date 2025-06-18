@@ -1529,38 +1529,6 @@ def mostrar_alertas_vencimientos(registros_df):
             </div>
             """, unsafe_allow_html=True)
 
-        # Gráfico de alertas por tipo
-        try:
-            st.markdown("### Alertas por Tipo")
-
-            alertas_por_tipo = df_alertas.groupby(['Tipo Alerta', 'Estado']).size().unstack(fill_value=0)
-
-            # Asegurar que existan todas las columnas
-            for estado in ['Vencido', 'Próximo a vencer', 'Completado con retraso']:
-                if estado not in alertas_por_tipo.columns:
-                    alertas_por_tipo[estado] = 0
-
-            # Reordenar las columnas
-            columnas_orden = ['Vencido', 'Próximo a vencer', 'Completado con retraso']
-            columnas_disponibles = [col for col in columnas_orden if col in alertas_por_tipo.columns]
-
-            fig = px.bar(
-                alertas_por_tipo.reset_index(),
-                x='Tipo Alerta',
-                y=columnas_disponibles,
-                barmode='group',
-                title='Distribución de Alertas por Tipo y Estado',
-                color_discrete_map={
-                    'Vencido': '#b91c1c',
-                    'Próximo a vencer': '#b45309',
-                    'Completado con retraso': '#1e40af'
-                }
-            )
-
-            st.plotly_chart(fig, use_container_width=True)
-        except Exception as e:
-            st.warning(f"Error al generar el gráfico de alertas: {e}")
-
         # Filtros para la tabla de alertas
         st.markdown("### Filtrar Alertas")
 
