@@ -838,7 +838,7 @@ def mostrar_edicion_registros(registros_df):
 
 def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registros_df, 
                      entidad_seleccionada, funcionario_seleccionado, nivel_seleccionado):
-    """Muestra el dashboard principal con métricas y gráficos - VERSIÓN COMPLETA CON MEDIDORES CORREGIDOS."""
+    """Muestra el dashboard principal con métricas y gráficos - VERSIÓN COMPLETA."""
     
     # Mostrar métricas generales
     st.markdown('<div class="subtitle">Métricas Generales</div>', unsafe_allow_html=True)
@@ -1019,154 +1019,12 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         # La nueva visualización de barras
         crear_visualizacion_barras_cumplimiento(comparacion_actualizar, "", "actualizar")
 
-    # ===== MEDIDORES DE CUMPLIMIENTO TRIMESTRAL - SECCIÓN CORREGIDA =====
-    seccion_medidores_trimestrales_corregida(registros_df, metas_nuevas_df, metas_actualizar_df)
-             
-    # Diagrama de Gantt condicionado
-    st.markdown('<div class="subtitle">Diagrama de Gantt - Cronograma de Hitos por Nivel de Información</div>',
-                unsafe_allow_html=True)
-
-    # Verificar si hay filtros específicos aplicados
-    filtros_aplicados = (
-        entidad_seleccionada != 'Todas' or 
-        funcionario_seleccionado != 'Todos' or 
-        nivel_seleccionado != 'Todos'
-    )
-
-    if filtros_aplicados:
-        # Crear el diagrama de Gantt solo si hay filtros
-        fig_gantt = crear_gantt(df_filtrado)
-        if fig_gantt is not None:
-            st.plotly_chart(fig_gantt, use_container_width=True)
-        else:
-            st.warning("No hay datos suficientes para crear el diagrama de Gantt con los filtros aplicados.")
-    else:
-        # Mostrar mensaje cuando no hay filtros aplicados
-        st.info("Para visualizar el diagrama de Gantt seleccione la entidad o funcionario de su interés.")
-
-    # Tabla de registros con porcentaje de avance
-    st.markdown('<div class="subtitle">Detalle de Registros</div>', unsafe_allow_html=True)
-
-    # Definir el orden de las columnas
-    columnas_mostrar = [
-        'Cod', 'Entidad', 'Nivel Información ', 'Funcionario', 'Mes Proyectado',
-        'Frecuencia actualizacion ', 'TipoDato',
-        'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
-        'Análisis y cronograma',
-        'Estándares', 'Publicación',
-        'Plazo de oficio de cierre', 'Fecha de oficio de cierre',
-        'Estado', 'Observación', 'Porcentaje Avance'
-    ]
-
-    # Mostrar tabla con colores por estado de fechas
-    try:
-        # Verificar que todas las columnas existan
-        columnas_mostrar_existentes = [col for col in columnas_mostrar if col in df_filtrado.columns]
-        df_mostrar = df_filtrado[columnas_mostrar_existentes].copy()
-
-        # Aplicar formato a las fechas
-        columnas_fecha = [
-            'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
-            'Análisis y cronograma', 'Estándares',
-            'Publicación', 'Plazo de oficio de cierre', 'Fecha de oficio de cierre'
-        ]
-
-        for col in columnas_fecha:
-            if col in df_mostrar.columns:
-                df_mostrar[col] = df_mostrar[col].apply(lambda x: formatear_fecha(x) if es_fecha_valida(x) else "")
-
-        # Mostrar el dataframe con formato
-        st.dataframe(
-            df_mostrar
-            .style.format({'Porcentaje Avance': '{:.2f}%'})
-            .apply(highlight_estado_fechas, axis=1)
-            .background_gradient(cmap='RdYlGn', subset=['Porcentaje Avance']),
-            use_container_width=True
-        )
-
-        # SECCIÓN DE DESCARGA
-        st.markdown("### Descargar Datos")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            # Botón para descargar los datos filtrados
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df_mostrar.to_excel(writer, sheet_name='Registros Filtrados', index=False)
-
-            excel_data = output.getvalue()
-            st.download_button(
-                label="Descargar datos filtrados (Excel)",
-                data=excel_data,
-                file_name="registros_filtrados.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                help="Descarga los datos filtrados en formato Excel"
-            )
-
-        with col2:
-            # BOTÓN PARA DESCARGAR TODOS LOS REGISTROS
-            output_completo = io.BytesIO()
-            with pd.ExcelWriter(output_completo, engine='openpyxl') as writer:
-                registros_df.to_excel(writer, sheet_name='Registros Completos', index=False)
-
-                # Añadir hojas adicionales con categorías
-                if 'TipoDato' in registros_df.columns:
-                    # Hoja para registros nuevos
-                    registros_nuevos = registros_df[registros_df['TipoDato'].str.upper() == 'NUEVO']
-                    if not registros_nuevos.empty:
-                        registros_nuevos.to_excel(writer, sheet_name='Registros Nuevos', index=False)
-
-                    # Hoja para registros a actualizar
-                    registros_actualizar_excel = registros_df[registros_df['TipoDato'].str.upper() == 'ACTUALIZAR']
-                    if not registros_actualizar_excel.empty:
-                        registros_actualizar_excel.to_excel(writer, sheet_name='Registros a Actualizar', index=False)
-
-            excel_data_completo = output_completo.getvalue()
-
-            # Botón para descargar todos los registros
-            st.download_button(
-                label="Descargar TODOS los registros (Excel)",
-                data=excel_data_completo,
-                file_name="todos_los_registros.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                help="Descarga todos los registros en formato Excel, sin filtros aplicados",
-                use_container_width=True
-            )
-
-        # Información sobre el contenido
-        num_registros = len(registros_df)
-        num_campos = len(registros_df.columns)
-        st.info(
-            f"El archivo de TODOS los registros incluirá {num_registros} registros con {num_campos} campos originales.")
-
-    except Exception as e:
-        st.error(f"Error al mostrar la tabla de registros: {e}")
-        if 'columnas_mostrar_existentes' in locals():
-            st.dataframe(df_filtrado[columnas_mostrar_existentes])
-    
-
-
-def seccion_medidores_trimestrales_corregida(registros_df, metas_nuevas_df, metas_actualizar_df):
-    """Sección completa de medidores trimestrales con debug y correcciones"""
-    
+    # ===== MEDIDORES DE CUMPLIMIENTO TRIMESTRAL =====
     st.markdown('<div class="subtitle">Medidores de Cumplimiento Trimestral</div>', unsafe_allow_html=True)
     
-    # DEBUG: Mostrar información de las metas para debugging
-    with st.expander("🔍 Debug: Información de Metas (expandir para ver)", expanded=False):
-        st.write("**Estructura de metas_nuevas_df:**")
-        st.write(f"Índices (fechas): {list(metas_nuevas_df.index)}")
-        st.write(f"Columnas: {list(metas_nuevas_df.columns)}")
-        st.dataframe(metas_nuevas_df)
-        
-        st.write("**Estructura de metas_actualizar_df:**")
-        st.write(f"Índices (fechas): {list(metas_actualizar_df.index)}")
-        st.write(f"Columnas: {list(metas_actualizar_df.columns)}")
-        st.dataframe(metas_actualizar_df)
-    
     # Función para calcular publicados por trimestre
-    def calcular_publicados_trimestral_debug(df_registros, tipo_dato):
-        """Calcula los publicados por trimestre con debug"""
+    def calcular_publicados_trimestral(df_registros, tipo_dato):
+        """Calcula los publicados por trimestre para un tipo de dato específico"""
         # Filtrar por tipo de dato
         if tipo_dato.upper() == 'NUEVO':
             df_filtrado_tipo = df_registros[df_registros['TipoDato'].str.upper() == 'NUEVO']
@@ -1174,157 +1032,89 @@ def seccion_medidores_trimestrales_corregida(registros_df, metas_nuevas_df, meta
             df_filtrado_tipo = df_registros[df_registros['TipoDato'].str.upper() == 'ACTUALIZAR']
         
         publicados_trimestre = {'Marzo': 0, 'Junio': 0, 'Septiembre': 0, 'Diciembre': 0}
-        publicados_detalle = {'Marzo': [], 'Junio': [], 'Septiembre': [], 'Diciembre': []}
         
         for _, row in df_filtrado_tipo.iterrows():
             if 'Publicación' in row and pd.notna(row['Publicación']) and str(row['Publicación']).strip() != '':
-                try:
-                    fecha_pub = procesar_fecha(row['Publicación'])
-                    if fecha_pub is not None:
-                        mes = fecha_pub.month
-                        cod = row.get('Cod', 'Sin código')
-                        fecha_str = fecha_pub.strftime('%d/%m/%Y')
-                        
-                        # Agrupar por trimestres
-                        if mes <= 3:  # Enero-Marzo
-                            publicados_trimestre['Marzo'] += 1
-                            publicados_detalle['Marzo'].append(f"{cod}: {fecha_str}")
-                        elif mes <= 6:  # Abril-Junio
-                            publicados_trimestre['Junio'] += 1
-                            publicados_detalle['Junio'].append(f"{cod}: {fecha_str}")
-                        elif mes <= 9:  # Julio-Septiembre
-                            publicados_trimestre['Septiembre'] += 1
-                            publicados_detalle['Septiembre'].append(f"{cod}: {fecha_str}")
-                        else:  # Octubre-Diciembre
-                            publicados_trimestre['Diciembre'] += 1
-                            publicados_detalle['Diciembre'].append(f"{cod}: {fecha_str}")
-                except Exception as e:
-                    continue
+                fecha_pub = procesar_fecha(row['Publicación'])
+                if fecha_pub is not None:
+                    mes = fecha_pub.month
+                    # Agrupar por trimestres
+                    if mes <= 3:  # Enero-Marzo
+                        publicados_trimestre['Marzo'] += 1
+                    elif mes <= 6:  # Abril-Junio
+                        publicados_trimestre['Junio'] += 1
+                    elif mes <= 9:  # Julio-Septiembre
+                        publicados_trimestre['Septiembre'] += 1
+                    else:  # Octubre-Diciembre
+                        publicados_trimestre['Diciembre'] += 1
         
-        return publicados_trimestre, publicados_detalle
+        return publicados_trimestre
     
-    # Función CORREGIDA para obtener metas trimestrales
-    def obtener_metas_trimestrales_corregida(metas_df):
-        """Obtiene las metas trimestrales con lógica corregida"""
-        # Inicializar con valores por defecto para asegurar que siempre hay metas
-        metas_trimestre = {'Marzo': 5, 'Junio': 10, 'Septiembre': 15, 'Diciembre': 20}
+    # Función para obtener metas trimestrales
+    def obtener_metas_trimestrales(metas_df):
+        """Obtiene las metas acumuladas para marzo, junio, septiembre y diciembre"""
+        metas_trimestre = {'Marzo': 0, 'Junio': 0, 'Septiembre': 0, 'Diciembre': 0}
         
         try:
-            # Si no hay datos de metas, usar valores por defecto
-            if metas_df.empty:
-                return metas_trimestre
-            
-            # Buscar columna de Publicación
-            columna_publicacion = None
-            for col in metas_df.columns:
-                if 'publicacion' in str(col).lower() or 'publicación' in str(col).lower():
-                    columna_publicacion = col
-                    break
-            
-            # Si no encuentra columna específica, usar la última columna numérica
-            if columna_publicacion is None:
-                for col in metas_df.columns:
-                    try:
-                        # Intentar convertir a numérico para ver si es una columna de metas
-                        pd.to_numeric(metas_df[col], errors='coerce')
-                        columna_publicacion = col
-                    except:
-                        continue
-            
-            if columna_publicacion is not None:
-                # Resetear contadores
-                metas_trimestre = {'Marzo': 0, 'Junio': 0, 'Septiembre': 0, 'Diciembre': 0}
+            for fecha_idx, fecha in enumerate(metas_df.index):
+                mes = fecha.month
+                if 'Publicación' in metas_df.columns:
+                    meta_publicacion = metas_df.iloc[fecha_idx]['Publicación']
+                    meta_publicacion = float(meta_publicacion) if pd.notna(meta_publicacion) else 0
+                else:
+                    meta_publicacion = 0
                 
-                for fecha_idx, fecha in enumerate(metas_df.index):
-                    try:
-                        mes = fecha.month
-                        meta_valor = metas_df.iloc[fecha_idx][columna_publicacion]
-                        meta_valor = float(meta_valor) if pd.notna(meta_valor) else 0
-                        
-                        if mes <= 3:
-                            metas_trimestre['Marzo'] += meta_valor
-                        elif mes <= 6:
-                            metas_trimestre['Junio'] += meta_valor
-                        elif mes <= 9:
-                            metas_trimestre['Septiembre'] += meta_valor
-                        else:
-                            metas_trimestre['Diciembre'] += meta_valor
-                    except Exception:
-                        continue
-                
-                # Si todas las metas son 0, usar valores por defecto
-                if all(meta == 0 for meta in metas_trimestre.values()):
-                    metas_trimestre = {'Marzo': 5, 'Junio': 10, 'Septiembre': 15, 'Diciembre': 20}
-                    
+                if mes <= 3:
+                    metas_trimestre['Marzo'] += meta_publicacion
+                elif mes <= 6:
+                    metas_trimestre['Junio'] += meta_publicacion
+                elif mes <= 9:
+                    metas_trimestre['Septiembre'] += meta_publicacion
+                else:
+                    metas_trimestre['Diciembre'] += meta_publicacion
         except Exception as e:
-            st.warning(f"Error al procesar metas: {e}. Usando valores por defecto.")
-            metas_trimestre = {'Marzo': 5, 'Junio': 10, 'Septiembre': 15, 'Diciembre': 20}
+            st.warning(f"Error al procesar metas trimestrales: {e}")
+            metas_trimestre = {'Marzo': 10, 'Junio': 20, 'Septiembre': 30, 'Diciembre': 40}
         
         return metas_trimestre
     
-    # Función para crear medidores circulares DEFINITIVA
-    def crear_medidor_circular_definitivo(porcentaje, trimestre, completados, meta, detalle_publicaciones):
-        """Crea un medidor circular con información completa"""
+    # Función para crear medidores circulares
+    def crear_medidor_circular(porcentaje, trimestre, completados, meta):
+        """Crea un medidor circular estilo gauge"""
         if porcentaje < 50:
             color = '#dc2626'
-            estado_icono = '🚨'
-            estado_texto = 'Crítico'
         elif porcentaje < 80:
             color = '#f59e0b'
-            estado_icono = '⚠️'
-            estado_texto = 'Atención'
         else:
             color = '#16a34a'
-            estado_icono = '🎯' if porcentaje >= 100 else '📈'
-            estado_texto = 'Cumplido' if porcentaje >= 100 else 'En progreso'
         
         porcentaje_visual = min(porcentaje, 100)
         
-        # Calcular stroke-dashoffset correctamente
-        radius = 45  # Radio ligeramente menor para mejor visualización
-        circumference = 2 * 3.14159 * radius
-        dash_offset = circumference - (circumference * porcentaje_visual / 100)
-        
-        # Tooltip con detalles
-        tooltip_content = f"Trimestre: {trimestre}\\nCompletados: {completados}\\nMeta: {meta}\\nPorcentaje: {porcentaje:.1f}%"
-        if detalle_publicaciones:
-            tooltip_content += f"\\nPublicaciones: {', '.join(detalle_publicaciones[:3])}"
-            if len(detalle_publicaciones) > 3:
-                tooltip_content += f"\\n... y {len(detalle_publicaciones) - 3} más"
-        
         html_medidor = f"""
-        <div style="display: inline-block; text-align: center; margin: 8px; vertical-align: top; width: 130px;">
-            <div style="position: relative; width: 110px; height: 110px; margin: 0 auto;" title="{tooltip_content}">
-                <svg width="110" height="110" style="transform: rotate(-90deg);">
-                    <!-- Círculo de fondo -->
-                    <circle cx="55" cy="55" r="{radius}" 
-                            stroke="#e5e7eb" 
-                            stroke-width="6" 
-                            fill="none" />
-                    <!-- Círculo de progreso -->
-                    <circle cx="55" cy="55" r="{radius}" 
-                            stroke="{color}" 
-                            stroke-width="6"
-                            stroke-dasharray="{circumference}"
-                            stroke-dashoffset="{dash_offset}"
-                            stroke-linecap="round" 
-                            fill="none"
-                            style="transition: stroke-dashoffset 1.5s ease-in-out;" />
+        <div style="text-align: center; margin: 10px;">
+            <div style="position: relative; width: 120px; height: 120px; margin: 0 auto;">
+                <svg width="120" height="120" style="transform: rotate(-90deg);">
+                    <circle cx="60" cy="60" r="50" stroke="#e5e7eb" stroke-width="8" fill="none" />
+                    <circle cx="60" cy="60" r="50" stroke="{color}" stroke-width="8"
+                            stroke-dasharray="314.16"
+                            stroke-dashoffset="{314.16 - (314.16 * porcentaje_visual / 100)}"
+                            stroke-linecap="round" fill="none"
+                            style="transition: stroke-dashoffset 1s ease-in-out;" />
                 </svg>
                 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
-                    <div style="font-size: 16px; font-weight: bold; color: {color};">
+                    <div style="font-size: 18px; font-weight: bold; color: {color};">
                         {porcentaje:.0f}%
                     </div>
-                    <div style="font-size: 10px; color: #64748b; margin-top: 2px;">
+                    <div style="font-size: 11px; color: #64748b;">
                         {completados}/{meta}
                     </div>
                 </div>
             </div>
-            <div style="margin-top: 6px; font-weight: 600; font-size: 13px; color: #374151;">
+            <div style="margin-top: 8px; font-weight: 600; font-size: 14px; color: #374151;">
                 {trimestre}
             </div>
-            <div style="font-size: 10px; color: {color}; font-weight: 500; margin-top: 2px;">
-                {estado_icono} {estado_texto}
+            <div style="font-size: 11px; color: {color}; font-weight: 500;">
+                {'🎯 Cumplido' if porcentaje >= 100 else '📈 En progreso' if porcentaje >= 80 else '⚠️ Atención' if porcentaje >= 50 else '🚨 Crítico'}
             </div>
         </div>
         """
@@ -1332,124 +1122,64 @@ def seccion_medidores_trimestrales_corregida(registros_df, metas_nuevas_df, meta
     
     # Calcular datos y generar visualización
     try:
+        publicados_nuevos = calcular_publicados_trimestral(registros_df, 'NUEVO')
+        publicados_actualizar = calcular_publicados_trimestral(registros_df, 'ACTUALIZAR')
+        
+        metas_nuevos_trim = obtener_metas_trimestrales(metas_nuevas_df)
+        metas_actualizar_trim = obtener_metas_trimestrales(metas_actualizar_df)
+        
         st.markdown("**Publicaciones completadas vs metas trimestrales acumuladas**")
-        
-        # Calcular publicados con detalle
-        publicados_nuevos, detalle_nuevos = calcular_publicados_trimestral_debug(registros_df, 'NUEVO')
-        publicados_actualizar, detalle_actualizar = calcular_publicados_trimestral_debug(registros_df, 'ACTUALIZAR')
-        
-        # Obtener metas con función corregida
-        metas_nuevos_trim = obtener_metas_trimestrales_corregida(metas_nuevas_df)
-        metas_actualizar_trim = obtener_metas_trimestrales_corregida(metas_actualizar_df)
-        
-        # DEBUG: Mostrar datos calculados
-        with st.expander("🔍 Debug: Datos Calculados", expanded=False):
-            st.write("**Publicados Nuevos:**", publicados_nuevos)
-            st.write("**Metas Nuevos:**", metas_nuevos_trim)
-            st.write("**Publicados Actualizar:**", publicados_actualizar)
-            st.write("**Metas Actualizar:**", metas_actualizar_trim)
-        
-        # Crear columnas para mostrar medidores
         col1, col2 = st.columns(2)
     
         with col1:
             st.markdown("#### 📊 Registros Nuevos")
-            html_medidores_nuevos = '<div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 2px; min-height: 200px; align-items: flex-start;">'
-            
+            html_medidores_nuevos = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
             for trimestre in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']:
                 completados = publicados_nuevos.get(trimestre, 0)
-                meta = metas_nuevos_trim.get(trimestre, 1)  # Mínimo 1 para evitar división por 0
+                meta = metas_nuevos_trim.get(trimestre, 1)
                 porcentaje = (completados / meta * 100) if meta > 0 else 0
-                detalle = detalle_nuevos.get(trimestre, [])
-                
-                html_medidores_nuevos += crear_medidor_circular_definitivo(
-                    porcentaje, trimestre, completados, meta, detalle
-                )
-            
+                html_medidores_nuevos += crear_medidor_circular(porcentaje, trimestre, completados, meta)
             html_medidores_nuevos += '</div>'
             st.markdown(html_medidores_nuevos, unsafe_allow_html=True)
     
         with col2:
             st.markdown("#### 🔄 Registros a Actualizar")
-            html_medidores_actualizar = '<div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 2px; min-height: 200px; align-items: flex-start;">'
-            
+            html_medidores_actualizar = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
             for trimestre in ['Marzo', 'Junio', 'Septiembre', 'Diciembre']:
                 completados = publicados_actualizar.get(trimestre, 0)
-                meta = metas_actualizar_trim.get(trimestre, 1)  # Mínimo 1 para evitar división por 0
+                meta = metas_actualizar_trim.get(trimestre, 1)
                 porcentaje = (completados / meta * 100) if meta > 0 else 0
-                detalle = detalle_actualizar.get(trimestre, [])
-                
-                html_medidores_actualizar += crear_medidor_circular_definitivo(
-                    porcentaje, trimestre, completados, meta, detalle
-                )
-            
+                html_medidores_actualizar += crear_medidor_circular(porcentaje, trimestre, completados, meta)
             html_medidores_actualizar += '</div>'
             st.markdown(html_medidores_actualizar, unsafe_allow_html=True)
-        
-        # Resumen estadístico
-        st.markdown("### 📊 Resumen Estadístico")
-        col1_stats, col2_stats = st.columns(2)
-        
-        with col1_stats:
-            total_publicados_nuevos = sum(publicados_nuevos.values())
-            total_meta_nuevos = sum(metas_nuevos_trim.values())
-            porcentaje_global_nuevos = (total_publicados_nuevos / total_meta_nuevos * 100) if total_meta_nuevos > 0 else 0
-            
-            st.metric(
-                "Registros Nuevos - Total", 
-                f"{total_publicados_nuevos}/{total_meta_nuevos}", 
-                f"{porcentaje_global_nuevos:.1f}%"
-            )
-        
-        with col2_stats:
-            total_publicados_actualizar = sum(publicados_actualizar.values())
-            total_meta_actualizar = sum(metas_actualizar_trim.values())
-            porcentaje_global_actualizar = (total_publicados_actualizar / total_meta_actualizar * 100) if total_meta_actualizar > 0 else 0
-            
-            st.metric(
-                "Registros a Actualizar - Total", 
-                f"{total_publicados_actualizar}/{total_meta_actualizar}", 
-                f"{porcentaje_global_actualizar:.1f}%"
-            )
     
     except Exception as e:
-        st.error(f"Error crítico al generar medidores: {e}")
-        
-        # Mostrar traceback para debug
-        import traceback
-        with st.expander("Ver error completo", expanded=False):
-            st.code(traceback.format_exc())
-        
-        # Medidores de ejemplo como fallback
+        st.error(f"Error al generar medidores trimestrales: {e}")
         st.info("Mostrando medidores con datos de ejemplo...")
         
         datos_ejemplo = {
-            'Marzo': {'nuevos': 3, 'actualizar': 2, 'meta_nuevos': 5, 'meta_actualizar': 4},
-            'Junio': {'nuevos': 7, 'actualizar': 6, 'meta_nuevos': 8, 'meta_actualizar': 7},
-            'Septiembre': {'nuevos': 4, 'actualizar': 3, 'meta_nuevos': 6, 'meta_actualizar': 5},
-            'Diciembre': {'nuevos': 9, 'actualizar': 8, 'meta_nuevos': 10, 'meta_actualizar': 9}
+            'Marzo': {'nuevos': 5, 'actualizar': 3, 'meta_nuevos': 8, 'meta_actualizar': 5},
+            'Junio': {'nuevos': 7, 'actualizar': 6, 'meta_nuevos': 10, 'meta_actualizar': 8},
+            'Septiembre': {'nuevos': 4, 'actualizar': 2, 'meta_nuevos': 6, 'meta_actualizar': 4},
+            'Diciembre': {'nuevos': 8, 'actualizar': 9, 'meta_nuevos': 12, 'meta_actualizar': 10}
         }
         
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("#### 📊 Registros Nuevos (Ejemplo)")
-            html_ejemplo_nuevos = '<div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 2px; min-height: 200px; align-items: flex-start;">'
+            st.markdown("#### 📊 Registros Nuevos")
+            html_ejemplo_nuevos = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
             for trimestre, datos in datos_ejemplo.items():
                 porcentaje = (datos['nuevos'] / datos['meta_nuevos'] * 100)
-                html_ejemplo_nuevos += crear_medidor_circular_definitivo(
-                    porcentaje, trimestre, datos['nuevos'], datos['meta_nuevos'], []
-                )
+                html_ejemplo_nuevos += crear_medidor_circular(porcentaje, trimestre, datos['nuevos'], datos['meta_nuevos'])
             html_ejemplo_nuevos += '</div>'
             st.markdown(html_ejemplo_nuevos, unsafe_allow_html=True)
     
         with col2:
-            st.markdown("#### 🔄 Registros a Actualizar (Ejemplo)")
-            html_ejemplo_actualizar = '<div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 2px; min-height: 200px; align-items: flex-start;">'
+            st.markdown("#### 🔄 Registros a Actualizar")
+            html_ejemplo_actualizar = '<div style="display: flex; justify-content: space-around; flex-wrap: wrap;">'
             for trimestre, datos in datos_ejemplo.items():
                 porcentaje = (datos['actualizar'] / datos['meta_actualizar'] * 100)
-                html_ejemplo_actualizar += crear_medidor_circular_definitivo(
-                    porcentaje, trimestre, datos['actualizar'], datos['meta_actualizar'], []
-                )
+                html_ejemplo_actualizar += crear_medidor_circular(porcentaje, trimestre, datos['actualizar'], datos['meta_actualizar'])
             html_ejemplo_actualizar += '</div>'
             st.markdown(html_ejemplo_actualizar, unsafe_allow_html=True)
     
@@ -1466,11 +1196,6 @@ def seccion_medidores_trimestrales_corregida(registros_df, metas_nuevas_df, meta
     - 🟢 **Verde**: ≥80% de cumplimiento
     - 🟡 **Amarillo**: 50-79% de cumplimiento
     - 🔴 **Rojo**: <50% de cumplimiento
-    
-    **💡 Notas:**
-    - Si no hay metas configuradas, se usan valores por defecto
-    - Los porcentajes se calculan como: (Publicados / Meta) × 100
-    - Hover sobre los círculos para ver detalles adicionales
     """)
 
     # Tabla resumen opcional
@@ -1502,9 +1227,7 @@ def seccion_medidores_trimestrales_corregida(registros_df, metas_nuevas_df, meta
         except Exception as e:
             st.error(f"Error al generar tabla resumen: {e}")
             st.info("Los datos de la tabla no están disponibles en este momento.")
-
-
-                         
+             
     # Diagrama de Gantt condicionado
     st.markdown('<div class="subtitle">Diagrama de Gantt - Cronograma de Hitos por Nivel de Información</div>',
                 unsafe_allow_html=True)
@@ -1627,7 +1350,7 @@ def seccion_medidores_trimestrales_corregida(registros_df, metas_nuevas_df, meta
         st.error(f"Error al mostrar la tabla de registros: {e}")
         if 'columnas_mostrar_existentes' in locals():
             st.dataframe(df_filtrado[columnas_mostrar_existentes])
-            
+
 # ========== FUNCIÓN ALERTAS COMPLETA RESTAURADA ==========
 
 def mostrar_alertas_vencimientos(registros_df):
@@ -1905,855 +1628,863 @@ def mostrar_alertas_vencimientos(registros_df):
                             'Entidad': row['Entidad'],
                             'Nivel Información': row.get('Nivel Información ', ''),
                             'Funcionario': row.get('Funcionario', ''),
-                            'Tipo Alerta': 'Publicación',
-                            'Fecha Programada': fecha_publicacion_prog,
-                            'Fecha Real': None,
-                            'Días Rezago': -dias_restantes,
-                            'Estado': 'Próximo a vencer',
-                            'Descripción': f'Fecha programada de publicación vence en {dias_restantes} días hábiles'
-                        })
-
-            # 5. Oficio de cierre
-            if fecha_plazo_oficio_cierre is not None and pd.notna(fecha_plazo_oficio_cierre):
-                if fecha_oficio_cierre is not None and pd.notna(fecha_oficio_cierre):
-                    # Hay fecha real, verificar si está con retraso
-                    if fecha_oficio_cierre > fecha_plazo_oficio_cierre:
-                        dias_rezago = calcular_dias_habiles(fecha_plazo_oficio_cierre, fecha_oficio_cierre)
-                        registros_alertas.append({
-                            'Cod': row['Cod'],
-                            'Entidad': row['Entidad'],
-                            'Nivel Información': row.get('Nivel Información ', ''),
-                            'Funcionario': row.get('Funcionario', ''),
-                            'Tipo Alerta': 'Oficio de cierre',
-                            'Fecha Programada': fecha_plazo_oficio_cierre,
-                            'Fecha Real': fecha_oficio_cierre,
-                            'Días Rezago': dias_rezago,
-                            'Estado': 'Completado con retraso',
-                            'Descripción': f'Oficio de cierre emitido con {dias_rezago} días hábiles de retraso'
-                        })
-                else:
-                    # No hay fecha real, verificar si está vencido o próximo
-                    if es_vencido(fecha_plazo_oficio_cierre):
-                        dias_rezago = calcular_dias_rezago(fecha_plazo_oficio_cierre)
-                        registros_alertas.append({
-                            'Cod': row['Cod'],
-                            'Entidad': row['Entidad'],
-                            'Nivel Información': row.get('Nivel Información ', ''),
-                            'Funcionario': row.get('Funcionario', ''),
-                            'Tipo Alerta': 'Oficio de cierre',
-                            'Fecha Programada': fecha_plazo_oficio_cierre,
-                            'Fecha Real': None,
-                            'Días Rezago': dias_rezago,
-                            'Estado': 'Vencido',
-                            'Descripción': f'Plazo de oficio de cierre vencido hace {dias_rezago} días'
-                        })
-                    elif es_proximo_vencimiento(fecha_plazo_oficio_cierre):
-                        dias_restantes = calcular_dias_habiles(fecha_actual, fecha_plazo_oficio_cierre)
-                        registros_alertas.append({
-                            'Cod': row['Cod'],
-                            'Entidad': row['Entidad'],
-                            'Nivel Información': row.get('Nivel Información ', ''),
-                            'Funcionario': row.get('Funcionario', ''),
-                            'Tipo Alerta': 'Oficio de cierre',
-                            'Fecha Programada': fecha_plazo_oficio_cierre,
-                            'Fecha Real': None,
-                            'Días Rezago': -dias_restantes,
-                            'Estado': 'Próximo a vencer',
-                            'Descripción': f'Plazo de oficio de cierre vence en {dias_restantes} días hábiles'
-                        })
-
-        except Exception as e:
-            st.warning(f"Error procesando registro {row['Cod']}: {e}")
-            continue
-
-    # Crear DataFrame de alertas
-    if registros_alertas:
-        df_alertas = pd.DataFrame(registros_alertas)
-
-        # Formatear fechas
-        for col in ['Fecha Programada', 'Fecha Real']:
-            if col in df_alertas.columns:
-                df_alertas[col] = df_alertas[col].apply(formatear_fecha_segura)
-
-        # Función para aplicar colores según estado
-        def highlight_estado(val):
-            if val == 'Vencido':
-                return 'background-color: #fee2e2; color: #b91c1c; font-weight: bold'
-            elif val == 'Próximo a vencer':
-                return 'background-color: #fef3c7; color: #b45309; font-weight: bold'
-            elif val == 'Completado con retraso':
-                return 'background-color: #dbeafe; color: #1e40af'
-            return ''
-
-        # Mostrar estadísticas de alertas
-        st.markdown("### Resumen de Alertas")
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            num_vencidos = len(df_alertas[df_alertas['Estado'] == 'Vencido'])
-            st.markdown(f"""
-            <div class="metric-card" style="background-color: #fee2e2;">
-                <p style="font-size: 1rem; color: #b91c1c;">Vencidos</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #b91c1c;">{num_vencidos}</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-        with col2:
-            num_proximos = len(df_alertas[df_alertas['Estado'] == 'Próximo a vencer'])
-            st.markdown(f"""
-            <div class="metric-card" style="background-color: #fef3c7;">
-                <p style="font-size: 1rem; color: #b45309;">Próximos a vencer</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #b45309;">{num_proximos}</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-        with col3:
-            num_retrasados = len(df_alertas[df_alertas['Estado'] == 'Completado con retraso'])
-            st.markdown(f"""
-            <div class="metric-card" style="background-color: #dbeafe;">
-                <p style="font-size: 1rem; color: #1e40af;">Completados con retraso</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #1e40af;">{num_retrasados}</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-        # Gráfico de alertas por tipo
-        try:
-            st.markdown("### Alertas por Tipo")
-
-            alertas_por_tipo = df_alertas.groupby(['Tipo Alerta', 'Estado']).size().unstack(fill_value=0)
-
-            # Asegurar que existan todas las columnas
-            for estado in ['Vencido', 'Próximo a vencer', 'Completado con retraso']:
-                if estado not in alertas_por_tipo.columns:
-                    alertas_por_tipo[estado] = 0
-
-            # Reordenar las columnas
-            columnas_orden = ['Vencido', 'Próximo a vencer', 'Completado con retraso']
-            columnas_disponibles = [col for col in columnas_orden if col in alertas_por_tipo.columns]
-
-            fig = px.bar(
-                alertas_por_tipo.reset_index(),
-                x='Tipo Alerta',
-                y=columnas_disponibles,
-                barmode='group',
-                title='Distribución de Alertas por Tipo y Estado',
-                color_discrete_map={
-                    'Vencido': '#b91c1c',
-                    'Próximo a vencer': '#b45309',
-                    'Completado con retraso': '#1e40af'
-                }
-            )
-
-            st.plotly_chart(fig, use_container_width=True)
-        except Exception as e:
-            st.warning(f"Error al generar el gráfico de alertas: {e}")
-
-        # Filtros para la tabla de alertas
-        st.markdown("### Filtrar Alertas")
-
-        col1, col2, col3, col4, col5 = st.columns(5)
-
-        with col1:
-            tipo_alerta_filtro = st.multiselect(
-                "Tipo de Alerta",
-                options=df_alertas['Tipo Alerta'].unique().tolist(),
-                default=df_alertas['Tipo Alerta'].unique().tolist()
-            )
-
-        with col2:
-            estado_filtro = st.multiselect(
-                "Estado",
-                options=df_alertas['Estado'].unique().tolist(),
-                default=df_alertas['Estado'].unique().tolist()
-            )
-
-        with col3:
-            if 'Funcionario' in df_alertas.columns and not df_alertas['Funcionario'].isna().all():
-                funcionarios = [f for f in df_alertas['Funcionario'].dropna().unique().tolist() if f]
-                if funcionarios:
-                    funcionario_filtro = st.multiselect(
-                        "Funcionario",
-                        options=["Todos"] + sorted(funcionarios),
+                                    'Tipo Alerta': 'Publicación',
+                                    'Fecha Programada': fecha_publicacion_prog,
+                                    'Fecha Real': None,
+                                    'Días Rezago': -dias_restantes,
+                                    'Estado': 'Próximo a vencer',
+                                    'Descripción': f'Fecha programada de publicación vence en {dias_restantes} días hábiles'
+                                })
+        
+                    # 5. Oficio de cierre
+                    if fecha_plazo_oficio_cierre is not None and pd.notna(fecha_plazo_oficio_cierre):
+                        if fecha_oficio_cierre is not None and pd.notna(fecha_oficio_cierre):
+                            # Hay fecha real, verificar si está con retraso
+                            if fecha_oficio_cierre > fecha_plazo_oficio_cierre:
+                                dias_rezago = calcular_dias_habiles(fecha_plazo_oficio_cierre, fecha_oficio_cierre)
+                                registros_alertas.append({
+                                    'Cod': row['Cod'],
+                                    'Entidad': row['Entidad'],
+                                    'Nivel Información': row.get('Nivel Información ', ''),
+                                    'Funcionario': row.get('Funcionario', ''),
+                                    'Tipo Alerta': 'Oficio de cierre',
+                                    'Fecha Programada': fecha_plazo_oficio_cierre,
+                                    'Fecha Real': fecha_oficio_cierre,
+                                    'Días Rezago': dias_rezago,
+                                    'Estado': 'Completado con retraso',
+                                    'Descripción': f'Oficio de cierre emitido con {dias_rezago} días hábiles de retraso'
+                                })
+                        else:
+                            # No hay fecha real, verificar si está vencido o próximo
+                            if es_vencido(fecha_plazo_oficio_cierre):
+                                dias_rezago = calcular_dias_rezago(fecha_plazo_oficio_cierre)
+                                registros_alertas.append({
+                                    'Cod': row['Cod'],
+                                    'Entidad': row['Entidad'],
+                                    'Nivel Información': row.get('Nivel Información ', ''),
+                                    'Funcionario': row.get('Funcionario', ''),
+                                    'Tipo Alerta': 'Oficio de cierre',
+                                    'Fecha Programada': fecha_plazo_oficio_cierre,
+                                    'Fecha Real': None,
+                                    'Días Rezago': dias_rezago,
+                                    'Estado': 'Vencido',
+                                    'Descripción': f'Plazo de oficio de cierre vencido hace {dias_rezago} días'
+                                })
+                            elif es_proximo_vencimiento(fecha_plazo_oficio_cierre):
+                                dias_restantes = calcular_dias_habiles(fecha_actual, fecha_plazo_oficio_cierre)
+                                registros_alertas.append({
+                                    'Cod': row['Cod'],
+                                    'Entidad': row['Entidad'],
+                                    'Nivel Información': row.get('Nivel Información ', ''),
+                                    'Funcionario': row.get('Funcionario', ''),
+                                    'Tipo Alerta': 'Oficio de cierre',
+                                    'Fecha Programada': fecha_plazo_oficio_cierre,
+                                    'Fecha Real': None,
+                                    'Días Rezago': -dias_restantes,
+                                    'Estado': 'Próximo a vencer',
+                                    'Descripción': f'Plazo de oficio de cierre vence en {dias_restantes} días hábiles'
+                                })
+        
+                except Exception as e:
+                    st.warning(f"Error procesando registro {row['Cod']}: {e}")
+                    continue
+        
+            # Crear DataFrame de alertas
+            if registros_alertas:
+                df_alertas = pd.DataFrame(registros_alertas)
+        
+                # Formatear fechas
+                for col in ['Fecha Programada', 'Fecha Real']:
+                    if col in df_alertas.columns:
+                        df_alertas[col] = df_alertas[col].apply(formatear_fecha_segura)
+        
+                # Función para aplicar colores según estado
+                def highlight_estado(val):
+                    if val == 'Vencido':
+                        return 'background-color: #fee2e2; color: #b91c1c; font-weight: bold'
+                    elif val == 'Próximo a vencer':
+                        return 'background-color: #fef3c7; color: #b45309; font-weight: bold'
+                    elif val == 'Completado con retraso':
+                        return 'background-color: #dbeafe; color: #1e40af'
+                    return ''
+        
+                # Mostrar estadísticas de alertas
+                st.markdown("### Resumen de Alertas")
+        
+                col1, col2, col3 = st.columns(3)
+        
+                with col1:
+                    num_vencidos = len(df_alertas[df_alertas['Estado'] == 'Vencido'])
+                    st.markdown(f"""
+                    <div class="metric-card" style="background-color: #fee2e2;">
+                        <p style="font-size: 1rem; color: #b91c1c;">Vencidos</p>
+                        <p style="font-size: 2.5rem; font-weight: bold; color: #b91c1c;">{num_vencidos}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+                with col2:
+                    num_proximos = len(df_alertas[df_alertas['Estado'] == 'Próximo a vencer'])
+                    st.markdown(f"""
+                    <div class="metric-card" style="background-color: #fef3c7;">
+                        <p style="font-size: 1rem; color: #b45309;">Próximos a vencer</p>
+                        <p style="font-size: 2.5rem; font-weight: bold; color: #b45309;">{num_proximos}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+                with col3:
+                    num_retrasados = len(df_alertas[df_alertas['Estado'] == 'Completado con retraso'])
+                    st.markdown(f"""
+                    <div class="metric-card" style="background-color: #dbeafe;">
+                        <p style="font-size: 1rem; color: #1e40af;">Completados con retraso</p>
+                        <p style="font-size: 2.5rem; font-weight: bold; color: #1e40af;">{num_retrasados}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+                # Gráfico de alertas por tipo
+                try:
+                    st.markdown("### Alertas por Tipo")
+        
+                    alertas_por_tipo = df_alertas.groupby(['Tipo Alerta', 'Estado']).size().unstack(fill_value=0)
+        
+                    # Asegurar que existan todas las columnas
+                    for estado in ['Vencido', 'Próximo a vencer', 'Completado con retraso']:
+                        if estado not in alertas_por_tipo.columns:
+                            alertas_por_tipo[estado] = 0
+        
+                    # Reordenar las columnas
+                    columnas_orden = ['Vencido', 'Próximo a vencer', 'Completado con retraso']
+                    columnas_disponibles = [col for col in columnas_orden if col in alertas_por_tipo.columns]
+        
+                    fig = px.bar(
+                        alertas_por_tipo.reset_index(),
+                        x='Tipo Alerta',
+                        y=columnas_disponibles,
+                        barmode='group',
+                        title='Distribución de Alertas por Tipo y Estado',
+                        color_discrete_map={
+                            'Vencido': '#b91c1c',
+                            'Próximo a vencer': '#b45309',
+                            'Completado con retraso': '#1e40af'
+                        }
+                    )
+        
+                    st.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    st.warning(f"Error al generar el gráfico de alertas: {e}")
+        
+                # Filtros para la tabla de alertas
+                st.markdown("### Filtrar Alertas")
+        
+                col1, col2, col3, col4, col5 = st.columns(5)
+        
+                with col1:
+                    tipo_alerta_filtro = st.multiselect(
+                        "Tipo de Alerta",
+                        options=df_alertas['Tipo Alerta'].unique().tolist(),
+                        default=df_alertas['Tipo Alerta'].unique().tolist()
+                    )
+        
+                with col2:
+                    estado_filtro = st.multiselect(
+                        "Estado",
+                        options=df_alertas['Estado'].unique().tolist(),
+                        default=df_alertas['Estado'].unique().tolist()
+                    )
+        
+                with col3:
+                    if 'Funcionario' in df_alertas.columns and not df_alertas['Funcionario'].isna().all():
+                        funcionarios = [f for f in df_alertas['Funcionario'].dropna().unique().tolist() if f]
+                        if funcionarios:
+                            funcionario_filtro = st.multiselect(
+                                "Funcionario",
+                                options=["Todos"] + sorted(funcionarios),
+                                default=["Todos"]
+                            )
+                        else:
+                            funcionario_filtro = ["Todos"]
+                    else:
+                        funcionario_filtro = ["Todos"]
+        
+                with col4:
+                    tipos_dato_alertas = ['Todos'] + sorted(registros_df['TipoDato'].dropna().unique().tolist())
+                    tipo_dato_filtro_alertas = st.multiselect(
+                        "Tipo de Dato",
+                        options=tipos_dato_alertas,
                         default=["Todos"]
                     )
-                else:
-                    funcionario_filtro = ["Todos"]
-            else:
-                funcionario_filtro = ["Todos"]
-
-        with col4:
-            tipos_dato_alertas = ['Todos'] + sorted(registros_df['TipoDato'].dropna().unique().tolist())
-            tipo_dato_filtro_alertas = st.multiselect(
-                "Tipo de Dato",
-                options=tipos_dato_alertas,
-                default=["Todos"]
-            )
-
-        with col5:
-            meses_disponibles_alertas = ['Todos']
-            if 'Mes Proyectado' in registros_df.columns:
-                meses_unicos_alertas = [m for m in registros_df['Mes Proyectado'].dropna().unique().tolist() if m]
-                meses_disponibles_alertas += sorted(meses_unicos_alertas)
-            mes_filtro_alertas = st.multiselect(
-                "Mes Proyectado",
-                options=meses_disponibles_alertas,
-                default=["Todos"]
-            )
-            
-        # Aplicar filtros
-        df_alertas_filtrado = df_alertas.copy()
-
-        if tipo_alerta_filtro:
-            df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Tipo Alerta'].isin(tipo_alerta_filtro)]
-
-        if estado_filtro:
-            df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Estado'].isin(estado_filtro)]
-
-        if 'Funcionario' in df_alertas.columns and funcionario_filtro and "Todos" not in funcionario_filtro:
-            df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Funcionario'].isin(funcionario_filtro)]
-
-        if tipo_dato_filtro_alertas and "Todos" not in tipo_dato_filtro_alertas:
-            # Obtener códigos de registros que coinciden con el tipo de dato
-            codigos_tipo_dato = registros_df[registros_df['TipoDato'].isin(tipo_dato_filtro_alertas)]['Cod'].tolist()
-            df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Cod'].isin(codigos_tipo_dato)]
-
-        # Agregar después de los otros filtros
-        if mes_filtro_alertas and "Todos" not in mes_filtro_alertas:
-            # Obtener códigos de registros que coinciden con el mes proyectado
-            codigos_mes_proyectado = registros_df[registros_df['Mes Proyectado'].isin(mes_filtro_alertas)]['Cod'].tolist()
-            df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Cod'].isin(codigos_mes_proyectado)]
         
-        # Mostrar tabla de alertas con formato
-        st.markdown("### Listado de Alertas")
-
-        # Definir columnas a mostrar
-        columnas_alertas = [
-            'Cod', 'Entidad', 'Nivel Información', 'Funcionario', 'Tipo Alerta',
-            'Estado', 'Fecha Programada', 'Fecha Real', 'Días Rezago', 'Descripción'
-        ]
-
-        # Verificar que todas las columnas existan
-        columnas_alertas_existentes = [col for col in columnas_alertas if col in df_alertas_filtrado.columns]
-
-        try:
-            # Ordenar por estado (vencidos primero) y días de rezago
-            df_alertas_filtrado['Estado_orden'] = df_alertas_filtrado['Estado'].map({
-                'Vencido': 1,
-                'Próximo a vencer': 2,
-                'Completado con retraso': 3
-            })
-
-            df_alertas_filtrado = df_alertas_filtrado.sort_values(
-                by=['Estado_orden', 'Días Rezago'],
-                ascending=[True, False]
-            )
-
-            # Mostrar tabla con formato
-            st.dataframe(
-                df_alertas_filtrado[columnas_alertas_existentes]
-                .style.applymap(lambda _: '',
-                                subset=['Cod', 'Entidad', 'Nivel Información', 'Funcionario', 'Tipo Alerta',
-                                        'Fecha Programada', 'Fecha Real', 'Descripción'])
-                .applymap(highlight_estado, subset=['Estado'])
-                .format({'Días Rezago': '{:+d}'})  # Mostrar signo + o - en días rezago
-            )
-
-            # Botón para descargar alertas
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df_alertas_filtrado[columnas_alertas_existentes].to_excel(writer, sheet_name='Alertas', index=False)
-
-            excel_data = output.getvalue()
-            st.download_button(
-                label="Descargar alertas como Excel",
-                data=excel_data,
-                file_name="alertas_vencimientos.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                help="Descarga las alertas filtradas en formato Excel"
-            )
-        except Exception as e:
-            st.error(f"Error al mostrar la tabla de alertas: {e}")
-            # Mostrar tabla sin formato como último recurso
-            st.dataframe(df_alertas_filtrado[columnas_alertas_existentes])
-    else:
-        st.success("¡No hay alertas de vencimientos pendientes!")
-
-# ========== FUNCIÓN REPORTES CON MES PROYECTADO ==========
-
-def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_filtro, 
-                    estandares_filtro, publicacion_filtro, finalizado_filtro, mes_filtro):
-    """Muestra la pestaña de reportes con tabla completa y filtros específicos - VERSIÓN COMPLETA CON MES."""
-    st.markdown('<div class="subtitle">Reportes de Registros</div>', unsafe_allow_html=True)
-    
-    # Aplicar filtros
-    df_filtrado = registros_df.copy()
-    
-    # Filtro por tipo de dato
-    if tipo_dato_filtro != 'Todos':
-        df_filtrado = df_filtrado[df_filtrado['TipoDato'].str.upper() == tipo_dato_filtro.upper()]
-    
-    # Filtro por acuerdo de compromiso suscrito
-    if acuerdo_filtro != 'Todos':
-        if acuerdo_filtro == 'Suscrito':
-            df_filtrado = df_filtrado[
-                (df_filtrado['Acuerdo de compromiso'].str.upper().isin(['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO']))
-            ]
-        else:  # No Suscrito
-            df_filtrado = df_filtrado[
-                ~(df_filtrado['Acuerdo de compromiso'].str.upper().isin(['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO']))
-            ]
-    
-    # Filtro por análisis y cronograma
-    if analisis_filtro != 'Todos':
-        if analisis_filtro == 'Completado':
-            df_filtrado = df_filtrado[
-                (df_filtrado['Análisis y cronograma'].notna()) & 
-                (df_filtrado['Análisis y cronograma'] != '')
-            ]
-        else:  # No Completado
-            df_filtrado = df_filtrado[
-                (df_filtrado['Análisis y cronograma'].isna()) | 
-                (df_filtrado['Análisis y cronograma'] == '')
-            ]
-    
-    # Filtro por estándares completado
-    if estandares_filtro != 'Todos':
-        if estandares_filtro == 'Completado':
-            df_filtrado = df_filtrado[
-                (df_filtrado['Estándares'].notna()) & 
-                (df_filtrado['Estándares'] != '')
-            ]
-        else:  # No Completado
-            df_filtrado = df_filtrado[
-                (df_filtrado['Estándares'].isna()) | 
-                (df_filtrado['Estándares'] == '')
-            ]
-    
-    # Filtro por publicación
-    if publicacion_filtro != 'Todos':
-        if publicacion_filtro == 'Completado':
-            df_filtrado = df_filtrado[
-                (df_filtrado['Publicación'].notna()) & 
-                (df_filtrado['Publicación'] != '')
-            ]
-        else:  # No Completado
-            df_filtrado = df_filtrado[
-                (df_filtrado['Publicación'].isna()) | 
-                (df_filtrado['Publicación'] == '')
-            ]
-    
-    # Filtro por finalizado
-    if finalizado_filtro != 'Todos':
-        if finalizado_filtro == 'Finalizado':
-            df_filtrado = df_filtrado[
-                (df_filtrado['Fecha de oficio de cierre'].notna()) & 
-                (df_filtrado['Fecha de oficio de cierre'] != '')
-            ]
-        else:  # No Finalizado
-            df_filtrado = df_filtrado[
-                (df_filtrado['Fecha de oficio de cierre'].isna()) | 
-                (df_filtrado['Fecha de oficio de cierre'] == '')
-            ]
-    
-    # FILTRO: Mes Proyectado
-    if mes_filtro != 'Todos':
-        df_filtrado = df_filtrado[df_filtrado['Mes Proyectado'] == mes_filtro]
-    
-    # Mostrar estadísticas del filtrado
-    st.markdown("### Resumen de Registros Filtrados")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        total_filtrados = len(df_filtrado)
-        st.markdown(f"""
-        <div class="metric-card">
-            <p style="font-size: 1rem; color: #64748b;">Total Filtrados</p>
-            <p style="font-size: 2.5rem; font-weight: bold; color: #1E40AF;">{total_filtrados}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        if total_filtrados > 0:
-            avance_promedio = df_filtrado['Porcentaje Avance'].mean()
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="font-size: 1rem; color: #64748b;">Avance Promedio</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #047857;">{avance_promedio:.1f}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="font-size: 1rem; color: #64748b;">Avance Promedio</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #047857;">0%</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-    with col3:
-        if total_filtrados > 0:
-            completados = len(df_filtrado[df_filtrado['Porcentaje Avance'] == 100])
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="font-size: 1rem; color: #64748b;">Completados</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #B45309;">{completados}</p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="font-size: 1rem; color: #64748b;">Completados</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #B45309;">0</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-    with col4:
-        if total_filtrados > 0:
-            porcentaje_completados = (len(df_filtrado[df_filtrado['Porcentaje Avance'] == 100]) / total_filtrados * 100)
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="font-size: 1rem; color: #64748b;">% Completados</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #BE185D;">{porcentaje_completados:.1f}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="font-size: 1rem; color: #64748b;">% Completados</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #BE185D;">0%</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-    # Mostrar tabla de registros filtrados
-    st.markdown("### Tabla de Registros")
-    
-    if df_filtrado.empty:
-        st.warning("No se encontraron registros que coincidan con los filtros seleccionados.")
-        return
-    
-    # Definir columnas a mostrar
-    columnas_mostrar = [
-        'Cod', 'Entidad', 'Nivel Información ', 'Funcionario', 'Mes Proyectado',
-        'Frecuencia actualizacion ', 'TipoDato',
-        'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
-        'Análisis y cronograma', 'Estándares', 'Publicación',
-        'Plazo de oficio de cierre', 'Fecha de oficio de cierre',
-        'Estado', 'Observación', 'Porcentaje Avance'
-    ]
-    
-    # Verificar que todas las columnas existan
-    columnas_mostrar_existentes = [col for col in columnas_mostrar if col in df_filtrado.columns]
-    df_mostrar = df_filtrado[columnas_mostrar_existentes].copy()
-    
-    # Aplicar formato a las fechas
-    columnas_fecha = [
-        'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
-        'Análisis y cronograma', 'Estándares', 'Publicación',
-        'Plazo de oficio de cierre', 'Fecha de oficio de cierre'
-    ]
-    
-    for col in columnas_fecha:
-        if col in df_mostrar.columns:
-            df_mostrar[col] = df_mostrar[col].apply(lambda x: formatear_fecha(x) if es_fecha_valida(x) else "")
-    
-    # Mostrar dataframe con formato
-    st.dataframe(
-        df_mostrar
-        .style.format({'Porcentaje Avance': '{:.2f}%'})
-        .apply(highlight_estado_fechas, axis=1)
-        .background_gradient(cmap='RdYlGn', subset=['Porcentaje Avance']),
-        use_container_width=True
-    )
-    
-    # Botón para descargar reporte
-    st.markdown("### Descargar Reporte")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Descargar como Excel
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df_mostrar.to_excel(writer, sheet_name='Reporte Filtrado', index=False)
-
-        excel_data = output.getvalue()
-        st.download_button(
-            label="Descargar reporte como Excel",
-            data=excel_data,
-            file_name=f"reporte_registros_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            help="Descarga el reporte filtrado en formato Excel"
-        )
-    
-    with col2:
-        # Descargar como CSV
-        csv = df_mostrar.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Descargar reporte como CSV",
-            data=csv,
-            file_name=f"reporte_registros_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            mime="text/csv",
-            help="Descarga el reporte filtrado en formato CSV"
-        )
-    
-    # Información adicional sobre los filtros aplicados
-    filtros_aplicados = []
-    if tipo_dato_filtro != 'Todos':
-        filtros_aplicados.append(f"Tipo de Dato: {tipo_dato_filtro}")
-    if acuerdo_filtro != 'Todos':
-        filtros_aplicados.append(f"Acuerdo de Compromiso: {acuerdo_filtro}")
-    if analisis_filtro != 'Todos':
-        filtros_aplicados.append(f"Análisis y Cronograma: {analisis_filtro}")
-    if estandares_filtro != 'Todos':
-        filtros_aplicados.append(f"Estándares: {estandares_filtro}")
-    if publicacion_filtro != 'Todos':
-        filtros_aplicados.append(f"Publicación: {publicacion_filtro}")
-    if finalizado_filtro != 'Todos':
-        filtros_aplicados.append(f"Finalizado: {finalizado_filtro}")
-    if mes_filtro != 'Todos':
-        filtros_aplicados.append(f"Mes Proyectado: {mes_filtro}")
-    
-    if filtros_aplicados:
-        st.info(f"**Filtros aplicados:** {', '.join(filtros_aplicados)}")
-    else:
-        st.info("**Mostrando todos los registros** (sin filtros aplicados)")
-
-# ========== FUNCIÓN PRINCIPAL ==========
-
-# Cambio en la función main() de app1.py
-
-def main():
-    """Función principal de la aplicación"""
-    try:
-        # Configurar página
-        setup_page()
-        load_css()
-
-        # Inicializar session state
-        if 'cambios_pendientes' not in st.session_state:
-            st.session_state.cambios_pendientes = False
-        if 'funcionarios' not in st.session_state:
-            st.session_state.funcionarios = []
-        if 'mensaje_guardado' not in st.session_state:
-            st.session_state.mensaje_guardado = None
-
-        # ===== TÍTULO =====
-        st.markdown('<div class="title">🔐 Tablero de Control de Seguimiento de Datos Temáticos - Ideca</div>',
-                    unsafe_allow_html=True)
+                with col5:
+                    meses_disponibles_alertas = ['Todos']
+                    if 'Mes Proyectado' in registros_df.columns:
+                        meses_unicos_alertas = [m for m in registros_df['Mes Proyectado'].dropna().unique().tolist() if m]
+                        meses_disponibles_alertas += sorted(meses_unicos_alertas)
+                    mes_filtro_alertas = st.multiselect(
+                        "Mes Proyectado",
+                        options=meses_disponibles_alertas,
+                        default=["Todos"]
+                    )
+                    
+                # Aplicar filtros
+                df_alertas_filtrado = df_alertas.copy()
         
-        # ===== SIDEBAR CON AUTENTICACIÓN =====
-        # Sistema de autenticación
-        mostrar_login()
-        mostrar_estado_autenticacion()
+                if tipo_alerta_filtro:
+                    df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Tipo Alerta'].isin(tipo_alerta_filtro)]
         
-        # Configuración de Google Sheets
-        mostrar_configuracion_sheets()
+                if estado_filtro:
+                    df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Estado'].isin(estado_filtro)]
         
-        # Carga de archivos Excel (PROTEGIDA)
-        mostrar_carga_archivos()
-
-        # Información sobre el tablero
-        st.sidebar.markdown('<div class="subtitle">Información</div>', unsafe_allow_html=True)
-        st.sidebar.markdown("""
-        <div class="info-box">
-        <p><strong>Tablero de Control de Cronogramas</strong></p>
-        <p><strong>VERSIÓN COMPLETA CON MEJORAS Y AUTENTICACIÓN</strong></p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # CAMBIO: Mover la carga de datos dentro del expander "Estado del Sistema"
-        with st.expander("Estado del Sistema"):
-            # Estado de conexión y autenticación
-            col1, col2, col3 = st.columns([2, 2, 1])
-            
-            with col1:
-                st.info("📊 Datos sincronizados con Google Sheets en tiempo real")
-            
-            with col2:
-                if verificar_autenticacion():
-                    st.success("🔐 Sesión administrativa activa")
-                else:
-                    st.warning("⚠️ Sesión no administrativa")
-            
-            with col3:
-                if st.button("🔄 Reconectar"):
-                    # Limpiar cache y reconectar
-                    if 'sheets_manager' in st.session_state:
-                        del st.session_state.sheets_manager
-                    st.rerun()
-            
-            # CAMBIO: Mover aquí la carga de datos
-            st.markdown("---")
-            st.markdown("**Carga de Datos:**")
-            
-            with st.spinner("Cargando datos desde Google Sheets..."):
-                registros_df, meta_df = cargar_datos()
-
-            # Verificar si los DataFrames están vacíos
-            if registros_df.empty:
-                st.warning("No hay datos de registros en Google Sheets.")
+                if 'Funcionario' in df_alertas.columns and funcionario_filtro and "Todos" not in funcionario_filtro:
+                    df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Funcionario'].isin(funcionario_filtro)]
+        
+                if tipo_dato_filtro_alertas and "Todos" not in tipo_dato_filtro_alertas:
+                    # Obtener códigos de registros que coinciden con el tipo de dato
+                    codigos_tipo_dato = registros_df[registros_df['TipoDato'].isin(tipo_dato_filtro_alertas)]['Cod'].tolist()
+                    df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Cod'].isin(codigos_tipo_dato)]
+        
+                # Agregar después de los otros filtros
+                if mes_filtro_alertas and "Todos" not in mes_filtro_alertas:
+                    # Obtener códigos de registros que coinciden con el mes proyectado
+                    codigos_mes_proyectado = registros_df[registros_df['Mes Proyectado'].isin(mes_filtro_alertas)]['Cod'].tolist()
+                    df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Cod'].isin(codigos_mes_proyectado)]
                 
-                # Crear estructura mínima para que la app funcione
-                registros_df = pd.DataFrame(columns=[
-                    'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
-                    'Acuerdo de compromiso', 'Análisis y cronograma',
-                    'Estándares', 'Publicación', 'Fecha de entrega de información',
-                    'Plazo de análisis', 'Plazo de cronograma', 'Plazo de oficio de cierre',
-                    'Funcionario', 'Frecuencia actualizacion ', 'Estado', 'Observación'
-                ])
+                # Mostrar tabla de alertas con formato
+                st.markdown("### Listado de Alertas")
+        
+                # Definir columnas a mostrar
+                columnas_alertas = [
+                    'Cod', 'Entidad', 'Nivel Información', 'Funcionario', 'Tipo Alerta',
+                    'Estado', 'Fecha Programada', 'Fecha Real', 'Días Rezago', 'Descripción'
+                ]
+        
+                # Verificar que todas las columnas existan
+                columnas_alertas_existentes = [col for col in columnas_alertas if col in df_alertas_filtrado.columns]
+        
+                try:
+                    # Ordenar por estado (vencidos primero) y días de rezago
+                    df_alertas_filtrado['Estado_orden'] = df_alertas_filtrado['Estado'].map({
+                        'Vencido': 1,
+                        'Próximo a vencer': 2,
+                        'Completado con retraso': 3
+                    })
+        
+                    df_alertas_filtrado = df_alertas_filtrado.sort_values(
+                        by=['Estado_orden', 'Días Rezago'],
+                        ascending=[True, False]
+                    )
+        
+                    # Mostrar tabla con formato
+                    st.dataframe(
+                        df_alertas_filtrado[columnas_alertas_existentes]
+                        .style.applymap(lambda _: '',
+                                        subset=['Cod', 'Entidad', 'Nivel Información', 'Funcionario', 'Tipo Alerta',
+                                                'Fecha Programada', 'Fecha Real', 'Descripción'])
+                        .applymap(highlight_estado, subset=['Estado'])
+                        .format({'Días Rezago': '{:+d}'})  # Mostrar signo + o - en días rezago
+                    )
+        
+                    # Botón para descargar alertas
+                    output = io.BytesIO()
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        df_alertas_filtrado[columnas_alertas_existentes].to_excel(writer, sheet_name='Alertas', index=False)
+        
+                    excel_data = output.getvalue()
+                    st.download_button(
+                        label="Descargar alertas como Excel",
+                        data=excel_data,
+                        file_name="alertas_vencimientos.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        help="Descarga las alertas filtradas en formato Excel"
+                    )
+                except Exception as e:
+                    st.error(f"Error al mostrar la tabla de alertas: {e}")
+                    # Mostrar tabla sin formato como último recurso
+                    st.dataframe(df_alertas_filtrado[columnas_alertas_existentes])
             else:
-                st.success(f"✅ {len(registros_df)} registros cargados exitosamente desde Google Sheets")
-
-        # ===== ASEGURAR COLUMNAS REQUERIDAS =====
-        columnas_requeridas = [
-            'Cod', 'Entidad', 'TipoDato', 'Acuerdo de compromiso',
-            'Análisis y cronograma', 'Estándares', 'Publicación',
-            'Nivel Información ', 'Mes Proyectado', 'Fecha de entrega de información',
-            'Plazo de análisis', 'Plazo de cronograma', 'Plazo de oficio de cierre',
-            'Funcionario', 'Frecuencia actualizacion ', 'Estado', 'Observación',
-            'Fecha de oficio de cierre'
-        ]
-
-        for columna in columnas_requeridas:
-            if columna not in registros_df.columns:
-                registros_df[columna] = ''
-
-        # ===== APLICAR VALIDACIONES Y CÁLCULOS (sin spinner visible) =====
-        # Aplicar reglas de negocio
-        registros_df = validar_reglas_negocio(registros_df)
-
-        # Actualizar plazos automáticamente
-        registros_df = actualizar_plazo_analisis(registros_df)
-        registros_df = actualizar_plazo_cronograma(registros_df)
-        registros_df = actualizar_plazo_oficio_cierre(registros_df)
-
-        # Procesar las metas
-        metas_nuevas_df, metas_actualizar_df = procesar_metas(meta_df)
-
-        # Agregar columnas calculadas
-        registros_df['Porcentaje Avance'] = registros_df.apply(calcular_porcentaje_avance, axis=1)
-        registros_df['Estado Fechas'] = registros_df.apply(verificar_estado_fechas, axis=1)
-
-        # ===== MOSTRAR VALIDACIONES =====
-        with st.expander("Validación de Reglas de Negocio"):
-            st.markdown("### Estado de Validaciones")
-            st.info("""
-            **Reglas aplicadas automáticamente:**
-            1. Si 'Entrega acuerdo de compromiso' no está vacío → 'Acuerdo de compromiso' = SI
-            2. Si 'Análisis y cronograma' tiene fecha → 'Análisis de información' = SI
-            3. Al introducir fecha en 'Estándares' → campos no completos = "No aplica"
-            4. Si introduce fecha en 'Publicación' → 'Disponer datos temáticos' = SI
-            5. Para 'Fecha de oficio de cierre' → requiere etapa de Publicación completada
-            6. Al introducir 'Fecha de oficio de cierre' → Estado = "Completado" y avance = 100%
-            7. Plazos calculados automáticamente considerando días hábiles y festivos
-            
-            **Nuevas funcionalidades implementadas:**
-            8. 🔐 Sistema de autenticación para funciones administrativas
-            9. 📅 Campo "Mes Proyectado" para organización temporal
-            10. 🔍 Filtro por mes en reportes para análisis específicos
-            11. 🌈 Gradiente de metas mejorado: rojo (0%) → verde oscuro (100%+)
-            12. 📊 Diagrama de Gantt condicional: solo con filtros específicos
-            """)
-            mostrar_estado_validaciones(registros_df, st)
-
-        # ===== CREAR PESTAÑAS =====
-        tab1, tab2, tab3, tab4 = st.tabs([
-            "Dashboard", 
-            "Edición de Registros", 
-            "Alertas de Vencimientos", 
-            "Reportes"
-        ])
-     
-        # ===== TAB 1: DASHBOARD =====
-        with tab1:
-            st.markdown("### Filtros")
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                # Filtro por entidad
-                entidades = ['Todas'] + sorted([e for e in registros_df['Entidad'].unique().tolist() if e])
-                entidad_seleccionada = st.selectbox('Entidad', entidades, key="dash_entidad")
-            
-            with col2:
-                # Filtro por funcionario
-                funcionarios = ['Todos']
-                if 'Funcionario' in registros_df.columns:
-                    funcionarios_unicos = [f for f in registros_df['Funcionario'].dropna().unique().tolist() if f]
-                    funcionarios += sorted(funcionarios_unicos)
-                funcionario_seleccionado = st.selectbox('Funcionario', funcionarios, key="dash_funcionario")
-            
-            with col3:
-                # Filtro por tipo de dato
-                tipos_dato = ['Todos'] + sorted([t for t in registros_df['TipoDato'].dropna().unique().tolist() if t])
-                tipo_dato_seleccionado = st.selectbox('Tipo de Dato', tipos_dato, key="dash_tipo")
-            
-            with col4:
-                # Filtro por nivel de información dependiente de entidad
-                if entidad_seleccionada != 'Todas':
-                    niveles_entidad = registros_df[registros_df['Entidad'] == entidad_seleccionada]['Nivel Información '].dropna().unique().tolist()
-                    niveles_entidad = [n for n in niveles_entidad if n]
-                    niveles = ['Todos'] + sorted(niveles_entidad)
-                    nivel_seleccionado = st.selectbox('Nivel de Información', niveles, key="dash_nivel")
-                else:
-                    nivel_seleccionado = 'Todos'
+                st.success("¡No hay alertas de vencimientos pendientes!")
+        
+        # ========== FUNCIÓN REPORTES CON MES PROYECTADO ==========
+        
+        def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_filtro, 
+                            estandares_filtro, publicacion_filtro, finalizado_filtro, mes_filtro):
+            """Muestra la pestaña de reportes con tabla completa y filtros específicos - VERSIÓN COMPLETA CON MES."""
+            st.markdown('<div class="subtitle">Reportes de Registros</div>', unsafe_allow_html=True)
             
             # Aplicar filtros
             df_filtrado = registros_df.copy()
             
-            if entidad_seleccionada != 'Todas':
-                df_filtrado = df_filtrado[df_filtrado['Entidad'] == entidad_seleccionada]
+            # Filtro por tipo de dato
+            if tipo_dato_filtro != 'Todos':
+                df_filtrado = df_filtrado[df_filtrado['TipoDato'].str.upper() == tipo_dato_filtro.upper()]
             
-            if funcionario_seleccionado != 'Todos' and 'Funcionario' in df_filtrado.columns:
-                df_filtrado = df_filtrado[df_filtrado['Funcionario'] == funcionario_seleccionado]
+            # Filtro por acuerdo de compromiso suscrito
+            if acuerdo_filtro != 'Todos':
+                if acuerdo_filtro == 'Suscrito':
+                    df_filtrado = df_filtrado[
+                        (df_filtrado['Acuerdo de compromiso'].str.upper().isin(['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO']))
+                    ]
+                else:  # No Suscrito
+                    df_filtrado = df_filtrado[
+                        ~(df_filtrado['Acuerdo de compromiso'].str.upper().isin(['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO']))
+                    ]
             
-            if tipo_dato_seleccionado != 'Todos':
-                df_filtrado = df_filtrado[df_filtrado['TipoDato'].str.upper() == tipo_dato_seleccionado.upper()]
+            # Filtro por análisis y cronograma
+            if analisis_filtro != 'Todos':
+                if analisis_filtro == 'Completado':
+                    df_filtrado = df_filtrado[
+                        (df_filtrado['Análisis y cronograma'].notna()) & 
+                        (df_filtrado['Análisis y cronograma'] != '')
+                    ]
+                else:  # No Completado
+                    df_filtrado = df_filtrado[
+                        (df_filtrado['Análisis y cronograma'].isna()) | 
+                        (df_filtrado['Análisis y cronograma'] == '')
+                    ]
             
-            if nivel_seleccionado != 'Todos':
-                df_filtrado = df_filtrado[df_filtrado['Nivel Información '] == nivel_seleccionado]
+            # Filtro por estándares completado
+            if estandares_filtro != 'Todos':
+                if estandares_filtro == 'Completado':
+                    df_filtrado = df_filtrado[
+                        (df_filtrado['Estándares'].notna()) & 
+                        (df_filtrado['Estándares'] != '')
+                    ]
+                else:  # No Completado
+                    df_filtrado = df_filtrado[
+                        (df_filtrado['Estándares'].isna()) | 
+                        (df_filtrado['Estándares'] == '')
+                    ]
             
-            st.markdown("---")
+            # Filtro por publicación
+            if publicacion_filtro != 'Todos':
+                if publicacion_filtro == 'Completado':
+                    df_filtrado = df_filtrado[
+                        (df_filtrado['Publicación'].notna()) & 
+                        (df_filtrado['Publicación'] != '')
+                    ]
+                else:  # No Completado
+                    df_filtrado = df_filtrado[
+                        (df_filtrado['Publicación'].isna()) | 
+                        (df_filtrado['Publicación'] == '')
+                    ]
             
-            # Mostrar dashboard completo
-            mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registros_df,
-                            entidad_seleccionada, funcionario_seleccionado, nivel_seleccionado)
-
-        # ===== TAB 2: EDICIÓN =====
-        with tab2:
-            # Llamar a la función de edición
-            registros_df = mostrar_edicion_registros(registros_df)
-
-        # ===== TAB 3: ALERTAS =====
-        with tab3:
-            mostrar_alertas_vencimientos(registros_df)
-
-        # ===== TAB 4: REPORTES =====
-        with tab4:
-            st.markdown("### Filtros de Reportes")
+            # Filtro por finalizado
+            if finalizado_filtro != 'Todos':
+                if finalizado_filtro == 'Finalizado':
+                    df_filtrado = df_filtrado[
+                        (df_filtrado['Fecha de oficio de cierre'].notna()) & 
+                        (df_filtrado['Fecha de oficio de cierre'] != '')
+                    ]
+                else:  # No Finalizado
+                    df_filtrado = df_filtrado[
+                        (df_filtrado['Fecha de oficio de cierre'].isna()) | 
+                        (df_filtrado['Fecha de oficio de cierre'] == '')
+                    ]
             
-            # Primera fila de filtros
-            col1, col2, col3 = st.columns(3)
+            # FILTRO: Mes Proyectado
+            if mes_filtro != 'Todos':
+                df_filtrado = df_filtrado[df_filtrado['Mes Proyectado'] == mes_filtro]
+            
+            # Mostrar estadísticas del filtrado
+            st.markdown("### Resumen de Registros Filtrados")
+            
+            col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                tipos_dato_reporte = ['Todos'] + sorted([t for t in registros_df['TipoDato'].dropna().unique().tolist() if t])
-                tipo_dato_reporte = st.selectbox('Tipo de Dato', tipos_dato_reporte, key="reporte_tipo")
+                total_filtrados = len(df_filtrado)
+                st.markdown(f"""
+                <div class="metric-card">
+                    <p style="font-size: 1rem; color: #64748b;">Total Filtrados</p>
+                    <p style="font-size: 2.5rem; font-weight: bold; color: #1E40AF;">{total_filtrados}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+            with col2:
+                if total_filtrados > 0:
+                    avance_promedio = df_filtrado['Porcentaje Avance'].mean()
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <p style="font-size: 1rem; color: #64748b;">Avance Promedio</p>
+                        <p style="font-size: 2.5rem; font-weight: bold; color: #047857;">{avance_promedio:.1f}%</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <p style="font-size: 1rem; color: #64748b;">Avance Promedio</p>
+                        <p style="font-size: 2.5rem; font-weight: bold; color: #047857;">0%</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+            with col3:
+                if total_filtrados > 0:
+                    completados = len(df_filtrado[df_filtrado['Porcentaje Avance'] == 100])
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <p style="font-size: 1rem; color: #64748b;">Completados</p>
+                        <p style="font-size: 2.5rem; font-weight: bold; color: #B45309;">{completados}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <p style="font-size: 1rem; color: #64748b;">Completados</p>
+                        <p style="font-size: 2.5rem; font-weight: bold; color: #B45309;">0</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+            with col4:
+                if total_filtrados > 0:
+                    porcentaje_completados = (len(df_filtrado[df_filtrado['Porcentaje Avance'] == 100]) / total_filtrados * 100)
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <p style="font-size: 1rem; color: #64748b;">% Completados</p>
+                        <p style="font-size: 2.5rem; font-weight: bold; color: #BE185D;">{porcentaje_completados:.1f}%</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <p style="font-size: 1rem; color: #64748b;">% Completados</p>
+                        <p style="font-size: 2.5rem; font-weight: bold; color: #BE185D;">0%</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+            # Mostrar tabla de registros filtrados
+            st.markdown("### Tabla de Registros")
+            
+            if df_filtrado.empty:
+                st.warning("No se encontraron registros que coincidan con los filtros seleccionados.")
+                return
+            
+            # Definir columnas a mostrar
+            columnas_mostrar = [
+                'Cod', 'Entidad', 'Nivel Información ', 'Funcionario', 'Mes Proyectado',
+                'Frecuencia actualizacion ', 'TipoDato',
+                'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
+                'Análisis y cronograma', 'Estándares', 'Publicación',
+                'Plazo de oficio de cierre', 'Fecha de oficio de cierre',
+                'Estado', 'Observación', 'Porcentaje Avance'
+            ]
+            
+            # Verificar que todas las columnas existan
+            columnas_mostrar_existentes = [col for col in columnas_mostrar if col in df_filtrado.columns]
+            df_mostrar = df_filtrado[columnas_mostrar_existentes].copy()
+            
+            # Aplicar formato a las fechas
+            columnas_fecha = [
+                'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
+                'Análisis y cronograma', 'Estándares', 'Publicación',
+                'Plazo de oficio de cierre', 'Fecha de oficio de cierre'
+            ]
+            
+            for col in columnas_fecha:
+                if col in df_mostrar.columns:
+                    df_mostrar[col] = df_mostrar[col].apply(lambda x: formatear_fecha(x) if es_fecha_valida(x) else "")
+            
+            # Mostrar dataframe con formato
+            st.dataframe(
+                df_mostrar
+                .style.format({'Porcentaje Avance': '{:.2f}%'})
+                .apply(highlight_estado_fechas, axis=1)
+                .background_gradient(cmap='RdYlGn', subset=['Porcentaje Avance']),
+                use_container_width=True
+            )
+            
+            # Botón para descargar reporte
+            st.markdown("### Descargar Reporte")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Descargar como Excel
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df_mostrar.to_excel(writer, sheet_name='Reporte Filtrado', index=False)
+        
+                excel_data = output.getvalue()
+                st.download_button(
+                    label="Descargar reporte como Excel",
+                    data=excel_data,
+                    file_name=f"reporte_registros_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    help="Descarga el reporte filtrado en formato Excel"
+                )
             
             with col2:
-                acuerdo_opciones = ['Todos', 'Suscrito', 'No Suscrito']
-                acuerdo_filtro = st.selectbox('Acuerdo de Compromiso', acuerdo_opciones, key="reporte_acuerdo")
+                # Descargar como CSV
+                csv = df_mostrar.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Descargar reporte como CSV",
+                    data=csv,
+                    file_name=f"reporte_registros_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv",
+                    help="Descarga el reporte filtrado en formato CSV"
+                )
             
-            with col3:
-                analisis_opciones = ['Todos', 'Completado', 'No Completado']
-                analisis_filtro = st.selectbox('Análisis y Cronograma', analisis_opciones, key="reporte_analisis")
+            # Información adicional sobre los filtros aplicados
+            filtros_aplicados = []
+            if tipo_dato_filtro != 'Todos':
+                filtros_aplicados.append(f"Tipo de Dato: {tipo_dato_filtro}")
+            if acuerdo_filtro != 'Todos':
+                filtros_aplicados.append(f"Acuerdo de Compromiso: {acuerdo_filtro}")
+            if analisis_filtro != 'Todos':
+                filtros_aplicados.append(f"Análisis y Cronograma: {analisis_filtro}")
+            if estandares_filtro != 'Todos':
+                filtros_aplicados.append(f"Estándares: {estandares_filtro}")
+            if publicacion_filtro != 'Todos':
+                filtros_aplicados.append(f"Publicación: {publicacion_filtro}")
+            if finalizado_filtro != 'Todos':
+                filtros_aplicados.append(f"Finalizado: {finalizado_filtro}")
+            if mes_filtro != 'Todos':
+                filtros_aplicados.append(f"Mes Proyectado: {mes_filtro}")
             
-            # Segunda fila de filtros
-            col4, col5, col6 = st.columns(3)
-            
-            with col4:
-                estandares_opciones = ['Todos', 'Completado', 'No Completado']
-                estandares_filtro = st.selectbox('Estándares', estandares_opciones, key="reporte_estandares")
-            
-            with col5:
-                publicacion_opciones = ['Todos', 'Completado', 'No Completado']
-                publicacion_filtro = st.selectbox('Publicación', publicacion_opciones, key="reporte_publicacion")
-            
-            with col6:
-                finalizado_opciones = ['Todos', 'Finalizado', 'No Finalizado']
-                finalizado_filtro = st.selectbox('Finalizado', finalizado_opciones, key="reporte_finalizado")
-            
-            # Tercera fila de filtros
-            col7, col8, col9 = st.columns(3)
-            
-            with col7:
-                # FILTRO: Mes Proyectado
-                meses_disponibles = ['Todos']
-                if 'Mes Proyectado' in registros_df.columns:
-                    meses_unicos = [m for m in registros_df['Mes Proyectado'].dropna().unique().tolist() if m]
-                    meses_disponibles += sorted(meses_unicos)
-                mes_filtro = st.selectbox('Mes Proyectado', meses_disponibles, key="reporte_mes")
-            
-            st.markdown("---")
-            
-            # Mostrar reportes
-            mostrar_reportes(registros_df, tipo_dato_reporte, acuerdo_filtro, analisis_filtro, 
-                           estandares_filtro, publicacion_filtro, finalizado_filtro, mes_filtro)
-
-        # ===== FOOTER =====
-        st.markdown("---")
-        st.markdown("### Resumen del Sistema")
+            if filtros_aplicados:
+                st.info(f"**Filtros aplicados:** {', '.join(filtros_aplicados)}")
+            else:
+                st.info("**Mostrando todos los registros** (sin filtros aplicados)")
         
-        col1, col2, col3, col4 = st.columns(4)
+        # ========== FUNCIÓN PRINCIPAL ==========
         
-        with col1:
-            st.metric("Total Campos", len(registros_df.columns))
+        def main():
+            """Función principal de la aplicación"""
+            try:
+                # Configurar página
+                setup_page()
+                load_css()
         
-        with col2:
-            total_con_funcionario = len(registros_df[registros_df['Funcionario'].notna() & (registros_df['Funcionario'] != '')])
-            st.metric("Con Funcionario", total_con_funcionario)
+                # Inicializar session state
+                if 'cambios_pendientes' not in st.session_state:
+                    st.session_state.cambios_pendientes = False
+                if 'funcionarios' not in st.session_state:
+                    st.session_state.funcionarios = []
+                if 'mensaje_guardado' not in st.session_state:
+                    st.session_state.mensaje_guardado = None
         
-        with col3:
-            en_proceso = len(registros_df[registros_df['Estado'].isin(['En proceso', 'En proceso oficio de cierre'])])
-            st.metric("En Proceso", en_proceso)
+                # ===== TÍTULO =====
+                st.markdown('<div class="title">🔐 Tablero de Control de Seguimiento de Datos Temáticos - Ideca</div>',
+                            unsafe_allow_html=True)
+                
+                # ===== SIDEBAR CON AUTENTICACIÓN =====
+                # Sistema de autenticación
+                mostrar_login()
+                mostrar_estado_autenticacion()
+                
+                # Configuración de Google Sheets
+                mostrar_configuracion_sheets()
+                
+                # Carga de archivos Excel (PROTEGIDA)
+                mostrar_carga_archivos()
         
-        with col4:
-            ultima_actualizacion = datetime.now().strftime("%d/%m/%Y %H:%M")
-            st.metric("Última Actualización", ultima_actualizacion)
-
-        # Información de versión
-        st.info("""
-        **Tablero de Control - Versión Completa con Mejoras y Autenticación**
+                # Información sobre el tablero
+                st.sidebar.markdown('<div class="subtitle">Información</div>', unsafe_allow_html=True)
+                st.sidebar.markdown("""
+                <div class="info-box">
+                <p><strong>Tablero de Control de Cronogramas</strong></p>
+                <p><strong>VERSIÓN COMPLETA CON MEJORAS Y AUTENTICACIÓN</strong></p>
+                </div>
+                """, unsafe_allow_html=True)
         
-       """)
+                # Mover la carga de datos dentro del expander "Estado del Sistema"
+                with st.expander("Estado del Sistema"):
+                    # Estado de conexión y autenticación
+                    col1, col2, col3 = st.columns([2, 2, 1])
+                    
+                    with col1:
+                        st.info("📊 Datos sincronizados con Google Sheets en tiempo real")
+                    
+                    with col2:
+                        if verificar_autenticacion():
+                            st.success("🔐 Sesión administrativa activa")
+                        else:
+                            st.warning("⚠️ Sesión no administrativa")
+                    
+                    with col3:
+                        if st.button("🔄 Reconectar"):
+                            # Limpiar cache y reconectar
+                            if 'sheets_manager' in st.session_state:
+                                del st.session_state.sheets_manager
+                            st.rerun()
+                    
+                    # Carga de datos
+                    st.markdown("---")
+                    st.markdown("**Carga de Datos:**")
+                    
+                    with st.spinner("Cargando datos desde Google Sheets..."):
+                        registros_df, meta_df = cargar_datos()
         
-        # Mostrar estado de autenticación en footer
-        if verificar_autenticacion():
-            st.success("🔐 Sesión administrativa activa - Todas las funciones disponibles")
-        else:
-            st.warning("⚠️ Sesión no administrativa - Carga de datos restringida")
-
-    except Exception as e:
-        st.error(f"Error crítico: {str(e)}")
+                    # Verificar si los DataFrames están vacíos
+                    if registros_df.empty:
+                        st.warning("No hay datos de registros en Google Sheets.")
+                        
+                        # Crear estructura mínima para que la app funcione
+                        registros_df = pd.DataFrame(columns=[
+                            'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
+                            'Acuerdo de compromiso', 'Análisis y cronograma',
+                            'Estándares', 'Publicación', 'Fecha de entrega de información',
+                            'Plazo de análisis', 'Plazo de cronograma', 'Plazo de oficio de cierre',
+                            'Funcionario', 'Frecuencia actualizacion ', 'Estado', 'Observación'
+                        ])
+                    else:
+                        st.success(f"✅ {len(registros_df)} registros cargados exitosamente desde Google Sheets")
         
-        # Información detallada del error para debugging
-        import traceback
-        with st.expander("Detalles del Error (para debugging)"):
-            st.code(traceback.format_exc())
+                # ===== ASEGURAR COLUMNAS REQUERIDAS =====
+                columnas_requeridas = [
+                    'Cod', 'Entidad', 'TipoDato', 'Acuerdo de compromiso',
+                    'Análisis y cronograma', 'Estándares', 'Publicación',
+                    'Nivel Información ', 'Mes Proyectado', 'Fecha de entrega de información',
+                    'Plazo de análisis', 'Plazo de cronograma', 'Plazo de oficio de cierre',
+                    'Funcionario', 'Frecuencia actualizacion ', 'Estado', 'Observación',
+                    'Fecha de oficio de cierre'
+                ]
         
-        st.markdown("### Solución de Problemas")
+                for columna in columnas_requeridas:
+                    if columna not in registros_df.columns:
+                        registros_df[columna] = ''
         
-        col1, col2 = st.columns(2)
+                # ===== APLICAR VALIDACIONES Y CÁLCULOS =====
+                # Aplicar reglas de negocio
+                registros_df = validar_reglas_negocio(registros_df)
         
-        with col1:
-            st.markdown("""
-            **Problemas Comunes:**
-            - Configuración de Google Sheets incorrecta
-            - Credenciales faltantes o incorrectas
-            - Estructura de datos incorrecta en Google Sheets
-            - Problemas de conexión a internet
-            - Problemas de autenticación
-            """)
+                # Actualizar plazos automáticamente
+                registros_df = actualizar_plazo_analisis(registros_df)
+                registros_df = actualizar_plazo_cronograma(registros_df)
+                registros_df = actualizar_plazo_oficio_cierre(registros_df)
         
-        with col2:
-            st.markdown("""
-            **Acciones Recomendadas:**
-            - Usar el botón "Reconectar" arriba
-            - Verificar configuración en el panel lateral
-            - Revisar permisos del service account
-            - Consultar las instrucciones de configuración
-            - Verificar credenciales de autenticación admin
-            """)
+                # Procesar las metas
+                metas_nuevas_df, metas_actualizar_df = procesar_metas(meta_df)
         
-        # Botón de recuperación
-        if st.button("🔄 Intentar Recuperación", type="primary"):
-            # Limpiar estado y recargar
-            for key in list(st.session_state.keys()):
-                if key.startswith(('sheets_', 'registros_', 'meta_')):
-                    del st.session_state[key]
-            st.rerun()
-
-if __name__ == "__main__":
-    main()
+                # Agregar columnas calculadas
+                registros_df['Porcentaje Avance'] = registros_df.apply(calcular_porcentaje_avance, axis=1)
+                registros_df['Estado Fechas'] = registros_df.apply(verificar_estado_fechas, axis=1)
+        
+                # ===== MOSTRAR VALIDACIONES =====
+                with st.expander("Validación de Reglas de Negocio"):
+                    st.markdown("### Estado de Validaciones")
+                    st.info("""
+                    **Reglas aplicadas automáticamente:**
+                    1. Si 'Entrega acuerdo de compromiso' no está vacío → 'Acuerdo de compromiso' = SI
+                    2. Si 'Análisis y cronograma' tiene fecha → 'Análisis de información' = SI
+                    3. Al introducir fecha en 'Estándares' → campos no completos = "No aplica"
+                    4. Si introduce fecha en 'Publicación' → 'Disponer datos temáticos' = SI
+                    5. Para 'Fecha de oficio de cierre' → requiere etapa de Publicación completada
+                    6. Al introducir 'Fecha de oficio de cierre' → Estado = "Completado" y avance = 100%
+                    7. Plazos calculados automáticamente considerando días hábiles y festivos
+                    
+                    **Nuevas funcionalidades implementadas:**
+                    8. 🔐 Sistema de autenticación para funciones administrativas
+                    9. 📅 Campo "Mes Proyectado" para organización temporal
+                    10. 🔍 Filtro por mes en reportes para análisis específicos
+                    11. 🌈 Gradiente de metas mejorado: rojo (0%) → verde oscuro (100%+)
+                    12. 📊 Diagrama de Gantt condicional: solo con filtros específicos
+                    """)
+                    mostrar_estado_validaciones(registros_df, st)
+        
+                # ===== CREAR PESTAÑAS =====
+                tab1, tab2, tab3, tab4 = st.tabs([
+                    "Dashboard", 
+                    "Edición de Registros", 
+                    "Alertas de Vencimientos", 
+                    "Reportes"
+                ])
+             
+                # ===== TAB 1: DASHBOARD =====
+                with tab1:
+                    st.markdown("### Filtros")
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        # Filtro por entidad
+                        entidades = ['Todas'] + sorted([e for e in registros_df['Entidad'].unique().tolist() if e])
+                        entidad_seleccionada = st.selectbox('Entidad', entidades, key="dash_entidad")
+                    
+                    with col2:
+                        # Filtro por funcionario
+                        funcionarios = ['Todos']
+                        if 'Funcionario' in registros_df.columns:
+                            funcionarios_unicos = [f for f in registros_df['Funcionario'].dropna().unique().tolist() if f]
+                            funcionarios += sorted(funcionarios_unicos)
+                        funcionario_seleccionado = st.selectbox('Funcionario', funcionarios, key="dash_funcionario")
+                    
+                    with col3:
+                        # Filtro por tipo de dato
+                        tipos_dato = ['Todos'] + sorted([t for t in registros_df['TipoDato'].dropna().unique().tolist() if t])
+                        tipo_dato_seleccionado = st.selectbox('Tipo de Dato', tipos_dato, key="dash_tipo")
+                    
+                    with col4:
+                        # Filtro por nivel de información dependiente de entidad
+                        if entidad_seleccionada != 'Todas':
+                            niveles_entidad = registros_df[registros_df['Entidad'] == entidad_seleccionada]['Nivel Información '].dropna().unique().tolist()
+                            niveles_entidad = [n for n in niveles_entidad if n]
+                            niveles = ['Todos'] + sorted(niveles_entidad)
+                            nivel_seleccionado = st.selectbox('Nivel de Información', niveles, key="dash_nivel")
+                        else:
+                            nivel_seleccionado = 'Todos'
+                    
+                    # Aplicar filtros
+                    df_filtrado = registros_df.copy()
+                    
+                    if entidad_seleccionada != 'Todas':
+                        df_filtrado = df_filtrado[df_filtrado['Entidad'] == entidad_seleccionada]
+                    
+                    if funcionario_seleccionado != 'Todos' and 'Funcionario' in df_filtrado.columns:
+                        df_filtrado = df_filtrado[df_filtrado['Funcionario'] == funcionario_seleccionado]
+                    
+                    if tipo_dato_seleccionado != 'Todos':
+                        df_filtrado = df_filtrado[df_filtrado['TipoDato'].str.upper() == tipo_dato_seleccionado.upper()]
+                    
+                    if nivel_seleccionado != 'Todos':
+                        df_filtrado = df_filtrado[df_filtrado['Nivel Información '] == nivel_seleccionado]
+                    
+                    st.markdown("---")
+                    
+                    # Mostrar dashboard completo
+                    mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registros_df,
+                                    entidad_seleccionada, funcionario_seleccionado, nivel_seleccionado)
+        
+                # ===== TAB 2: EDICIÓN =====
+                with tab2:
+                    # Llamar a la función de edición
+                    registros_df = mostrar_edicion_registros(registros_df)
+        
+                # ===== TAB 3: ALERTAS =====
+                with tab3:
+                    mostrar_alertas_vencimientos(registros_df)
+        
+                # ===== TAB 4: REPORTES =====
+                with tab4:
+                    st.markdown("### Filtros de Reportes")
+                    
+                    # Primera fila de filtros
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        tipos_dato_reporte = ['Todos'] + sorted([t for t in registros_df['TipoDato'].dropna().unique().tolist() if t])
+                        tipo_dato_reporte = st.selectbox('Tipo de Dato', tipos_dato_reporte, key="reporte_tipo")
+                    
+                    with col2:
+                        acuerdo_opciones = ['Todos', 'Suscrito', 'No Suscrito']
+                        acuerdo_filtro = st.selectbox('Acuerdo de Compromiso', acuerdo_opciones, key="reporte_acuerdo")
+                    
+                    with col3:
+                        analisis_opciones = ['Todos', 'Completado', 'No Completado']
+                        analisis_filtro = st.selectbox('Análisis y Cronograma', analisis_opciones, key="reporte_analisis")
+                    
+                    # Segunda fila de filtros
+                    col4, col5, col6 = st.columns(3)
+                    
+                    with col4:
+                        estandares_opciones = ['Todos', 'Completado', 'No Completado']
+                        estandares_filtro = st.selectbox('Estándares', estandares_opciones, key="reporte_estandares")
+                    
+                    with col5:
+                        publicacion_opciones = ['Todos', 'Completado', 'No Completado']
+                        publicacion_filtro = st.selectbox('Publicación', publicacion_opciones, key="reporte_publicacion")
+                    
+                    with col6:
+                        finalizado_opciones = ['Todos', 'Finalizado', 'No Finalizado']
+                        finalizado_filtro = st.selectbox('Finalizado', finalizado_opciones, key="reporte_finalizado")
+                    
+                    # Tercera fila de filtros
+                    col7, col8, col9 = st.columns(3)
+                    
+                    with col7:
+                        # FILTRO: Mes Proyectado
+                        meses_disponibles = ['Todos']
+                        if 'Mes Proyectado' in registros_df.columns:
+                            meses_unicos = [m for m in registros_df['Mes Proyectado'].dropna().unique().tolist() if m]
+                            meses_disponibles += sorted(meses_unicos)
+                        mes_filtro = st.selectbox('Mes Proyectado', meses_disponibles, key="reporte_mes")
+                    
+                    st.markdown("---")
+                    
+                    # Mostrar reportes
+                    mostrar_reportes(registros_df, tipo_dato_reporte, acuerdo_filtro, analisis_filtro, 
+                                   estandares_filtro, publicacion_filtro, finalizado_filtro, mes_filtro)
+        
+                # ===== FOOTER =====
+                st.markdown("---")
+                st.markdown("### Resumen del Sistema")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric("Total Campos", len(registros_df.columns))
+                
+                with col2:
+                    total_con_funcionario = len(registros_df[registros_df['Funcionario'].notna() & (registros_df['Funcionario'] != '')])
+                    st.metric("Con Funcionario", total_con_funcionario)
+                
+                with col3:
+                    en_proceso = len(registros_df[registros_df['Estado'].isin(['En proceso', 'En proceso oficio de cierre'])])
+                    st.metric("En Proceso", en_proceso)
+                
+                with col4:
+                    ultima_actualizacion = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    st.metric("Última Actualización", ultima_actualizacion)
+        
+                # Información de versión
+                st.info("""
+                **Tablero de Control - Versión Completa con Mejoras y Autenticación**
+                
+                ✅ **Funcionalidades restauradas y corregidas:**
+                - 🔐 Sistema de autenticación completo
+                - 📊 Dashboard con medidores trimestrales funcionales
+                - ✏️ Edición completa de registros con todas las secciones
+                - 🚨 Sistema de alertas de vencimientos
+                - 📋 Reportes con filtros avanzados
+                - 📅 Campo "Mes Proyectado" integrado
+                - 🔄 Sincronización con Google Sheets
+                - 📈 Gráficos y visualizaciones mejoradas
+                - 🎯 Validaciones de reglas de negocio automáticas
+                """)
+                
+                # Mostrar estado de autenticación en footer
+                if verificar_autenticacion():
+                    st.success("🔐 Sesión administrativa activa - Todas las funciones disponibles")
+                else:
+                    st.warning("⚠️ Sesión no administrativa - Carga de datos restringida")
+        
+            except Exception as e:
+                st.error(f"Error crítico: {str(e)}")
+                
+                # Información detallada del error para debugging
+                import traceback
+                with st.expander("Detalles del Error (para debugging)"):
+                    st.code(traceback.format_exc())
+                
+                st.markdown("### Solución de Problemas")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("""
+                    **Problemas Comunes:**
+                    - Configuración de Google Sheets incorrecta
+                    - Credenciales faltantes o incorrectas
+                    - Estructura de datos incorrecta en Google Sheets
+                    - Problemas de conexión a internet
+                    - Problemas de autenticación
+                    """)
+                
+                with col2:
+                    st.markdown("""
+                    **Acciones Recomendadas:**
+                    - Usar el botón "Reconectar" arriba
+                    - Verificar configuración en el panel lateral
+                    - Revisar permisos del service account
+                    - Consultar las instrucciones de configuración
+                    - Verificar credenciales de autenticación admin
+                    """)
+                
+                # Botón de recuperación
+                if st.button("🔄 Intentar Recuperación", type="primary"):
+                    # Limpiar estado y recargar
+                    for key in list(st.session_state.keys()):
+                        if key.startswith(('sheets_', 'registros_', 'meta_')):
+                            del st.session_state[key]
+                    st.rerun()
+        
+        if __name__ == "__main__":
+            main()
 
 
         
