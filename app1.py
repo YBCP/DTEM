@@ -2378,22 +2378,7 @@ def mostrar_seguimiento_trimestral(registros_df):
             </div>
             """, unsafe_allow_html=True)
     
-    # Información adicional
-    st.markdown("---")
-    st.info("""
-    **📈 Información del Dashboard**
     
-    ✅ **Meta:** Todos los registros del trimestre deberían estar publicados  
-    ✅ **Avance:** Registros con fecha real en el campo "Publicación"  
-    ✅ **Programadas:** Registros con fecha en "Fecha de publicación programada"  
-    ✅ **Pendientes:** Registros sin fecha real de publicación  
-    ✅ **Agrupación:** Por campo "Mes Proyectado" (Enero-Marzo = Q1, etc.)
-    
-    **🔍 Para verificar los datos:**
-    - Revisa que el campo "Mes Proyectado" esté correctamente asignado
-    - Verifica que "TipoDato" sea "NUEVO" o "ACTUALIZAR" 
-    - Confirma que las fechas de "Publicación" estén en formato correcto
-    """)
 # ========== FUNCIÓN PRINCIPAL ==========
 
 # Cambio en la función main() de app1.py
@@ -2682,26 +2667,7 @@ def main():
 
         # Información de versión
         st.info("""
-        **Tablero de Control - Versión Completa con Mejoras y Autenticación**
-        
-        ✅ Todas las funcionalidades de edición han sido restauradas
-        ✅ Sistema de validaciones completo
-        ✅ Cálculo automático de plazos con días hábiles
-        ✅ Gestión dinámica de funcionarios
-        ✅ Guardado inteligente en Google Sheets
-        ✅ Alertas de vencimiento detalladas
-        ✅ Reportes avanzados con filtros
-        
-        **Mejoras Implementadas:**
-        ✅ Gradiente de metas mejorado: rojo (0%) → verde oscuro (100%+)
-        ✅ Diagrama de Gantt condicional: se muestra solo con filtros específicos
-        ✅ Mensaje informativo para guiar al usuario sobre el Gantt
-        
-        **Nuevas Funcionalidades:**
-        ✅ 🔐 Sistema de autenticación para administrador
-        ✅ 📅 Campo "Mes Proyectado" en información básica
-        ✅ 🔍 Filtro por mes proyectado en reportes
-        ✅ 🔒 Protección de carga de datos Excel solo para admin
+        **Tablero de Control - Datos temáticos - Ideca**
         """)
         
         # Mostrar estado de autenticación en footer
