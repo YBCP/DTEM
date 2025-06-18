@@ -2122,6 +2122,196 @@ def mostrar_seguimiento_trimestral(registros_df):
         
         return fig
     
+# ========== FUNCIÓN SEGUIMIENTO TRIMESTRAL - COMPLETA Y CORRECTA ==========
+# COPIAR ESTA FUNCIÓN COMPLETA EN TU app1.py ANTES DE def main():
+
+def mostrar_seguimiento_trimestral(registros_df):
+    """Muestra la pestaña de seguimiento trimestral con medidores circulares."""
+    st.markdown('<div class="subtitle">Seguimiento Trimestral - Metas vs Avance Real</div>', unsafe_allow_html=True)
+    
+    # CSS personalizado para los medidores
+    st.markdown("""
+    <style>
+    .trimestre-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        border: 2px solid #dee2e6;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .trimestre-title {
+        background: linear-gradient(90deg, #3498db, #2980b9);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    }
+    
+    .gauge-info-card {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-left: 4px solid #3498db;
+    }
+    
+    .meta-vs-avance {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9rem;
+    }
+    
+    .meta-text { color: #7f8c8d; font-weight: 500; }
+    .avance-excelente { color: #27ae60; font-weight: bold; }
+    .avance-bueno { color: #2ecc71; font-weight: bold; }
+    .avance-regular { color: #f39c12; font-weight: bold; }
+    .avance-bajo { color: #e74c3c; font-weight: bold; }
+    .avance-critico { color: #c0392b; font-weight: bold; }
+    
+    .summary-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        margin: 10px 0;
+    }
+    
+    .summary-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .summary-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .legend-container {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 30px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    
+    .legend-color {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Leyenda de colores
+    st.markdown("""
+    <div class="legend-container">
+        <h4 style="margin: 0 0 15px 0; color: #2c3e50; text-align: center;">📊 Escala de Cumplimiento</h4>
+        <div class="legend-grid">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #27ae60;"></div>
+                <span>Excelente (90-100%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #2ecc71;"></div>
+                <span>Bueno (75-89%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f39c12;"></div>
+                <span>Regular (50-74%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e74c3c;"></div>
+                <span>Bajo (25-49%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #c0392b;"></div>
+                <span>Crítico (0-24%)</span>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Función para determinar clase CSS según porcentaje
+    def get_avance_class(porcentaje):
+        if porcentaje >= 90: return "avance-excelente"
+        elif porcentaje >= 75: return "avance-bueno"
+        elif porcentaje >= 50: return "avance-regular"
+        elif porcentaje >= 25: return "avance-bajo"
+        else: return "avance-critico"
+    
+    # Función para crear medidor circular
+    def crear_medidor_circular(valor, titulo, meta_num, avance_num, trimestre, hito):
+        # Determinar color según porcentaje
+        if valor >= 90: color = '#27ae60'
+        elif valor >= 75: color = '#2ecc71'
+        elif valor >= 50: color = '#f39c12'
+        elif valor >= 25: color = '#e74c3c'
+        else: color = '#c0392b'
+        
+        fig = go.Figure(go.Indicator(
+            mode = "gauge+number+delta",
+            value = valor,
+            domain = {'x': [0, 1], 'y': [0, 1]},
+            title = {'text': titulo, 'font': {'size': 16, 'color': '#2c3e50'}},
+            delta = {'reference': 75, 'increasing': {'color': '#27ae60'}, 'decreasing': {'color': '#e74c3c'}},
+            gauge = {
+                'axis': {'range': [None, 100], 'tickwidth': 2, 'tickcolor': '#34495e'},
+                'bar': {'color': color, 'thickness': 0.8},
+                'bgcolor': '#ecf0f1',
+                'borderwidth': 3,
+                'bordercolor': '#bdc3c7',
+                'steps': [
+                    {'range': [0, 25], 'color': '#fadbd8'},
+                    {'range': [25, 50], 'color': '#f8d7da'},
+                    {'range': [50, 75], 'color': '#fff3cd'},
+                    {'range': [75, 90], 'color': '#d1ecf1'},
+                    {'range': [90, 100], 'color': '#d4edda'}
+                ],
+                'threshold': {
+                    'line': {'color': '#2c3e50', 'width': 4},
+                    'thickness': 0.75,
+                    'value': 75
+                }
+            },
+            number = {'font': {'size': 24, 'color': color}, 'suffix': '%'}
+        ))
+        
+        fig.update_layout(
+            height=250,
+            margin=dict(l=20, r=20, t=40, b=20),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font={'color': '#2c3e50'}
+        )
+        
+        return fig
+    
     # Función para calcular metas y avances trimestrales
     def calcular_datos_trimestrales(df, tipo_dato):
         # Filtrar por tipo de dato
@@ -2247,7 +2437,7 @@ def mostrar_seguimiento_trimestral(registros_df):
                     trimestre,
                     'acuerdo'
                 )
-                st.plotly_chart(fig_acuerdo, use_container_width=True)
+                st.plotly_chart(fig_acuerdo, use_container_width=True, key=f"nuevos_{trimestre}_acuerdo")
                 
                 avance_class = get_avance_class(datos['acuerdo']['porcentaje'])
                 st.markdown(f"""
@@ -2268,7 +2458,7 @@ def mostrar_seguimiento_trimestral(registros_df):
                     trimestre,
                     'analisis'
                 )
-                st.plotly_chart(fig_analisis, use_container_width=True)
+                st.plotly_chart(fig_analisis, use_container_width=True, key=f"nuevos_{trimestre}_analisis")
                 
                 avance_class = get_avance_class(datos['analisis']['porcentaje'])
                 st.markdown(f"""
@@ -2289,7 +2479,7 @@ def mostrar_seguimiento_trimestral(registros_df):
                     trimestre,
                     'estandares'
                 )
-                st.plotly_chart(fig_estandares, use_container_width=True)
+                st.plotly_chart(fig_estandares, use_container_width=True, key=f"nuevos_{trimestre}_estandares")
                 
                 avance_class = get_avance_class(datos['estandares']['porcentaje'])
                 st.markdown(f"""
@@ -2310,7 +2500,7 @@ def mostrar_seguimiento_trimestral(registros_df):
                     trimestre,
                     'publicacion'
                 )
-                st.plotly_chart(fig_publicacion, use_container_width=True)
+                st.plotly_chart(fig_publicacion, use_container_width=True, key=f"nuevos_{trimestre}_publicacion")
                 
                 avance_class = get_avance_class(datos['publicacion']['porcentaje'])
                 st.markdown(f"""
@@ -2407,9 +2597,6 @@ def mostrar_seguimiento_trimestral(registros_df):
             </div>
             """, unsafe_allow_html=True)
             
-            # Crear 4 columnas para los medidores
-            col1, col2, col3, col4 = st.columns(4)
-            
             with col1:
                 fig_acuerdo = crear_medidor_circular(
                     datos['acuerdo']['porcentaje'],
@@ -2419,7 +2606,7 @@ def mostrar_seguimiento_trimestral(registros_df):
                     trimestre,
                     'acuerdo'
                 )
-                st.plotly_chart(fig_acuerdo, use_container_width=True)
+                st.plotly_chart(fig_acuerdo, use_container_width=True, key=f"actualizar_{trimestre}_acuerdo")
                 
                 avance_class = get_avance_class(datos['acuerdo']['porcentaje'])
                 st.markdown(f"""
@@ -2440,7 +2627,7 @@ def mostrar_seguimiento_trimestral(registros_df):
                     trimestre,
                     'analisis'
                 )
-                st.plotly_chart(fig_analisis, use_container_width=True)
+                st.plotly_chart(fig_analisis, use_container_width=True, key=f"actualizar_{trimestre}_analisis")
                 
                 avance_class = get_avance_class(datos['analisis']['porcentaje'])
                 st.markdown(f"""
@@ -2461,7 +2648,7 @@ def mostrar_seguimiento_trimestral(registros_df):
                     trimestre,
                     'estandares'
                 )
-                st.plotly_chart(fig_estandares, use_container_width=True)
+                st.plotly_chart(fig_estandares, use_container_width=True, key=f"actualizar_{trimestre}_estandares")
                 
                 avance_class = get_avance_class(datos['estandares']['porcentaje'])
                 st.markdown(f"""
@@ -2482,7 +2669,7 @@ def mostrar_seguimiento_trimestral(registros_df):
                     trimestre,
                     'publicacion'
                 )
-                st.plotly_chart(fig_publicacion, use_container_width=True)
+                st.plotly_chart(fig_publicacion, use_container_width=True, key=f"actualizar_{trimestre}_publicacion")
                 
                 avance_class = get_avance_class(datos['publicacion']['porcentaje'])
                 st.markdown(f"""
@@ -2569,7 +2756,6 @@ def mostrar_seguimiento_trimestral(registros_df):
     - Estado real de cada hito (Acuerdo, Análisis, Estándares, Publicación)
     - Cálculo dinámico de porcentajes de cumplimiento
     """)
-
 
 # ========== FUNCIÓN PRINCIPAL ==========
 
