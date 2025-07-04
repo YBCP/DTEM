@@ -49,127 +49,10 @@ def limpiar_valor(valor):
 
 def cargar_datos():
     """
-    Carga los datos desde Google Sheets. Si no es posible, intenta cargar desde CSV como respaldo.
+    VERSIÓN ACTUALIZADA: Carga los datos desde Google Sheets con sistema de respaldo integrado.
     """
-    try:
-        # Intentar cargar desde Google Sheets primero
-        sheets_manager = get_sheets_manager()
-        
-        # Lista de columnas requeridas para asegurar que existan (CON MES PROYECTADO)
-        columnas_requeridas = [
-            'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
-            'Acuerdo de compromiso', 'Análisis y cronograma',
-            'Estándares', 'Publicación', 'Fecha de entrega de información',
-            'Plazo de análisis', 'Plazo de cronograma', 'Plazo de oficio de cierre'
-        ]
-
-        columnas_meta = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-        # Cargar registros desde Google Sheets
-        try:
-            st.info("🔄 Cargando datos desde Google Sheets...")
-            registros_df = sheets_manager.leer_hoja("Registros")
-            
-            if registros_df.empty:
-                st.warning("⚠️ La hoja 'Registros' está vacía. Creando estructura inicial...")
-                # Crear DataFrame vacío con las columnas requeridas
-                registros_df = pd.DataFrame(columns=columnas_requeridas)
-                # Guardar estructura inicial en Google Sheets
-                sheets_manager.escribir_hoja(registros_df, "Registros", limpiar_hoja=True)
-            else:
-                st.success(f"✅ {len(registros_df)} registros cargados desde Google Sheets")
-                
-                # Verificar y añadir columnas requeridas si faltan
-                for columna in columnas_requeridas:
-                    if columna not in registros_df.columns:
-                        st.warning(f"⚠️ Añadiendo columna faltante: '{columna}'")
-                        registros_df[columna] = ''
-                        
-                # Limpiar valores
-                for col in registros_df.columns:
-                    registros_df[col] = registros_df[col].apply(limpiar_valor)
-
-        except Exception as e:
-            st.error(f"❌ Error al cargar desde Google Sheets: {str(e)}")
-            st.info("🔄 Intentando cargar desde archivo CSV local como respaldo...")
-            registros_df = cargar_desde_csv_respaldo(columnas_requeridas)
-
-        # Cargar metas desde Google Sheets
-        try:
-            meta_df = sheets_manager.leer_hoja("Metas")
-            
-            if meta_df.empty:
-                st.warning("⚠️ La hoja 'Metas' está vacía. Creando estructura inicial...")
-                # Crear estructura básica de metas
-                meta_df = crear_estructura_metas_inicial()
-                sheets_manager.escribir_hoja(meta_df, "Metas", limpiar_hoja=True)
-            else:
-                st.success("✅ Metas cargadas desde Google Sheets")
-                
-                # Limpiar valores
-                for col in meta_df.columns:
-                    meta_df[col] = meta_df[col].apply(limpiar_valor)
-
-        except Exception as e:
-            st.error(f"❌ Error al cargar metas desde Google Sheets: {str(e)}")
-            st.info("🔄 Creando estructura de metas por defecto...")
-            meta_df = crear_estructura_metas_inicial()
-
-        return registros_df, meta_df
-
-    except Exception as e:
-        st.error(f"❌ Error general al cargar los datos: {e}")
-        st.info("🔄 Cargando estructura mínima para que la aplicación funcione...")
-        
-        # Crear DataFrames mínimos como último recurso (CON MES PROYECTADO)
-        registros_df = pd.DataFrame(columns=[
-            'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
-            'Acuerdo de compromiso', 'Análisis y cronograma',
-            'Estándares', 'Publicación', 'Fecha de entrega de información',
-            'Plazo de análisis', 'Plazo de cronograma', 'Plazo de oficio de cierre'
-        ])
-        meta_df = crear_estructura_metas_inicial()
-
-        return registros_df, meta_df
-
-def cargar_desde_csv_respaldo(columnas_requeridas):
-    """Función de respaldo para cargar desde CSV si Google Sheets falla"""
-    try:
-        if os.path.exists('registros.csv'):
-            with open('registros.csv', 'r', encoding='utf-8') as f:
-                contenido = f.read()
-
-            primer_linea = contenido.split('\n')[0]
-            if ';' in primer_linea:
-                contenido_normalizado = normalizar_csv(contenido, ';')
-                registros_df = pd.read_csv(io.StringIO(contenido_normalizado), sep=';',
-                                           engine='python', on_bad_lines='skip',
-                                           dtype=str)
-            else:
-                contenido_normalizado = normalizar_csv(contenido, ',')
-                registros_df = pd.read_csv(io.StringIO(contenido_normalizado), sep=',',
-                                           engine='python', on_bad_lines='skip',
-                                           dtype=str)
-
-            # Limpiar valores
-            for col in registros_df.columns:
-                registros_df[col] = registros_df[col].apply(limpiar_valor)
-
-            # Verificar y añadir columnas requeridas si faltan
-            for columna in columnas_requeridas:
-                if columna not in registros_df.columns:
-                    registros_df[columna] = ''
-
-            st.success(f"✅ {len(registros_df)} registros cargados desde CSV local")
-            return registros_df
-
-        else:
-            st.warning("📄 No se encontró archivo CSV local")
-            return pd.DataFrame(columns=columnas_requeridas)
-
-    except Exception as e:
-        st.error(f"❌ Error al cargar CSV: {str(e)}")
-        return pd.DataFrame(columns=columnas_requeridas)
+    from backup_utils import cargar_datos_con_respaldo
+    return cargar_datos_con_respaldo()
 
 def crear_estructura_metas_inicial():
     """Crea una estructura inicial para las metas"""
@@ -185,54 +68,6 @@ def crear_estructura_metas_inicial():
         8: [0, 0, 0],  # Estándares actualizar
         9: [0, 0, 0],  # Publicación actualizar
     })
-
-def cargar_datos_desde_excel(uploaded_file):
-    """
-    Carga datos desde un archivo Excel subido y los sincroniza con Google Sheets
-    """
-    try:
-        if uploaded_file is not None:
-            # Leer el archivo Excel
-            excel_data = pd.read_excel(uploaded_file, sheet_name=None)  # Lee todas las hojas
-            
-            sheets_manager = get_sheets_manager()
-            
-            # Procesar cada hoja del Excel
-            for sheet_name, df in excel_data.items():
-                if df.empty:
-                    continue
-                    
-                # Limpiar datos
-                df = df.fillna('')
-                for col in df.columns:
-                    df[col] = df[col].apply(limpiar_valor)
-                
-                # Determinar el nombre de la hoja en Google Sheets
-                if 'registros' in sheet_name.lower():
-                    hoja_destino = "Registros"
-                elif 'meta' in sheet_name.lower():
-                    hoja_destino = "Metas"
-                else:
-                    hoja_destino = sheet_name
-                
-                # Crear backup antes de sobrescribir
-                sheets_manager.crear_backup(hoja_destino)
-                
-                # Escribir datos a Google Sheets
-                exito = sheets_manager.escribir_hoja(df, hoja_destino, limpiar_hoja=True)
-                
-                if exito:
-                    st.success(f"✅ Hoja '{sheet_name}' sincronizada con Google Sheets como '{hoja_destino}'")
-                else:
-                    st.error(f"❌ Error al sincronizar hoja '{sheet_name}'")
-            
-            # Recargar datos desde Google Sheets para verificar
-            st.info("🔄 Recargando datos desde Google Sheets...")
-            return cargar_datos()
-            
-    except Exception as e:
-        st.error(f"❌ Error al procesar archivo Excel: {str(e)}")
-        return None, None
 
 def procesar_fecha(fecha_str):
     """Procesa una fecha de manera segura manejando NaT."""
@@ -339,6 +174,13 @@ def calcular_porcentaje_avance(registro):
             pd.notna(registro['Análisis y cronograma']) and
             str(registro['Análisis y cronograma']).strip() != ''):
             avance += 20
+
+        # Verificar estándares - basado en la fecha (30%)
+        if ('Estándares' in registro and 
+            registro['Estándares'] and 
+            pd.notna(registro['Estándares']) and
+            str(registro['Estándares']).strip() != ''):
+            avance += 30
 
         # Verificar publicación - VERIFICADO: basado en la fecha (25%)
         if ('Publicación' in registro and 
