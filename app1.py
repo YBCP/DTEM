@@ -13,7 +13,7 @@ import base64
 import os
 import re
 from fecha_utils import calcular_plazo_analisis, actualizar_plazo_analisis, calcular_plazo_cronograma, actualizar_plazo_cronograma, calcular_plazo_oficio_cierre, actualizar_plazo_oficio_cierre
-from auth_utils import verificar_autenticacion, mostrar_login, mostrar_estado_autenticacion, requiere_autenticacion
+#from auth_utils import verificar_autenticacion, mostrar_login, mostrar_estado_autenticacion, requiere_autenticacion
 
 # Importar las funciones corregidas
 from config import setup_page, load_css
@@ -2387,43 +2387,37 @@ def main():
             st.session_state.mensaje_guardado = None
 
         # ===== TÍTULO =====
-        st.markdown('<div class="title">🔐 Tablero de Control de Seguimiento de Datos Temáticos - Ideca</div>',
-                    unsafe_allow_html=True)
+        st.markdown('<div class="title">📊 Tablero de Control de Seguimiento de Datos Temáticos - Ideca</div>', unsafe_allow_html=True)
+
         
         # ===== SIDEBAR CON AUTENTICACIÓN =====
         # Sistema de autenticación
-        mostrar_login()
-        mostrar_estado_autenticacion()
+        # mostrar_login()
+        # mostrar_estado_autenticacion()
         
         # Configuración de Google Sheets
         mostrar_configuracion_sheets()
         
-        
-
         # Información sobre el tablero
         st.sidebar.markdown('<div class="subtitle">Información</div>', unsafe_allow_html=True)
         st.sidebar.markdown("""
-        <div class="info-box">
-        <p><strong>Tablero de Control de Cronogramas</strong></p>
-        <p><strong>VERSIÓN COMPLETA CON MEJORAS Y AUTENTICACIÓN</strong></p>
-        </div>
-        """, unsafe_allow_html=True)
+            <div class="info-box">
+            <p><strong>Tablero de Control de Cronogramas</strong></p>
+            <p><strong>VERSIÓN SIMPLIFICADA - SOLO GOOGLE SHEETS</strong></p>
+            </div>
+            """, unsafe_allow_html=True)
 
         # CAMBIO: Mover la carga de datos dentro del expander "Estado del Sistema"
+        
+
         with st.expander("Estado del Sistema"):
-            # Estado de conexión y autenticación
-            col1, col2, col3 = st.columns([2, 2, 1])
+            # Estado de conexión
+            col1, col2 = st.columns([3, 1])  # ← CORREGIDO: 2 columnas definidas y usadas
             
             with col1:
                 st.info("📊 Datos sincronizados con Google Sheets en tiempo real")
             
             with col2:
-                if verificar_autenticacion():
-                    st.success("🔐 Sesión administrativa activa")
-                else:
-                    st.warning("⚠️ Sesión no administrativa")
-            
-            with col3:
                 if st.button("🔄 Reconectar"):
                     # Limpiar cache y reconectar
                     if 'sheets_manager' in st.session_state:
@@ -2657,11 +2651,7 @@ def main():
         **Tablero de Control - Datos temáticos - Ideca**
         """)
         
-        # Mostrar estado de autenticación en footer
-        if verificar_autenticacion():
-            st.success("🔐 Sesión administrativa activa - Todas las funciones disponibles")
-        else:
-            st.warning("⚠️ Sesión no administrativa - Carga de datos restringida")
+        
 
     except Exception as e:
         st.error(f"Error crítico: {str(e)}")
