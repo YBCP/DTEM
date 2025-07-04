@@ -2627,12 +2627,12 @@ def main():
 
         # ===== FOOTER =====
         st.markdown("---")
-        st.markdown("### Resumen del Sistema")
+        st.markdown("### 📊 Resumen del Sistema")
         
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)  # Una columna adicional
         
         with col1:
-            st.metric("Total Campos", len(registros_df.columns))
+            st.metric("Total Registros", len(registros_df))
         
         with col2:
             total_con_funcionario = len(registros_df[registros_df['Funcionario'].notna() & (registros_df['Funcionario'] != '')])
@@ -2643,15 +2643,36 @@ def main():
             st.metric("En Proceso", en_proceso)
         
         with col4:
-            ultima_actualizacion = datetime.now().strftime("%d/%m/%Y %H:%M")
-            st.metric("Última Actualización", ultima_actualizacion)
+            # Mostrar estado del respaldo
+            if fecha_ultimo_respaldo:
+                if isinstance(fecha_ultimo_respaldo, datetime):
+                    tiempo_respaldo = fecha_ultimo_respaldo.strftime("%H:%M")
+                    st.metric("Último Respaldo", tiempo_respaldo)
+                else:
+                    st.metric("Respaldo", "Disponible")
+            else:
+                st.metric("Respaldo", "Sin datos")
+        
+        with col5:
+            ultima_actualizacion = datetime.now().strftime("%H:%M")
+            st.metric("Actualizado", ultima_actualizacion)
 
-        # Información de versión
+        # Información de versión con características de seguridad
         st.info("""
-        **Tablero de Control - Datos temáticos - Ideca**
+        **🛡️ Tablero de Control Ultra Seguro - Datos Temáticos - Ideca**
+        
+        **Características de Seguridad Implementadas:**
+        - ✅ Verificación automática de integridad de datos
+        - ✅ Respaldo automático antes de cualquier modificación  
+        - ✅ Restauración automática en caso de pérdida de datos
+        - ✅ Respaldos locales adicionales como seguridad extra
+        - ✅ Detección automática de datos corruptos o vacíos
+        - ✅ Sistema de alertas en tiempo real sobre el estado de respaldos
+        - ✅ Panel de restauración manual para casos especiales
+        
+        **Protección Anti-Pérdida de Datos:** Si la tabla Registros se borra accidentalmente, 
+        el sistema detectará automáticamente el problema y restaurará los datos desde el último respaldo válido.
         """)
-        
-        
 
     except Exception as e:
         st.error(f"Error crítico: {str(e)}")
@@ -2661,40 +2682,86 @@ def main():
         with st.expander("Detalles del Error (para debugging)"):
             st.code(traceback.format_exc())
         
-        st.markdown("### Solución de Problemas")
+        st.markdown("### 🛡️ Sistema de Recuperación de Emergencia")
         
         col1, col2 = st.columns(2)
         
         with col1:
             st.markdown("""
-            **Problemas Comunes:**
-            - Configuración de Google Sheets incorrecta
-            - Credenciales faltantes o incorrectas
-            - Estructura de datos incorrecta en Google Sheets
-            - Problemas de conexión a internet
-            - Problemas de autenticación
+            **🚨 Problemas Detectados:**
+            - Error crítico en el sistema
+            - Posible corrupción de datos
+            - Problemas de conexión a Google Sheets
+            - Fallo en el sistema de respaldos
             """)
         
         with col2:
             st.markdown("""
-            **Acciones Recomendadas:**
-            - Usar el botón "Reconectar" arriba
-            - Verificar configuración en el panel lateral
-            - Revisar permisos del service account
-            - Consultar las instrucciones de configuración
-            - Verificar credenciales de autenticación admin
+            **🔧 Acciones de Recuperación:**
+            - Usar "Recuperación de Emergencia" abajo
+            - Verificar respaldos disponibles
+            - Revisar configuración de Google Sheets
+            - Consultar registros de actividad del sistema
             """)
         
-        # Botón de recuperación
-        if st.button("🔄 Intentar Recuperación", type="primary"):
-            # Limpiar estado y recargar
-            for key in list(st.session_state.keys()):
-                if key.startswith(('sheets_', 'registros_', 'meta_')):
-                    del st.session_state[key]
-            st.rerun()
+        # Sistema de recuperación de emergencia mejorado
+        st.markdown("---")
+        st.markdown("### 🚨 Recuperación de Emergencia")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("🔄 Recuperación Automática", type="primary"):
+                try:
+                    # Intentar restauración automática de emergencia
+                    from backup_utils import restauracion_automatica_emergencia
+                    exito, df = restauracion_automatica_emergencia()
+                    if exito:
+                        st.success("✅ Recuperación exitosa")
+                        st.rerun()
+                    else:
+                        st.error("❌ Recuperación automática falló")
+                except Exception as recovery_error:
+                    st.error(f"❌ Error en recuperación: {recovery_error}")
+        
+        with col2:
+            if st.button("🔍 Verificar Respaldos"):
+                try:
+                    from backup_utils import verificar_disponibilidad_respaldo
+                    tiene_respaldo, info = verificar_disponibilidad_respaldo()
+                    
+                    if tiene_respaldo:
+                        st.success(f"✅ Respaldo encontrado: {info['registros']} registros")
+                        if info['valido']:
+                            st.info("💾 Respaldo válido y listo para usar")
+                        else:
+                            st.warning(f"⚠️ Respaldo disponible pero: {info['mensaje']}")
+                    else:
+                        st.error("❌ No se encontraron respaldos")
+                        
+                except Exception as backup_error:
+                    st.error(f"❌ Error verificando respaldos: {backup_error}")
+        
+        with col3:
+            if st.button("🔄 Reiniciar Sistema"):
+                # Limpiar todo el estado y reiniciar
+                for key in list(st.session_state.keys()):
+                    if not key.startswith('_'):  # Mantener variables internas de Streamlit
+                        del st.session_state[key]
+                st.rerun()
+
+        # Información adicional de contacto o soporte
+        st.markdown("---")
+        st.warning("""
+        **📞 Si el problema persiste:**
+        1. Verificar la conexión a internet
+        2. Revisar permisos de Google Sheets
+        3. Contactar al administrador del sistema
+        4. Documentar el error para soporte técnico
+        """)
 
 if __name__ == "__main__":
     main()
-
+        
 
         
