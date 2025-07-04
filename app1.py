@@ -21,7 +21,7 @@ from data_utils import (
     cargar_datos, procesar_metas, calcular_porcentaje_avance,
     verificar_estado_fechas, formatear_fecha, es_fecha_valida,
     validar_campos_fecha, guardar_datos_editados, guardar_datos_editados_rapido, procesar_fecha,
-    contar_registros_completados_por_fecha, cargar_datos_desde_excel
+    contar_registros_completados_por_fecha
 )
 from visualization import crear_gantt, comparar_avance_metas
 from constants import REGISTROS_DATA, META_DATA
