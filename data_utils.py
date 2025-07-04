@@ -49,10 +49,120 @@ def limpiar_valor(valor):
 
 def cargar_datos():
     """
-    VERSIÓN ACTUALIZADA: Carga los datos desde Google Sheets con sistema de respaldo integrado.
+    VERSIÓN ULTRA SEGURA: Carga los datos con sistema completo de respaldo y restauración automática.
+    Esta función incluye detección automática de problemas y restauración automática.
     """
-    from backup_utils import cargar_datos_con_respaldo
-    return cargar_datos_con_respaldo()
+    try:
+        # Importar el sistema de respaldo ultra seguro
+        from backup_utils import cargar_datos_con_respaldo
+        
+        # Usar el sistema ultra seguro que incluye:
+        # 1. Verificación automática de integridad
+        # 2. Restauración automática si los datos están vacíos/corruptos  
+        # 3. Creación automática de respaldos
+        # 4. Validaciones estrictas de datos
+        return cargar_datos_con_respaldo()
+        
+    except ImportError:
+        # Fallback si no está disponible el sistema de respaldo
+        st.warning("⚠️ Sistema de respaldo no disponible, usando método básico")
+        return cargar_datos_basico()
+    
+    except Exception as e:
+        st.error(f"❌ Error crítico en carga de datos: {str(e)}")
+        
+        # Último recurso: intentar cargar datos básicos
+        try:
+            return cargar_datos_basico()
+        except:
+            # Si todo falla, crear estructura mínima
+            st.error("❌ Creando estructura mínima de emergencia")
+            return crear_estructura_emergencia()
+
+def cargar_datos_basico():
+    """
+    Función de respaldo básica para cargar datos cuando el sistema ultra seguro no está disponible.
+    """
+    try:
+        sheets_manager = get_sheets_manager()
+        
+        # Cargar registros
+        registros_df = sheets_manager.leer_hoja("Registros")
+        
+        if registros_df.empty:
+            st.warning("⚠️ Tabla de registros vacía - creando estructura básica")
+            registros_df = crear_estructura_registros_basica()
+        else:
+            st.success(f"✅ {len(registros_df)} registros cargados (modo básico)")
+        
+        # Cargar metas
+        try:
+            meta_df = sheets_manager.leer_hoja("Metas")
+            if meta_df.empty:
+                meta_df = crear_estructura_metas_basica()
+        except:
+            meta_df = crear_estructura_metas_basica()
+        
+        return registros_df, meta_df
+        
+    except Exception as e:
+        st.error(f"❌ Error en carga básica: {str(e)}")
+        return crear_estructura_emergencia()
+
+def crear_estructura_emergencia():
+    """
+    Crea estructura mínima de emergencia cuando todo lo demás falla.
+    """
+    st.warning("🚨 Creando estructura de emergencia")
+    
+    # Estructura mínima de registros
+    columnas_minimas = [
+        'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
+        'Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación',
+        'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
+        'Plazo de oficio de cierre', 'Fecha de oficio de cierre', 'Estado', 'Observación',
+        'Funcionario', 'Frecuencia actualizacion '
+    ]
+    
+    registros_df = pd.DataFrame(columns=columnas_minimas)
+    
+    # Estructura mínima de metas
+    meta_df = pd.DataFrame({
+        0: ["15/01/2025", "31/01/2025", "15/02/2025"],
+        1: [0, 0, 0], 2: [0, 0, 0], 3: [0, 0, 0], 4: [0, 0, 0], 5: [0, 0, 0],
+        6: [0, 0, 0], 7: [0, 0, 0], 8: [0, 0, 0], 9: [0, 0, 0]
+    })
+    
+    return registros_df, meta_df
+
+def crear_estructura_registros_basica():
+    """Crea estructura básica de registros"""
+    columnas_basicas = [
+        'Cod', 'Funcionario', 'Entidad', 'Nivel Información ', 'Frecuencia actualizacion ',
+        'TipoDato', 'Mes Proyectado', 'Actas de acercamiento y manifestación de interés',
+        'Suscripción acuerdo de compromiso', 'Entrega acuerdo de compromiso',
+        'Acuerdo de compromiso', 'Gestion acceso a los datos y documentos requeridos ',
+        'Análisis de información', 'Cronograma Concertado', 'Análisis y cronograma (fecha programada)',
+        'Fecha de entrega de información', 'Plazo de análisis', 'Análisis y cronograma',
+        'Seguimiento a los acuerdos', 'Registro', 'ET', 'CO', 'DD', 'REC', 'SERVICIO',
+        'Estándares (fecha programada)', 'Estándares', 'Resultados de orientación técnica',
+        'Verificación del servicio web geográfico', 'Verificar Aprobar Resultados',
+        'Revisar y validar los datos cargados en la base de datos',
+        'Aprobación resultados obtenidos en la rientación', 'Disponer datos temáticos',
+        'Fecha de publicación programada', 'Publicación', 'Catálogo de recursos geográficos',
+        'Oficios de cierre', 'Fecha de oficio de cierre', 'Plazo de cronograma',
+        'Plazo de oficio de cierre', 'Estado', 'Observación'
+    ]
+    
+    return pd.DataFrame(columns=columnas_basicas)
+
+def crear_estructura_metas_basica():
+    """Crea estructura básica de metas"""
+    return pd.DataFrame({
+        0: ["15/01/2025", "31/01/2025", "15/02/2025"],
+        1: [0, 0, 0], 2: [0, 0, 0], 3: [0, 0, 0], 4: [0, 0, 0], 5: [0, 0, 0],
+        6: [0, 0, 0], 7: [0, 0, 0], 8: [0, 0, 0], 9: [0, 0, 0]
+    })
 
 def crear_estructura_metas_inicial():
     """Crea una estructura inicial para las metas"""
@@ -316,7 +426,7 @@ def validar_campos_fecha(df, campos_fecha=['Análisis y cronograma', 'Estándare
 
 def guardar_datos_editados(df, crear_backup=True):
     """
-    Guarda los datos editados en Google Sheets, asegurando que ciertos campos sean fechas.
+    VERSIÓN ULTRA SEGURA: Guarda los datos editados con sistema de respaldo automático.
     """
     try:
         # Validar que los campos de fechas sean fechas válidas
@@ -324,15 +434,35 @@ def guardar_datos_editados(df, crear_backup=True):
         
         sheets_manager = get_sheets_manager()
         
-        # Crear backup si se solicita
+        # NUEVO: Crear respaldo automático antes de guardar
         if crear_backup:
-            sheets_manager.crear_backup("Registros")
+            try:
+                from backup_utils import crear_respaldo_automatico
+                respaldo_exitoso = crear_respaldo_automatico(df_validado)
+                if respaldo_exitoso:
+                    st.info("💾 Respaldo automático creado antes de guardar")
+                else:
+                    st.warning("⚠️ No se pudo crear respaldo automático, pero continuando...")
+            except ImportError:
+                st.warning("⚠️ Sistema de respaldo no disponible")
+            except Exception as e:
+                st.warning(f"⚠️ Error en respaldo automático: {e}, pero continuando...")
         
         # Guardar en Google Sheets
         exito = sheets_manager.escribir_hoja(df_validado, "Registros", limpiar_hoja=True)
         
         if exito:
-            return True, "✅ Datos guardados exitosamente en Google Sheets."
+            # NUEVO: Verificar que los datos se guardaron correctamente
+            try:
+                df_verificacion = sheets_manager.leer_hoja("Registros")
+                if not df_verificacion.empty and len(df_verificacion) >= len(df_validado) * 0.9:  # Al menos 90% de los datos
+                    return True, "✅ Datos guardados y verificados exitosamente en Google Sheets."
+                else:
+                    st.warning("⚠️ Los datos se guardaron pero la verificación mostró inconsistencias")
+                    return True, "⚠️ Datos guardados pero con advertencias. Verifique el contenido."
+            except Exception as e:
+                st.warning(f"⚠️ Error en verificación post-guardado: {e}")
+                return True, "✅ Datos guardados en Google Sheets (verificación falló)."
         else:
             return False, "❌ Error al guardar datos en Google Sheets."
             
@@ -343,10 +473,16 @@ def guardar_datos_editados(df, crear_backup=True):
 
 def guardar_datos_editados_rapido(df, numero_fila=None):
     """
-    Versión rápida para guardar cambios individuales sin reescribir toda la hoja
+    Versión rápida para guardar cambios individuales sin reescribir toda la hoja.
+    INCLUYE verificaciones de seguridad básicas.
     """
     try:
         sheets_manager = get_sheets_manager()
+        
+        # NUEVO: Verificación básica antes de guardar
+        if df.empty:
+            st.error("❌ No se puede guardar: DataFrame vacío")
+            return False, "❌ Error: Datos vacíos"
         
         if numero_fila is not None:
             # Actualizar solo una fila específica
