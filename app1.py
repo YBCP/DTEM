@@ -92,45 +92,6 @@ def mostrar_configuracion_sheets():
         st.markdown("[Ver instrucciones completas](https://github.com/tu-repo/INSTRUCCIONES_CONFIGURACION.md)")
         st.info("Los datos se guardan de forma segura en Google Sheets con autenticación OAuth2")
 
-@requiere_autenticacion
-def cargar_datos_desde_excel_autenticado(uploaded_file):
-    """Función protegida para cargar datos desde Excel"""
-    return cargar_datos_desde_excel(uploaded_file)
-
-def mostrar_carga_archivos():
-    """Muestra la sección de carga de archivos Excel/CSV con autenticación"""
-    with st.sidebar.expander("🔒 Cargar Datos desde Excel (Admin)", expanded=False):
-        st.markdown("### Subir Archivo Excel")
-        
-        if not verificar_autenticacion():
-            st.warning("🔒 Función disponible solo para administradores")
-            st.info("Inicia sesión en 'Acceso Administrativo' para usar esta función")
-            return
-        
-        uploaded_file = st.file_uploader(
-            "Selecciona un archivo Excel",
-            type=['xlsx', 'xls'],
-            help="El archivo se sincronizará automáticamente con Google Sheets"
-        )
-        
-        if uploaded_file is not None:
-            if st.button("🔄 Sincronizar con Google Sheets"):
-                with st.spinner("Procesando y sincronizando archivo..."):
-                    nuevos_registros, nuevas_metas = cargar_datos_desde_excel_autenticado(uploaded_file)
-                    
-                    if nuevos_registros is not None:
-                        st.success("✅ Archivo sincronizado exitosamente!")
-                        st.info("🔄 Recargando la aplicación con los nuevos datos...")
-                        st.rerun()
-                    else:
-                        st.error("❌ Error al procesar el archivo")
-        
-        st.markdown("---")
-        st.markdown("**Formato esperado:**")
-        st.markdown("- **Hoja 'Registros':** Datos principales")
-        st.markdown("- **Hoja 'Metas':** Metas quincenales")
-        st.warning("⚠️ La sincronización sobrescribirá los datos existentes en Google Sheets")
-
 def mostrar_edicion_registros(registros_df):
     """Muestra la pestaña de edición de registros - VERSIÓN COMPLETA RESTAURADA CON TODAS LAS SECCIONES."""
     st.markdown('<div class="subtitle">Edición de Registros</div>', unsafe_allow_html=True)
@@ -1043,22 +1004,9 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
     # Tabla de registros con porcentaje de avance
     st.markdown('<div class="subtitle">Detalle de Registros</div>', unsafe_allow_html=True)
 
-    # Definir el orden de las columnas
-    columnas_mostrar = [
-        'Cod', 'Entidad', 'Nivel Información ', 'Funcionario', 'Mes Proyectado',
-        'Frecuencia actualizacion ', 'TipoDato',
-        'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
-        'Análisis y cronograma',
-        'Estándares', 'Publicación',
-        'Plazo de oficio de cierre', 'Fecha de oficio de cierre',
-        'Estado', 'Observación', 'Porcentaje Avance'
-    ]
-
-    # Mostrar tabla con colores por estado de fechas
+    # USAR TODAS LAS COLUMNAS DISPONIBLES DEL DATAFRAME
     try:
-        # Verificar que todas las columnas existan
-        columnas_mostrar_existentes = [col for col in columnas_mostrar if col in df_filtrado.columns]
-        df_mostrar = df_filtrado[columnas_mostrar_existentes].copy()
+        df_mostrar = df_filtrado.copy()
 
         # Aplicar formato a las fechas
         columnas_fecha = [
@@ -1909,6 +1857,46 @@ def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_fi
 def mostrar_seguimiento_trimestral(registros_df):
     """Muestra el seguimiento trimestral de publicaciones: avance real vs meta programada."""
     st.markdown('<div class="subtitle">Seguimiento Trimestral - Publicaciones: Meta vs Avance Real</div>', unsafe_allow_html=True)
+    # VERIFICAR DISPONIBILIDAD DE LA COLUMNA MES PROYECTADO
+    if 'Mes Proyectado' not in registros_df.columns:
+        st.error("❌ La columna 'Mes Proyectado' no está disponible en los datos")
+        st.info("📋 Verifique que la hoja de Google Sheets tenga la columna 'Mes Proyectado'")
+        
+        # Mostrar las columnas disponibles para debugging
+        with st.expander("🔍 Columnas disponibles en los datos"):
+            st.write("Columnas encontradas:")
+            for i, col in enumerate(registros_df.columns):
+                st.write(f"{i+1}. {col}")
+        
+        return
+    
+    # Verificar si hay datos en Mes Proyectado
+    registros_con_mes = registros_df[
+        (registros_df['Mes Proyectado'].notna()) & 
+        (registros_df['Mes Proyectado'].astype(str).str.strip() != '') &
+        (registros_df['Mes Proyectado'].astype(str).str.strip() != 'nan')
+    ]
+    
+    if registros_con_mes.empty:
+        st.warning("⚠️ No hay registros con 'Mes Proyectado' asignado")
+        st.info("📝 Para usar el seguimiento trimestral, asigne un mes proyectado a los registros en la sección de Edición")
+        
+        # Mostrar estadísticas de datos disponibles
+        total_registros = len(registros_df)
+        registros_sin_mes = total_registros - len(registros_con_mes)
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Registros", total_registros)
+        with col2:
+            st.metric("Sin Mes Proyectado", registros_sin_mes)
+        with col3:
+            st.metric("Con Mes Proyectado", len(registros_con_mes))
+        
+        return
+    
+    # Si llegamos aquí, hay datos válidos para el seguimiento trimestral
+    st.success(f"✅ {len(registros_con_mes)} registros tienen 'Mes Proyectado' asignado")
     
     # CSS personalizado para los medidores
     st.markdown("""
@@ -2410,8 +2398,7 @@ def main():
         # Configuración de Google Sheets
         mostrar_configuracion_sheets()
         
-        # Carga de archivos Excel (PROTEGIDA)
-        mostrar_carga_archivos()
+        
 
         # Información sobre el tablero
         st.sidebar.markdown('<div class="subtitle">Información</div>', unsafe_allow_html=True)
