@@ -13,7 +13,6 @@ import base64
 import os
 import re
 from fecha_utils import calcular_plazo_analisis, actualizar_plazo_analisis, calcular_plazo_cronograma, actualizar_plazo_cronograma, calcular_plazo_oficio_cierre, actualizar_plazo_oficio_cierre
-#from auth_utils import verificar_autenticacion, mostrar_login, mostrar_estado_autenticacion, requiere_autenticacion
 
 # Importar las funciones corregidas
 from config import setup_page, load_css
@@ -2399,20 +2398,38 @@ def main():
         mostrar_configuracion_sheets()
         
         # Información sobre el tablero
+        # Información sobre el tablero
         st.sidebar.markdown('<div class="subtitle">Información</div>', unsafe_allow_html=True)
         st.sidebar.markdown("""
             <div class="info-box">
             <p><strong>Tablero de Control de Cronogramas</strong></p>
-            <p><strong>VERSIÓN SIMPLIFICADA - SOLO GOOGLE SHEETS</strong></p>
+            <p><strong>VERSIÓN ULTRA SEGURA - GOOGLE SHEETS</strong></p>
+            <p>🛡️ Con respaldo automático y restauración</p>
             </div>
             """, unsafe_allow_html=True)
 
         # CAMBIO: Mover la carga de datos dentro del expander "Estado del Sistema"
         
 
-        with st.expander("Estado del Sistema"):
-            # Estado de conexión
-            col1, col2 = st.columns([3, 1])  # ← CORREGIDO: 2 columnas definidas y usadas
+        with st.expander("🔍 Estado del Sistema", expanded=False):
+            st.markdown("### 📊 Estado de Datos y Respaldos")
+            
+            # Importar funciones de respaldo
+            try:
+                from backup_utils import (
+                    mostrar_estado_respaldos_detallado, 
+                    verificar_disponibilidad_respaldo, 
+                    obtener_fecha_ultimo_respaldo,
+                    restauracion_automatica_emergencia,
+                    restaurar_desde_respaldo
+                )
+                sistema_respaldo_disponible = True
+            except ImportError:
+                sistema_respaldo_disponible = False
+                st.warning("⚠️ Sistema de respaldo no disponible")
+            
+            # Primera fila: Estado de conexión y reconexión
+            col1, col2 = st.columns([3, 1])
             
             with col1:
                 st.info("📊 Datos sincronizados con Google Sheets en tiempo real")
@@ -2424,27 +2441,107 @@ def main():
                         del st.session_state.sheets_manager
                     st.rerun()
             
-            # CAMBIO: Mover aquí la carga de datos
-            st.markdown("---")
-            st.markdown("**Carga de Datos:**")
-            
-            with st.spinner("Cargando datos desde Google Sheets..."):
-                registros_df, meta_df = cargar_datos()
-
-            # Verificar si los DataFrames están vacíos
-            if registros_df.empty:
-                st.warning("No hay datos de registros en Google Sheets.")
+            # Segunda fila: Estado de respaldos (solo si está disponible)
+            if sistema_respaldo_disponible:
+                st.markdown("---")
                 
-                # Crear estructura mínima para que la app funcione
-                registros_df = pd.DataFrame(columns=[
-                    'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
-                    'Acuerdo de compromiso', 'Análisis y cronograma',
-                    'Estándares', 'Publicación', 'Fecha de entrega de información',
-                    'Plazo de análisis', 'Plazo de cronograma', 'Plazo de oficio de cierre',
-                    'Funcionario', 'Frecuencia actualizacion ', 'Estado', 'Observación'
-                ])
+                # Obtener información de respaldos
+                fecha_ultimo_respaldo = obtener_fecha_ultimo_respaldo()
+                tiene_respaldo, info_respaldo = verificar_disponibilidad_respaldo()
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.markdown("**🛡️ Estado de Respaldos:**")
+                    if fecha_ultimo_respaldo:
+                        if isinstance(fecha_ultimo_respaldo, datetime):
+                            fecha_formateada = fecha_ultimo_respaldo.strftime("%d/%m/%Y %H:%M")
+                            st.success(f"✅ Último respaldo: {fecha_formateada}")
+                        else:
+                            st.info(f"💾 {fecha_ultimo_respaldo}")
+                    else:
+                        st.warning("⚠️ Sin respaldo disponible")
+                
+                with col2:
+                    st.markdown("**💾 Respaldo Disponible:**")
+                    if tiene_respaldo and info_respaldo:
+                        if info_respaldo['valido']:
+                            st.success(f"✅ {info_respaldo['registros']} registros")
+                        else:
+                            st.error(f"❌ Respaldo corrupto")
+                    else:
+                        st.warning("⚠️ No disponible")
+                
+                with col3:
+                    st.markdown("**🔄 Restauración Automática:**")
+                    if 'ultima_restauracion_automatica' in st.session_state:
+                        fecha_rest = st.session_state.ultima_restauracion_automatica['fecha']
+                        st.info(f"🔄 {fecha_rest.strftime('%H:%M')}")
+                    else:
+                        st.success("✅ No requerida")
+                
+                # Panel de restauración manual (si hay respaldo válido)
+                if tiene_respaldo and info_respaldo and info_respaldo['valido']:
+                    st.markdown("---")
+                    st.markdown("**🔧 Restauración Manual:**")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        if st.button("🔄 Restaurar desde Respaldo", help="Restaura manualmente desde el último respaldo válido"):
+                            with st.spinner("Restaurando datos..."):
+                                exito, df = restaurar_desde_respaldo()
+                                if exito:
+                                    st.success("✅ Restauración exitosa")
+                                    st.balloons()
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Error en restauración")
+                    
+                    with col2:
+                        st.metric("Registros en Respaldo", info_respaldo['registros'])
+                    
+                    with col3:
+                        st.metric("Columnas en Respaldo", info_respaldo['columnas'])
+            
+            # Carga de datos con sistema de seguridad
+            st.markdown("---")
+            st.markdown("**📈 Carga de Datos:**")
+            
+            with st.spinner("🔍 Verificando integridad y cargando datos..."):
+                registros_df, meta_df = cargar_datos()
+            
+            # Mostrar resultado de la carga
+            if registros_df.empty:
+                st.warning("⚠️ No hay datos de registros cargados")
+                
+                # Opciones de recuperación si no hay datos
+                if sistema_respaldo_disponible and tiene_respaldo and info_respaldo and info_respaldo['valido']:
+                    st.info(f"💾 Respaldo disponible con {info_respaldo['registros']} registros")
+                    if st.button("🔄 Restaurar Automáticamente", type="primary"):
+                        exito, df = restauracion_automatica_emergencia()
+                        if exito:
+                            st.rerun()
+                else:
+                    st.error("❌ No hay respaldo disponible para restauración")
+                    
+                # Crear estructura mínima como último recurso
+                if registros_df.empty:
+                    columnas_minimas = [
+                        'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
+                        'Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación',
+                        'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
+                        'Plazo de oficio de cierre', 'Funcionario', 'Frecuencia actualizacion ', 
+                        'Estado', 'Observación', 'Fecha de oficio de cierre'
+                    ]
+                    registros_df = pd.DataFrame(columns=columnas_minimas)
             else:
-                st.success(f"✅ {len(registros_df)} registros cargados exitosamente desde Google Sheets")
+                # Verificar si hubo restauración automática
+                if 'ultima_restauracion_automatica' in st.session_state:
+                    ultima_rest = st.session_state.ultima_restauracion_automatica
+                    st.success(f"✅ {len(registros_df)} registros cargados (incluye restauración automática: {ultima_rest['registros_restaurados']} registros)")
+                else:
+                    st.success(f"✅ {len(registros_df)} registros cargados exitosamente")
 
         # ===== ASEGURAR COLUMNAS REQUERIDAS =====
         columnas_requeridas = [
@@ -2759,6 +2856,43 @@ def main():
         3. Contactar al administrador del sistema
         4. Documentar el error para soporte técnico
         """)
+# Sistema de recuperación de emergencia
+        st.markdown("---")
+        st.markdown("### 🚨 Sistema de Recuperación")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("🔄 Recuperación Automática", type="primary"):
+                try:
+                    from backup_utils import restauracion_automatica_emergencia
+                    exito, df = restauracion_automatica_emergencia()
+                    if exito:
+                        st.success("✅ Recuperación exitosa")
+                        st.rerun()
+                    else:
+                        st.error("❌ Falló la recuperación automática")
+                except Exception as e:
+                    st.error(f"❌ Error: {e}")
+        
+        with col2:
+            if st.button("🔍 Verificar Respaldos"):
+                try:
+                    from backup_utils import verificar_disponibilidad_respaldo
+                    tiene_respaldo, info = verificar_disponibilidad_respaldo()
+                    if tiene_respaldo:
+                        st.success(f"✅ Respaldo: {info['registros']} registros")
+                    else:
+                        st.error("❌ Sin respaldos")
+                except Exception as e:
+                    st.error(f"❌ Error: {e}")
+        
+        with col3:
+            if st.button("🔄 Reiniciar Sistema"):
+                for key in list(st.session_state.keys()):
+                    if not key.startswith('_'):
+                        del st.session_state[key]
+                st.rerun()
 
 if __name__ == "__main__":
     main()
