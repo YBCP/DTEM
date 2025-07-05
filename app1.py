@@ -2196,7 +2196,7 @@ def mostrar_seguimiento_trimestral(registros_df):
     
     # ✅ FUNCIÓN DE CÁLCULO CORREGIDA Y CON DEBUG
     def calcular_publicaciones_trimestrales(df, tipo_dato):
-        """Función corregida con mejor manejo de errores y debugging detallado"""
+        """Función corregida con análisis automático de valores TipoDato"""
         
         # Debug inicial
         st.write(f"🔍 **Calculando para tipo: {tipo_dato}**")
@@ -2207,23 +2207,70 @@ def mostrar_seguimiento_trimestral(registros_df):
             st.error(f"❌ Columna 'TipoDato' no encontrada para tipo {tipo_dato}")
             return crear_datos_trimestre_vacio()
         
-        # ✅ Filtrar por tipo de dato de manera más robusta
+        # ✅ NUEVO: Análisis automático de valores TipoDato
+        valores_tipodato_reales = df['TipoDato'].dropna().unique()
+        st.write(f"🏷️ **Valores únicos en TipoDato:** {list(valores_tipodato_reales)}")
+        
+        # Mostrar distribución
+        conteo_tipodato = df['TipoDato'].value_counts()
+        st.write("📊 **Distribución de TipoDato:**")
+        for valor, cantidad in conteo_tipodato.items():
+            st.write(f"   • '{valor}': {cantidad} registros")
+        
+        # ✅ FILTRADO INTELIGENTE - detectar automáticamente los valores correctos
         try:
             if tipo_dato.upper() == 'NUEVO':
-                # Filtro más permisivo para NUEVO
-                mask_tipo = (
-                    (df['TipoDato'].notna()) & 
-                    (df['TipoDato'].astype(str).str.upper().str.strip().isin(['NUEVO', 'NUEVA']))
-                )
-            else:
-                # Filtro más permisivo para ACTUALIZAR
-                mask_tipo = (
-                    (df['TipoDato'].notna()) & 
-                    (df['TipoDato'].astype(str).str.upper().str.strip().isin(['ACTUALIZAR', 'ACTUALIZACION']))
-                )
+                # Buscar cualquier valor que pueda ser "nuevo"
+                posibles_valores = []
+                for valor in valores_tipodato_reales:
+                    if pd.notna(valor):
+                        valor_str = str(valor).upper().strip()
+                        # Buscar variantes comunes
+                        if any(palabra in valor_str for palabra in [
+                            'NUEVO', 'NUEVA', 'NEW', 'NUEV', 'N'
+                        ]) or valor_str == 'NUEVO':
+                            posibles_valores.append(valor)
+                
+                # Si no encuentra nada específico, usar el primer valor disponible como fallback
+                if not posibles_valores and len(valores_tipodato_reales) >= 1:
+                    st.warning(f"⚠️ No se encontró valor específico para 'NUEVO', usando primer valor disponible")
+                    posibles_valores = [valores_tipodato_reales[0]]
+                
+                if posibles_valores:
+                    st.success(f"✅ **Valores detectados para NUEVO:** {posibles_valores}")
+                    df_filtrado = df[df['TipoDato'].isin(posibles_valores)]
+                else:
+                    st.error(f"❌ No se pudo detectar valor para NUEVO")
+                    return crear_datos_trimestre_vacio()
+                    
+            else:  # ACTUALIZAR
+                # Buscar cualquier valor que pueda ser "actualizar"
+                posibles_valores = []
+                for valor in valores_tipodato_reales:
+                    if pd.notna(valor):
+                        valor_str = str(valor).upper().strip()
+                        # Buscar variantes comunes
+                        if any(palabra in valor_str for palabra in [
+                            'ACTUALIZAR', 'ACTUALIZACIÓN', 'UPDATE', 'ACTUA', 'ACT', 'A'
+                        ]) or valor_str == 'ACTUALIZAR':
+                            posibles_valores.append(valor)
+                
+                # Si no encuentra nada específico y hay más de un valor, usar el segundo
+                if not posibles_valores and len(valores_tipodato_reales) >= 2:
+                    st.warning(f"⚠️ No se encontró valor específico para 'ACTUALIZAR', usando segundo valor disponible")
+                    posibles_valores = [valores_tipodato_reales[1]]
+                elif not posibles_valores and len(valores_tipodato_reales) == 1:
+                    st.warning(f"⚠️ Solo hay un valor de TipoDato, no se puede separar ACTUALIZAR")
+                    return crear_datos_trimestre_vacio()
+                
+                if posibles_valores:
+                    st.success(f"✅ **Valores detectados para ACTUALIZAR:** {posibles_valores}")
+                    df_filtrado = df[df['TipoDato'].isin(posibles_valores)]
+                else:
+                    st.error(f"❌ No se pudo detectar valor para ACTUALIZAR")
+                    return crear_datos_trimestre_vacio()
             
-            df_filtrado = df[mask_tipo]
-            st.write(f"📊 Registros después de filtrar por tipo '{tipo_dato}': {len(df_filtrado)}")
+            st.write(f"📊 **Registros después de filtrar por tipo '{tipo_dato}':** {len(df_filtrado)}")
             
         except Exception as e:
             st.error(f"❌ Error filtrando por tipo {tipo_dato}: {str(e)}")
@@ -2231,12 +2278,16 @@ def mostrar_seguimiento_trimestral(registros_df):
         
         if df_filtrado.empty:
             st.warning(f"⚠️ No hay registros de tipo '{tipo_dato}' con mes proyectado")
+            st.info("💡 **Sugerencias:**")
+            st.info("1. Verificar los valores exactos en la columna 'TipoDato'")
+            st.info("2. Asegurar que los valores sean consistentes")
+            st.info("3. Revisar que hay registros con ambos campos: TipoDato y Mes Proyectado")
             return crear_datos_trimestre_vacio()
         
         # Mostrar distribución por mes para este tipo
         if len(df_filtrado) > 0:
             distribucion_meses = df_filtrado['Mes Proyectado'].value_counts()
-            st.write(f"📅 Distribución por mes para {tipo_dato}:")
+            st.write(f"📅 **Distribución por mes para {tipo_dato}:**")
             for mes, cantidad in distribucion_meses.items():
                 st.write(f"   • {mes}: {cantidad} registros")
         
@@ -2317,7 +2368,7 @@ def mostrar_seguimiento_trimestral(registros_df):
             'Q3': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'programados': 0, 'pendientes': 0},
             'Q4': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'programados': 0, 'pendientes': 0}
         }
-    
+
     # Pestañas para Nuevos y Actualizados
     tab_nuevos, tab_actualizados, tab_debug = st.tabs(["📈 Registros Nuevos", "🔄 Registros a Actualizar", "🔍 Debug Detallado"])
     
