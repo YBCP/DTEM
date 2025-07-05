@@ -2319,7 +2319,15 @@ def main():
         # Agregar columnas calculadas
         registros_df['Porcentaje Avance'] = registros_df.apply(calcular_porcentaje_avance, axis=1)
         registros_df['Estado Fechas'] = registros_df.apply(verificar_estado_fechas, axis=1)
-
+        # GUARDAR las columnas calculadas en Google Sheets
+        try:
+            with st.spinner("💾 Guardando columnas calculadas..."):
+                from data_utils import guardar_datos_editados_rapido
+                exito, mensaje = guardar_datos_editados_rapido(registros_df)
+                if not exito:
+                    st.warning(f"⚠️ Columnas calculadas en memoria solamente: {mensaje}")
+        except Exception as e:
+            st.warning(f"⚠️ Columnas calculadas solo en memoria: {str(e)}")
         # ===== MOSTRAR VALIDACIONES =====
         with st.expander("Validación de Reglas de Negocio"):
             st.markdown("### Estado de Validaciones")
@@ -2498,8 +2506,19 @@ def main():
                 st.metric("Respaldo", "Sin datos")
         
         with col5:
-            ultima_actualizacion = datetime.now().strftime("%H:%M")
-            st.metric("Actualizado", ultima_actualizacion)
+            try:
+                from backup_utils import obtener_fecha_ultimo_respaldo
+                fecha_respaldo = obtener_fecha_ultimo_respaldo()
+                if fecha_respaldo and isinstance(fecha_respaldo, datetime):
+                    respaldo_str = fecha_respaldo.strftime("%d/%m %H:%M")
+                    st.metric("Último Respaldo", respaldo_str)
+                elif fecha_respaldo:
+                    st.metric("Respaldo", "Disponible")
+                else:
+                    st.metric("Respaldo", "Sin datos")
+            except:
+                ultima_actualizacion = datetime.now().strftime("%H:%M")
+                st.metric("Actualizado", ultima_actualizacion)
 
         # Información de versión con características de seguridad
         st.info("""
