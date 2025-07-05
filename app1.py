@@ -2061,7 +2061,7 @@ def mostrar_seguimiento_trimestral(registros_df):
                         datos['meta'],
                         datos['avance']
                     )
-                    st.plotly_chart(fig_publicacion, use_container_width=True)
+                    st.plotly_chart(fig_publicacion, use_container_width=True, key=f"nuevos_{trimestre}")
                     
                     # Información detallada
                     st.markdown(f"""
@@ -2104,7 +2104,7 @@ def mostrar_seguimiento_trimestral(registros_df):
                         datos['meta'],
                         datos['avance']
                     )
-                    st.plotly_chart(fig_publicacion, use_container_width=True)
+                    st.plotly_chart(fig_publicacion, use_container_width=True, key=f"actualizar_{trimestre}")
                     
                     # Información detallada
                     st.markdown(f"""
