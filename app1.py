@@ -2506,20 +2506,35 @@ def main():
                 st.metric("Respaldo", "Sin datos")
         
         with col5:
+            # Mostrar fecha del último respaldo en horario de Bogotá
             try:
                 from backup_utils import obtener_fecha_ultimo_respaldo
+                import pytz
+                
                 fecha_respaldo = obtener_fecha_ultimo_respaldo()
                 if fecha_respaldo and isinstance(fecha_respaldo, datetime):
-                    respaldo_str = fecha_respaldo.strftime("%d/%m %H:%M")
+                    # Convertir a horario de Bogotá
+                    bogota_tz = pytz.timezone('America/Bogota')
+                    if fecha_respaldo.tzinfo is None:
+                        # Si no tiene timezone, asumimos UTC y convertimos
+                        fecha_respaldo = pytz.utc.localize(fecha_respaldo)
+                    fecha_bogota = fecha_respaldo.astimezone(bogota_tz)
+                    respaldo_str = fecha_bogota.strftime("%d/%m %H:%M")
                     st.metric("Último Respaldo", respaldo_str)
                 elif fecha_respaldo:
                     st.metric("Respaldo", "Disponible")
                 else:
                     st.metric("Respaldo", "Sin datos")
-            except:
-                ultima_actualizacion = datetime.now().strftime("%H:%M")
-                st.metric("Actualizado", ultima_actualizacion)
-
+            except Exception as e:
+                # Fallback: mostrar hora actual de Bogotá
+                try:
+                    import pytz
+                    bogota_tz = pytz.timezone('America/Bogota')
+                    hora_bogota = datetime.now(bogota_tz).strftime("%H:%M")
+                    st.metric("Actualizado", hora_bogota)
+                except:
+                    ultima_actualizacion = datetime.now().strftime("%H:%M")
+                    st.metric("Actualizado", ultima_actualizacion)
         # Información de versión con características de seguridad
         st.info("""
         **🛡️ Tablero de Control Ultra Seguro - Datos Temáticos - Ideca**
