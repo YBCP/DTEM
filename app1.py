@@ -863,37 +863,37 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
 
     # MODIFICACIÓN 1: Crear función para gradiente personalizado
     def crear_gradiente_personalizado(df_comparacion):
-    """Crea un gradiente personalizado de rojo a verde oscuro para porcentajes 0-100, verde oscuro para >100"""
-    def aplicar_color(val):
-        try:
-            if pd.isna(val) or val is None:
+        """Crea un gradiente personalizado de rojo a verde oscuro para porcentajes 0-100, verde oscuro para >100"""
+        def aplicar_color(val):
+            try:
+                if pd.isna(val) or val is None:
+                    return ''
+                val = float(val)  # Asegurar que es numérico
+                if val <= 0:
+                    return 'background-color: #dc2626; color: white'  # Rojo intenso
+                elif val <= 25:
+                    return 'background-color: #ef4444; color: white'  # Rojo
+                elif val <= 50:
+                    return 'background-color: #f97316; color: white'  # Naranja
+                elif val <= 75:
+                    return 'background-color: #eab308; color: black'  # Amarillo
+                elif val < 100:
+                    return 'background-color: #84cc16; color: black'  # Verde claro
+                else:  # val >= 100
+                    return 'background-color: #166534; color: white'  # Verde oscuro
+            except (ValueError, TypeError):
                 return ''
-            val = float(val)  # Asegurar que es numérico
-            if val <= 0:
-                return 'background-color: #dc2626; color: white'  # Rojo intenso
-            elif val <= 25:
-                return 'background-color: #ef4444; color: white'  # Rojo
-            elif val <= 50:
-                return 'background-color: #f97316; color: white'  # Naranja
-            elif val <= 75:
-                return 'background-color: #eab308; color: black'  # Amarillo
-            elif val < 100:
-                return 'background-color: #84cc16; color: black'  # Verde claro
-            else:  # val >= 100
-                return 'background-color: #166534; color: white'  # Verde oscuro
-        except (ValueError, TypeError):
-            return ''
-    
-    try:
-        if df_comparacion.empty or 'Porcentaje' not in df_comparacion.columns:
-            return df_comparacion
         
-        return df_comparacion.style.format({
-            'Porcentaje': '{:.2f}%'
-        }).applymap(aplicar_color, subset=['Porcentaje'])
-    except Exception:
-        # Fallback si falla el estilo
-        return df_comparacion
+        try:
+            if df_comparacion.empty or 'Porcentaje' not in df_comparacion.columns:
+                return df_comparacion
+            
+            return df_comparacion.style.format({
+                'Porcentaje': '{:.2f}%'
+            }).applymap(aplicar_color, subset=['Porcentaje'])
+        except Exception:
+            # Fallback si falla el estilo
+            return df_comparacion
 
     # Función para crear visualización estilo Opción 3
     def crear_visualizacion_barras_cumplimiento(df_comparacion, titulo, tipo_registro):
