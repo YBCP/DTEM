@@ -137,14 +137,16 @@ def crear_estructura_emergencia():
 
 def crear_estructura_registros_basica():
     """Crea estructura básica de registros"""
-    columnas_basicas = [
+    # BUSCAR esta línea y REEMPLAZAR
+    columnas_requeridas = [
         'Cod', 'Funcionario', 'Entidad', 'Nivel Información ', 'Frecuencia actualizacion ',
         'TipoDato', 'Mes Proyectado', 'Actas de acercamiento y manifestación de interés',
         'Suscripción acuerdo de compromiso', 'Entrega acuerdo de compromiso',
         'Acuerdo de compromiso', 'Gestion acceso a los datos y documentos requeridos ',
         'Análisis de información', 'Cronograma Concertado', 'Análisis y cronograma (fecha programada)',
         'Fecha de entrega de información', 'Plazo de análisis', 'Análisis y cronograma',
-        'Seguimiento a los acuerdos', 'Registro', 'ET', 'CO', 'DD', 'REC', 'SERVICIO',
+        'Seguimiento a los acuerdos', 
+        'Registro (completo)', 'ET (completo)', 'CO (completo)', 'DD (completo)', 'REC (completo)', 'SERVICIO (completo)',  # <- CORREGIR AQUÍ
         'Estándares (fecha programada)', 'Estándares', 'Resultados de orientación técnica',
         'Verificación del servicio web geográfico', 'Verificar Aprobar Resultados',
         'Revisar y validar los datos cargados en la base de datos',
