@@ -47,7 +47,9 @@ def crear_respaldo_automatico(registros_df):
         df_respaldo = df_respaldo.fillna('')
         
         # Crear respaldo con timestamp en metadatos
-        timestamp = datetime.now()
+        import pytz
+        bogota_tz = pytz.timezone('America/Bogota')
+        timestamp = datetime.now(bogota_tz)
         
         # Escribir respaldo
         exito = sheets_manager.escribir_hoja(df_respaldo, nombre_respaldo, limpiar_hoja=True)
