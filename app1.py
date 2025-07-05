@@ -37,11 +37,14 @@ def string_a_fecha(fecha_str):
 
 def highlight_estado_fechas(s):
     """Función para aplicar estilo según el valor de 'Estado Fechas'"""
-    if 'Estado Fechas' in s and s['Estado Fechas'] == 'vencido':
-        return ['background-color: #fee2e2'] * len(s)
-    elif 'Estado Fechas' in s and s['Estado Fechas'] == 'proximo':
-        return ['background-color: #fef3c7'] * len(s)
-    else:
+    try:
+        if 'Estado Fechas' in s and pd.notna(s['Estado Fechas']):
+            if s['Estado Fechas'] == 'vencido':
+                return ['background-color: #fee2e2'] * len(s)
+            elif s['Estado Fechas'] == 'proximo':
+                return ['background-color: #fef3c7'] * len(s)
+        return ['background-color: #ffffff'] * len(s)
+    except (KeyError, TypeError, AttributeError):
         return ['background-color: #ffffff'] * len(s)
 
 def on_change_callback():
@@ -126,6 +129,11 @@ def mostrar_edicion_registros(registros_df):
 
     st.markdown("### Edición Individual de Registros")
 
+    # Verificar que hay registros para editar
+    if registros_df.empty:
+        st.warning("No hay registros disponibles para editar.")
+        return registros_df
+
     # Selector de registro - mostrar lista completa de registros para seleccionar
     codigos_registros = registros_df['Cod'].astype(str).tolist()
     entidades_registros = registros_df['Entidad'].tolist()
@@ -171,14 +179,16 @@ def mostrar_edicion_registros(registros_df):
 
             with col2:
                 # Tipo de Dato
+                tipo_actual = row.get('TipoDato', '')
+                tipo_index = 0 if tipo_actual.upper() == "NUEVO" else 1 if tipo_actual.upper() == "ACTUALIZAR" else 0
                 nuevo_tipo = st.selectbox(
                     "Tipo de Dato",
                     options=["Nuevo", "Actualizar"],
-                    index=0 if row['TipoDato'].upper() == "NUEVO" else 1,
+                    index=tipo_index,
                     key=f"tipo_{indice_seleccionado}",
                     on_change=on_change_callback
                 )
-                if nuevo_tipo != row['TipoDato']:
+                if nuevo_tipo != row.get('TipoDato', ''):
                     registros_df.at[registros_df.index[indice_seleccionado], 'TipoDato'] = nuevo_tipo
                     edited = True
 
@@ -206,26 +216,26 @@ def mostrar_edicion_registros(registros_df):
             # Frecuencia de actualización y Funcionario
             col1, col2 = st.columns(2)
             with col1:
+                freq_actual = row.get('Frecuencia actualizacion ', '')
+                freq_opciones = ["", "Diaria", "Semanal", "Mensual", "Trimestral", "Semestral", "Anual"]
+                freq_index = freq_opciones.index(freq_actual) if freq_actual in freq_opciones else 0
                 nueva_frecuencia = st.selectbox(
                     "Frecuencia de actualización",
-                    options=["", "Diaria", "Semanal", "Mensual", "Trimestral", "Semestral", "Anual"],
-                    index=["", "Diaria", "Semanal", "Mensual", "Trimestral", "Semestral", "Anual"].index(
-                        row['Frecuencia actualizacion ']) if row['Frecuencia actualizacion '] in ["", "Diaria",
-                                                                                                  "Semanal",
-                                                                                                  "Mensual",
-                                                                                                  "Trimestral",
-                                                                                                  "Semestral",
-                                                                                                  "Anual"] else 0,
+                    options=freq_opciones,
+                    index=freq_index,
                     key=f"frecuencia_{indice_seleccionado}",
                     on_change=on_change_callback
                 )
-                if nueva_frecuencia != row['Frecuencia actualizacion ']:
+                if nueva_frecuencia != row.get('Frecuencia actualizacion ', ''):
                     registros_df.at[registros_df.index[indice_seleccionado], 'Frecuencia actualizacion '] = nueva_frecuencia
                     edited = True
 
             # Funcionario - SISTEMA DINÁMICO RESTAURADO
             with col2:
                 # Inicializar la lista de funcionarios si es la primera vez
+                if 'funcionarios' not in st.session_state:
+                    st.session_state.funcionarios = []
+                
                 if not st.session_state.funcionarios:
                     # Obtener valores únicos de funcionarios que no sean NaN
                     funcionarios_unicos = registros_df['Funcionario'].dropna().unique().tolist()
@@ -247,8 +257,8 @@ def mostrar_edicion_registros(registros_df):
 
                 # Determinar el índice del funcionario actual
                 indice_funcionario = 0
-                if pd.notna(row['Funcionario']) and row['Funcionario'] in opciones_funcionarios:
-                    indice_funcionario = opciones_funcionarios.index(row['Funcionario'])
+                if pd.notna(row.get('Funcionario', '')) and row.get('Funcionario', '') in opciones_funcionarios:
+                    indice_funcionario = opciones_funcionarios.index(row.get('Funcionario', ''))
 
                 # Crear el selectbox para elegir funcionario
                 funcionario_seleccionado = st.selectbox(
@@ -267,7 +277,7 @@ def mostrar_edicion_registros(registros_df):
                     registros_df.at[registros_df.index[indice_seleccionado], 'Funcionario'] = funcionario_final
                     edited = True
 
-            # ===== SECCIÓN 2: ACUERDOS Y COMPROMISOS - RESTAURADA =====
+            # ===== SECCIÓN 2: ACUERDOS Y COMPROMISOS =====
             st.markdown("---")
             st.markdown("### 2. Acuerdos y Compromisos")
             
@@ -327,7 +337,7 @@ def mostrar_edicion_registros(registros_df):
                     registros_df.at[registros_df.index[indice_seleccionado], 'Acuerdo de compromiso'] = nuevo_acuerdo
                     edited = True
 
-            # ===== SECCIÓN 3: GESTIÓN DE INFORMACIÓN - RESTAURADA =====
+            # ===== SECCIÓN 3: GESTIÓN DE INFORMACIÓN =====
             st.markdown("---")
             st.markdown("### 3. Gestión de Información")
             
@@ -372,7 +382,7 @@ def mostrar_edicion_registros(registros_df):
                     help="Se calcula automáticamente como 5 días hábiles después de la fecha de entrega de información"
                 )
 
-            # ===== SECCIÓN 4: ANÁLISIS Y CRONOGRAMA - RESTAURADA =====
+            # ===== SECCIÓN 4: ANÁLISIS Y CRONOGRAMA =====
             st.markdown("---")
             st.markdown("### 4. Análisis y Cronograma")
             
@@ -446,7 +456,7 @@ def mostrar_edicion_registros(registros_df):
                     registros_df.at[registros_df.index[indice_seleccionado], 'Análisis y cronograma'] = fecha_analisis_str
                     edited = True
 
-            # ===== SECCIÓN 5: ESTÁNDARES - RESTAURADA COMPLETA =====
+            # ===== SECCIÓN 5: ESTÁNDARES =====
             st.markdown("---")
             st.markdown("### 5. Estándares")
             
@@ -510,7 +520,7 @@ def mostrar_edicion_registros(registros_df):
                     registros_df.at[registros_df.index[indice_seleccionado], 'Estándares'] = fecha_estandares_str
                     edited = True
 
-            # ===== SECCIÓN 6: PUBLICACIÓN - RESTAURADA COMPLETA =====
+            # ===== SECCIÓN 6: PUBLICACIÓN =====
             st.markdown("---")
             st.markdown("### 6. Publicación")
             
@@ -575,7 +585,7 @@ def mostrar_edicion_registros(registros_df):
                     registros_df.at[registros_df.index[indice_seleccionado], 'Publicación'] = fecha_pub_str
                     edited = True
 
-            # ===== SECCIÓN 7: CIERRE - RESTAURADA COMPLETA =====
+            # ===== SECCIÓN 7: CIERRE =====
             st.markdown("---")
             st.markdown("### 7. Cierre")
             
@@ -637,10 +647,12 @@ def mostrar_edicion_registros(registros_df):
             with col3:
                 # Estado
                 opciones_estado = ["", "En proceso", "En proceso oficio de cierre", "Completado", "Finalizado"]
+                estado_actual = row.get('Estado', '')
+                estado_index = opciones_estado.index(estado_actual) if estado_actual in opciones_estado else 0
                 nuevo_estado = st.selectbox(
                     "Estado",
                     options=opciones_estado,
-                    index=opciones_estado.index(row.get('Estado', '')) if row.get('Estado', '') in opciones_estado else 0,
+                    index=estado_index,
                     key=f"estado_{indice_seleccionado}",
                     on_change=on_change_callback
                 )
@@ -660,7 +672,7 @@ def mostrar_edicion_registros(registros_df):
                 registros_df.at[registros_df.index[indice_seleccionado], 'Observación'] = nueva_observacion
                 edited = True
 
-            # Información de avance al final
+            # ===== INFORMACIÓN DE AVANCE AL FINAL =====
             st.markdown("---")
             st.markdown("### Información de Avance")
             
@@ -793,7 +805,6 @@ def mostrar_edicion_registros(registros_df):
             st.code(traceback.format_exc())
 
     return registros_df
-
 # ========== FUNCIÓN DASHBOARD MODIFICADA ==========
 
 def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registros_df, 
@@ -852,10 +863,12 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
 
     # MODIFICACIÓN 1: Crear función para gradiente personalizado
     def crear_gradiente_personalizado(df_comparacion):
-        """Crea un gradiente personalizado de rojo a verde oscuro para porcentajes 0-100, verde oscuro para >100"""
-        def aplicar_color(val):
-            if pd.isna(val):
+    """Crea un gradiente personalizado de rojo a verde oscuro para porcentajes 0-100, verde oscuro para >100"""
+    def aplicar_color(val):
+        try:
+            if pd.isna(val) or val is None:
                 return ''
+            val = float(val)  # Asegurar que es numérico
             if val <= 0:
                 return 'background-color: #dc2626; color: white'  # Rojo intenso
             elif val <= 25:
@@ -868,10 +881,19 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
                 return 'background-color: #84cc16; color: black'  # Verde claro
             else:  # val >= 100
                 return 'background-color: #166534; color: white'  # Verde oscuro
+        except (ValueError, TypeError):
+            return ''
+    
+    try:
+        if df_comparacion.empty or 'Porcentaje' not in df_comparacion.columns:
+            return df_comparacion
         
         return df_comparacion.style.format({
             'Porcentaje': '{:.2f}%'
         }).applymap(aplicar_color, subset=['Porcentaje'])
+    except Exception:
+        # Fallback si falla el estilo
+        return df_comparacion
 
     # Función para crear visualización estilo Opción 3
     def crear_visualizacion_barras_cumplimiento(df_comparacion, titulo, tipo_registro):
