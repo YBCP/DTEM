@@ -49,19 +49,31 @@ def limpiar_valor(valor):
 
 def cargar_datos():
     """
-    VERSIÓN ULTRA SEGURA: Carga los datos con sistema completo de respaldo y restauración automática.
-    Esta función incluye detección automática de problemas y restauración automática.
+    VERSIÓN ULTRA SEGURA: Carga los datos con verificación adicional de Metas.
     """
     try:
         # Importar el sistema de respaldo ultra seguro
         from backup_utils import cargar_datos_con_respaldo
         
-        # Usar el sistema ultra seguro que incluye:
-        # 1. Verificación automática de integridad
-        # 2. Restauración automática si los datos están vacíos/corruptos  
-        # 3. Creación automática de respaldos
-        # 4. Validaciones estrictas de datos
-        return cargar_datos_con_respaldo()
+        # Usar el sistema ultra seguro
+        registros_df, meta_df = cargar_datos_con_respaldo()
+        
+        # ✅ VERIFICACIÓN ADICIONAL: Que Metas no se haya corrompido
+        if meta_df.empty:
+            st.warning("⚠️ Tabla Metas vacía - intentando recuperar...")
+            try:
+                sheets_manager = get_sheets_manager()
+                meta_df = sheets_manager.leer_hoja("Metas")
+                if meta_df.empty:
+                    # Crear estructura básica de metas como último recurso
+                    meta_df = crear_estructura_metas_inicial()
+                    sheets_manager.escribir_hoja(meta_df, "Metas", limpiar_hoja=True)
+                    st.info("🔄 Tabla Metas recreada con estructura básica")
+            except Exception as meta_error:
+                st.error(f"❌ Error recuperando Metas: {meta_error}")
+                meta_df = crear_estructura_metas_inicial()
+        
+        return registros_df, meta_df
         
     except ImportError:
         # Fallback si no está disponible el sistema de respaldo
@@ -137,8 +149,7 @@ def crear_estructura_emergencia():
 
 def crear_estructura_registros_basica():
     """Crea estructura básica de registros"""
-    # BUSCAR esta línea y REEMPLAZAR
-    columnas_requeridas = [
+    columnas_basicas = [
         'Cod', 'Funcionario', 'Entidad', 'Nivel Información ', 'Frecuencia actualizacion ',
         'TipoDato', 'Mes Proyectado', 'Actas de acercamiento y manifestación de interés',
         'Suscripción acuerdo de compromiso', 'Entrega acuerdo de compromiso',
@@ -146,7 +157,7 @@ def crear_estructura_registros_basica():
         'Análisis de información', 'Cronograma Concertado', 'Análisis y cronograma (fecha programada)',
         'Fecha de entrega de información', 'Plazo de análisis', 'Análisis y cronograma',
         'Seguimiento a los acuerdos', 
-        'Registro (completo)', 'ET (completo)', 'CO (completo)', 'DD (completo)', 'REC (completo)', 'SERVICIO (completo)',  # <- CORREGIR AQUÍ
+        'Registro (completo)', 'ET (completo)', 'CO (completo)', 'DD (completo)', 'REC (completo)', 'SERVICIO (completo)',
         'Estándares (fecha programada)', 'Estándares', 'Resultados de orientación técnica',
         'Verificación del servicio web geográfico', 'Verificar Aprobar Resultados',
         'Revisar y validar los datos cargados en la base de datos',
@@ -429,12 +440,26 @@ def validar_campos_fecha(df, campos_fecha=['Análisis y cronograma', 'Estándare
 def guardar_datos_editados(df, crear_backup=True):
     """
     VERSIÓN ULTRA SEGURA: Guarda los datos editados con sistema de respaldo automático.
+    PROTEGE ESPECÍFICAMENTE LA TABLA METAS.
     """
     try:
+        # ✅ VALIDACIÓN CRÍTICA: Solo permitir datos de registros
+        if 'Cod' not in df.columns or 'Entidad' not in df.columns:
+            return False, "❌ Error: Solo se pueden guardar datos de registros, no metas"
+        
         # Validar que los campos de fechas sean fechas válidas
         df_validado = validar_campos_fecha(df)
         
         sheets_manager = get_sheets_manager()
+        
+        # ✅ PROTECCIÓN METAS: Crear backup de Metas ANTES de cualquier operación
+        metas_backup = None
+        try:
+            metas_backup = sheets_manager.leer_hoja("Metas")
+            if metas_backup.empty:
+                metas_backup = None
+        except:
+            metas_backup = None
         
         # NUEVO: Crear respaldo automático antes de guardar
         if crear_backup:
@@ -450,14 +475,30 @@ def guardar_datos_editados(df, crear_backup=True):
             except Exception as e:
                 st.warning(f"⚠️ Error en respaldo automático: {e}, pero continuando...")
         
-        # Guardar en Google Sheets
+        # ✅ GUARDAR SOLO EN REGISTROS (nunca tocar Metas)
         exito = sheets_manager.escribir_hoja(df_validado, "Registros", limpiar_hoja=True)
+        
+        # ✅ VERIFICACIÓN Y RESTAURACIÓN AUTOMÁTICA DE METAS
+        if metas_backup is not None:
+            try:
+                # Verificar si Metas se mantuvo intacta
+                metas_actual = sheets_manager.leer_hoja("Metas")
+                if metas_actual.empty:
+                    # ¡EMERGENCIA! Metas se borró, restaurar inmediatamente
+                    st.warning("🚨 ALERTA: Tabla Metas se borró - Restaurando automáticamente...")
+                    restaurar_exito = sheets_manager.escribir_hoja(metas_backup, "Metas", limpiar_hoja=True)
+                    if restaurar_exito:
+                        st.success("✅ Tabla Metas restaurada exitosamente")
+                    else:
+                        st.error("❌ ERROR CRÍTICO: No se pudo restaurar tabla Metas")
+            except Exception as verificacion_error:
+                st.error(f"❌ Error verificando/restaurando Metas: {verificacion_error}")
         
         if exito:
             # NUEVO: Verificar que los datos se guardaron correctamente
             try:
                 df_verificacion = sheets_manager.leer_hoja("Registros")
-                if not df_verificacion.empty and len(df_verificacion) >= len(df_validado) * 0.9:  # Al menos 90% de los datos
+                if not df_verificacion.empty and len(df_verificacion) >= len(df_validado) * 0.9:
                     return True, "✅ Datos guardados y verificados exitosamente en Google Sheets."
                 else:
                     st.warning("⚠️ Los datos se guardaron pero la verificación mostró inconsistencias")
@@ -476,10 +517,23 @@ def guardar_datos_editados(df, crear_backup=True):
 def guardar_datos_editados_rapido(df, numero_fila=None):
     """
     Versión rápida para guardar cambios individuales sin reescribir toda la hoja.
-    INCLUYE verificaciones de seguridad básicas.
+    INCLUYE verificaciones de seguridad básicas y protección de Metas.
     """
     try:
+        # ✅ VALIDACIÓN CRÍTICA: Solo permitir datos de registros
+        if 'Cod' not in df.columns or 'Entidad' not in df.columns:
+            return False, "❌ Error: Solo se pueden guardar datos de registros"
+        
         sheets_manager = get_sheets_manager()
+        
+        # ✅ PROTECCIÓN METAS: Backup rápido de Metas
+        metas_backup = None
+        try:
+            metas_backup = sheets_manager.leer_hoja("Metas")
+            if metas_backup.empty:
+                metas_backup = None
+        except:
+            metas_backup = None
         
         # NUEVO: Verificación básica antes de guardar
         if df.empty:
@@ -492,6 +546,17 @@ def guardar_datos_editados_rapido(df, numero_fila=None):
         else:
             # Guardar todo el DataFrame
             exito = sheets_manager.escribir_hoja(df, "Registros", limpiar_hoja=True)
+        
+        # ✅ VERIFICACIÓN RÁPIDA DE METAS
+        if metas_backup is not None:
+            try:
+                metas_actual = sheets_manager.leer_hoja("Metas")
+                if metas_actual.empty:
+                    # Restaurar Metas si se borró
+                    sheets_manager.escribir_hoja(metas_backup, "Metas", limpiar_hoja=True)
+                    st.info("🔄 Tabla Metas restaurada automáticamente")
+            except:
+                pass  # En modo rápido, no mostrar errores de verificación
         
         if exito:
             return True, "✅ Datos guardados."
@@ -528,3 +593,271 @@ def contar_registros_completados_por_fecha(df, columna_fecha_programada, columna
                 count += 1
 
     return count
+
+def verificar_integridad_metas():
+    """
+    NUEVA FUNCIÓN: Verifica específicamente la integridad de la tabla Metas
+    """
+    try:
+        sheets_manager = get_sheets_manager()
+        metas_df = sheets_manager.leer_hoja("Metas")
+        
+        if metas_df.empty:
+            return False, "Tabla Metas está vacía"
+        
+        # Verificar estructura básica de metas
+        if len(metas_df.columns) < 5:
+            return False, "Tabla Metas tiene muy pocas columnas"
+        
+        if len(metas_df) < 3:
+            return False, "Tabla Metas tiene muy pocas filas"
+        
+        return True, f"Tabla Metas OK: {len(metas_df)} filas, {len(metas_df.columns)} columnas"
+        
+    except Exception as e:
+        return False, f"Error verificando Metas: {str(e)}"
+
+def proteger_metas_durante_operacion(funcion_operacion, *args, **kwargs):
+    """
+    NUEVA FUNCIÓN: Wrapper para proteger Metas durante cualquier operación crítica
+    """
+    try:
+        sheets_manager = get_sheets_manager()
+        
+        # Crear backup de Metas antes de la operación
+        metas_backup = None
+        try:
+            metas_backup = sheets_manager.leer_hoja("Metas")
+            if metas_backup.empty:
+                metas_backup = None
+        except:
+            metas_backup = None
+        
+        # Ejecutar la operación
+        resultado = funcion_operacion(*args, **kwargs)
+        
+        # Verificar Metas después de la operación
+        if metas_backup is not None:
+            try:
+                metas_actual = sheets_manager.leer_hoja("Metas")
+                if metas_actual.empty:
+                    # Restaurar Metas si se borró
+                    sheets_manager.escribir_hoja(metas_backup, "Metas", limpiar_hoja=True)
+                    st.warning("🔄 Tabla Metas restaurada automáticamente después de operación")
+            except Exception as restore_error:
+                st.error(f"❌ Error restaurando Metas: {restore_error}")
+        
+        return resultado
+        
+    except Exception as e:
+        st.error(f"❌ Error en operación protegida: {str(e)}")
+        return None
+
+def limpiar_y_validar_registros(df):
+    """
+    NUEVA FUNCIÓN: Limpia y valida registros antes de cualquier operación
+    """
+    try:
+        # Verificar que es un DataFrame de registros
+        if 'Cod' not in df.columns or 'Entidad' not in df.columns:
+            raise ValueError("DataFrame no contiene columnas de registros válidas")
+        
+        # Limpiar valores
+        df_limpio = df.copy()
+        for col in df_limpio.columns:
+            df_limpio[col] = df_limpio[col].apply(
+                lambda x: '' if pd.isna(x) or x is None or str(x).strip() in ['nan', 'None'] else str(x).strip()
+            )
+        
+        # Validar que hay al menos un registro válido
+        registros_validos = df_limpio[
+            (df_limpio['Cod'].notna()) & 
+            (df_limpio['Cod'].astype(str).str.strip() != '') &
+            (df_limpio['Entidad'].notna()) & 
+            (df_limpio['Entidad'].astype(str).str.strip() != '')
+        ]
+        
+        if registros_validos.empty:
+            raise ValueError("No hay registros válidos después de la limpieza")
+        
+        return df_limpio
+        
+    except Exception as e:
+        st.error(f"❌ Error limpiando registros: {str(e)}")
+        raise e
+
+def sincronizar_con_google_sheets(df, hoja="Registros", crear_backup=True):
+    """
+    NUEVA FUNCIÓN: Sincronización segura con Google Sheets con protección de Metas
+    """
+    try:
+        # Validar que solo son registros
+        if hoja == "Registros" and ('Cod' not in df.columns or 'Entidad' not in df.columns):
+            return False, "❌ Error: Solo se pueden sincronizar datos de registros"
+        
+        # Limpiar y validar datos
+        df_validado = limpiar_y_validar_registros(df)
+        
+        # Usar protección de Metas
+        def operacion_sincronizacion():
+            sheets_manager = get_sheets_manager()
+            return sheets_manager.escribir_hoja(df_validado, hoja, limpiar_hoja=True)
+        
+        # Ejecutar con protección
+        exito = proteger_metas_durante_operacion(operacion_sincronizacion)
+        
+        if exito:
+            # Crear respaldo si se solicita
+            if crear_backup and hoja == "Registros":
+                try:
+                    from backup_utils import crear_respaldo_automatico
+                    crear_respaldo_automatico(df_validado)
+                except:
+                    pass  # No fallar si el respaldo falla
+            
+            return True, f"✅ Sincronización exitosa con {hoja}"
+        else:
+            return False, f"❌ Error en sincronización con {hoja}"
+            
+    except Exception as e:
+        return False, f"❌ Error en sincronización: {str(e)}"
+
+def obtener_estado_sistema():
+    """
+    NUEVA FUNCIÓN: Obtiene el estado completo del sistema de datos
+    """
+    try:
+        sheets_manager = get_sheets_manager()
+        
+        estado = {
+            'registros': {'existe': False, 'filas': 0, 'columnas': 0, 'valido': False},
+            'metas': {'existe': False, 'filas': 0, 'columnas': 0, 'valido': False},
+            'respaldo': {'existe': False, 'filas': 0, 'valido': False},
+            'hojas_disponibles': [],
+            'errores': []
+        }
+        
+        # Verificar hojas disponibles
+        try:
+            estado['hojas_disponibles'] = sheets_manager.listar_hojas()
+        except Exception as e:
+            estado['errores'].append(f"Error listando hojas: {str(e)}")
+        
+        # Verificar Registros
+        try:
+            registros_df = sheets_manager.leer_hoja("Registros")
+            estado['registros']['existe'] = True
+            estado['registros']['filas'] = len(registros_df)
+            estado['registros']['columnas'] = len(registros_df.columns)
+            
+            # Validar registros
+            if 'Cod' in registros_df.columns and 'Entidad' in registros_df.columns:
+                registros_validos = registros_df[
+                    (registros_df['Cod'].notna()) & 
+                    (registros_df['Cod'].astype(str).str.strip() != '') &
+                    (registros_df['Entidad'].notna()) & 
+                    (registros_df['Entidad'].astype(str).str.strip() != '')
+                ]
+                estado['registros']['valido'] = len(registros_validos) > 0
+        except Exception as e:
+            estado['errores'].append(f"Error verificando Registros: {str(e)}")
+        
+        # Verificar Metas
+        try:
+            metas_df = sheets_manager.leer_hoja("Metas")
+            estado['metas']['existe'] = True
+            estado['metas']['filas'] = len(metas_df)
+            estado['metas']['columnas'] = len(metas_df.columns)
+            estado['metas']['valido'] = len(metas_df) > 0 and len(metas_df.columns) >= 5
+        except Exception as e:
+            estado['errores'].append(f"Error verificando Metas: {str(e)}")
+        
+        # Verificar Respaldo
+        try:
+            respaldo_df = sheets_manager.leer_hoja("Respaldo_Registros")
+            estado['respaldo']['existe'] = True
+            estado['respaldo']['filas'] = len(respaldo_df)
+            estado['respaldo']['valido'] = len(respaldo_df) > 0
+        except Exception as e:
+            estado['errores'].append(f"Error verificando Respaldo: {str(e)}")
+        
+        return estado
+        
+    except Exception as e:
+        return {
+            'error_critico': str(e),
+            'registros': {'existe': False, 'valido': False},
+            'metas': {'existe': False, 'valido': False},
+            'respaldo': {'existe': False, 'valido': False}
+        }
+
+def reparar_sistema_automatico():
+    """
+    NUEVA FUNCIÓN: Repara automáticamente problemas comunes del sistema
+    """
+    try:
+        sheets_manager = get_sheets_manager()
+        reparaciones = []
+        
+        # Verificar y reparar Metas
+        try:
+            metas_df = sheets_manager.leer_hoja("Metas")
+            if metas_df.empty:
+                # Recrear estructura de Metas
+                metas_nueva = crear_estructura_metas_inicial()
+                sheets_manager.escribir_hoja(metas_nueva, "Metas", limpiar_hoja=True)
+                reparaciones.append("✅ Tabla Metas recreada")
+        except:
+            # Crear Metas desde cero
+            metas_nueva = crear_estructura_metas_inicial()
+            sheets_manager.escribir_hoja(metas_nueva, "Metas", limpiar_hoja=True)
+            reparaciones.append("✅ Tabla Metas creada desde cero")
+        
+        # Verificar y reparar Registros
+        try:
+            registros_df = sheets_manager.leer_hoja("Registros")
+            if registros_df.empty:
+                # Intentar restaurar desde respaldo
+                try:
+                    respaldo_df = sheets_manager.leer_hoja("Respaldo_Registros")
+                    if not respaldo_df.empty:
+                        sheets_manager.escribir_hoja(respaldo_df, "Registros", limpiar_hoja=True)
+                        reparaciones.append("✅ Registros restaurados desde respaldo")
+                    else:
+                        # Crear estructura mínima
+                        registros_nuevo = crear_estructura_registros_basica()
+                        sheets_manager.escribir_hoja(registros_nuevo, "Registros", limpiar_hoja=True)
+                        reparaciones.append("✅ Estructura básica de Registros creada")
+                except:
+                    registros_nuevo = crear_estructura_registros_basica()
+                    sheets_manager.escribir_hoja(registros_nuevo, "Registros", limpiar_hoja=True)
+                    reparaciones.append("✅ Estructura básica de Registros creada")
+        except:
+            registros_nuevo = crear_estructura_registros_basica()
+            sheets_manager.escribir_hoja(registros_nuevo, "Registros", limpiar_hoja=True)
+            reparaciones.append("✅ Tabla Registros creada desde cero")
+        
+        # Verificar columnas requeridas en Registros
+        try:
+            registros_df = sheets_manager.leer_hoja("Registros")
+            columnas_requeridas = [
+                'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
+                'Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación',
+                'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
+                'Plazo de oficio de cierre', 'Fecha de oficio de cierre', 'Estado', 'Observación',
+                'Funcionario', 'Frecuencia actualizacion '
+            ]
+            
+            columnas_faltantes = [col for col in columnas_requeridas if col not in registros_df.columns]
+            if columnas_faltantes:
+                for col in columnas_faltantes:
+                    registros_df[col] = ''
+                sheets_manager.escribir_hoja(registros_df, "Registros", limpiar_hoja=True)
+                reparaciones.append(f"✅ Agregadas columnas faltantes: {len(columnas_faltantes)}")
+        except Exception as col_error:
+            reparaciones.append(f"⚠️ Error agregando columnas: {str(col_error)}")
+        
+        return True, reparaciones
+        
+    except Exception as e:
+        return False, [f"❌ Error en reparación automática: {str(e)}"]
