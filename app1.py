@@ -1881,16 +1881,9 @@ def mostrar_seguimiento_trimestral(registros_df):
     if 'Mes Proyectado' not in registros_df.columns:
         st.error("❌ La columna 'Mes Proyectado' no está disponible en los datos")
         st.info("📋 Verifique que la hoja de Google Sheets tenga la columna 'Mes Proyectado'")
-        
-        # Mostrar las columnas disponibles para debugging
-        with st.expander("🔍 Columnas disponibles en los datos"):
-            st.write("Columnas encontradas:")
-            for i, col in enumerate(registros_df.columns):
-                st.write(f"{i+1}. {col}")
-        
         return
     
-    # Filtrado de registros con Mes Proyectado válido (SIN MOSTRAR DEBUG)
+    # Filtrado de registros con Mes Proyectado válido
     registros_con_mes = registros_df[
         (registros_df['Mes Proyectado'].notna()) & 
         (registros_df['Mes Proyectado'].astype(str).str.strip() != '') &
@@ -1900,137 +1893,7 @@ def mostrar_seguimiento_trimestral(registros_df):
     if registros_con_mes.empty:
         st.warning("⚠️ No hay registros con 'Mes Proyectado' válido")
         st.info("📝 Para usar el seguimiento trimestral, asigne un mes proyectado a los registros en la sección de Edición")
-        
-        # Mostrar estadísticas básicas
-        total_registros = len(registros_df)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Total Registros", total_registros)
-        with col2:
-            st.metric("Con Mes Proyectado", len(registros_con_mes))
-        
         return
-    
-    # CSS personalizado para los medidores
-    st.markdown("""
-    <style>
-    .trimestre-section {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border-radius: 15px;
-        padding: 25px;
-        margin-bottom: 30px;
-        border: 2px solid #dee2e6;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-    
-    .trimestre-title {
-        background: linear-gradient(90deg, #BE185D, #9D174D);
-        color: white;
-        padding: 15px;
-        border-radius: 10px;
-        text-align: center;
-        font-size: 1.5rem;
-        font-weight: bold;
-        margin-bottom: 25px;
-        box-shadow: 0 4px 15px rgba(190, 24, 93, 0.3);
-    }
-    
-    .gauge-info-card {
-        background: white;
-        border-radius: 10px;
-        padding: 20px;
-        margin-top: 15px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        border-left: 4px solid #BE185D;
-    }
-    
-    .meta-vs-avance {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 1rem;
-        margin-bottom: 10px;
-    }
-    
-    .detalle-info {
-        font-size: 0.9rem;
-        color: #6b7280;
-        margin-top: 8px;
-    }
-    
-    .meta-text { color: #7f8c8d; font-weight: 500; }
-    .avance-excelente { color: #27ae60; font-weight: bold; }
-    .avance-bueno { color: #2ecc71; font-weight: bold; }
-    .avance-regular { color: #f39c12; font-weight: bold; }
-    .avance-bajo { color: #e74c3c; font-weight: bold; }
-    .avance-critico { color: #c0392b; font-weight: bold; }
-    
-    .summary-card {
-        background: linear-gradient(135deg, #BE185D 0%, #9D174D 100%);
-        color: white;
-        padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-        margin: 10px 0;
-    }
-    
-    .summary-value {
-        font-size: 2rem;
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-    
-    .summary-label {
-        font-size: 0.9rem;
-        opacity: 0.9;
-    }
-    
-    .legend-container {
-        background: #f8f9fa;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 30px;
-        border: 1px solid #dee2e6;
-    }
-    
-    .legend-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 15px;
-        margin-top: 15px;
-    }
-    
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.9rem;
-        font-weight: 500;
-    }
-    
-    .legend-color {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-    
-    .trimestre-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 30px;
-        margin-bottom: 30px;
-    }
-    
-    .gauge-container {
-        background: white;
-        border-radius: 15px;
-        padding: 20px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        border: 1px solid #e8f4f8;
-    }
-    </style>
-    """, unsafe_allow_html=True)
     
     # Información explicativa
     st.info("""
@@ -2042,45 +1905,8 @@ def mostrar_seguimiento_trimestral(registros_df):
     - **Porcentaje:** (Publicaciones reales / Meta programada) × 100
     """)
     
-    # Leyenda de colores
-    st.markdown("""
-    <div class="legend-container">
-        <h4 style="margin: 0 0 15px 0; color: #2c3e50; text-align: center;">📊 Escala de Cumplimiento</h4>
-        <div class="legend-grid">
-            <div class="legend-item">
-                <div class="legend-color" style="background: #27ae60;"></div>
-                <span>Excelente (90-100%)</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: #2ecc71;"></div>
-                <span>Bueno (75-89%)</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: #f39c12;"></div>
-                <span>Regular (50-74%)</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: #e74c3c;"></div>
-                <span>Bajo (25-49%)</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: #c0392b;"></div>
-                <span>Crítico (0-24%)</span>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Función para determinar clase CSS según porcentaje
-    def get_avance_class(porcentaje):
-        if porcentaje >= 90: return "avance-excelente"
-        elif porcentaje >= 75: return "avance-bueno"
-        elif porcentaje >= 50: return "avance-regular"
-        elif porcentaje >= 25: return "avance-bajo"
-        else: return "avance-critico"
-    
     # Función para crear medidor circular
-    def crear_medidor_publicaciones(valor, titulo, meta_num, avance_num, trimestre_info):
+    def crear_medidor_publicaciones(valor, titulo, meta_num, avance_num):
         # Determinar color según porcentaje
         if valor >= 90: color = '#27ae60'
         elif valor >= 75: color = '#2ecc71'
@@ -2089,16 +1915,15 @@ def mostrar_seguimiento_trimestral(registros_df):
         else: color = '#c0392b'
         
         fig = go.Figure(go.Indicator(
-            mode = "gauge+number+delta",
+            mode = "gauge+number",
             value = valor,
             domain = {'x': [0, 1], 'y': [0, 1]},
-            title = {'text': titulo, 'font': {'size': 18, 'color': '#2c3e50', 'family': 'Arial'}},
-            delta = {'reference': 75, 'increasing': {'color': '#27ae60'}, 'decreasing': {'color': '#e74c3c'}},
+            title = {'text': titulo, 'font': {'size': 16}},
             gauge = {
-                'axis': {'range': [None, 100], 'tickwidth': 2, 'tickcolor': '#34495e'},
-                'bar': {'color': color, 'thickness': 0.75},
+                'axis': {'range': [None, 100]},
+                'bar': {'color': color},
                 'bgcolor': '#ecf0f1',
-                'borderwidth': 3,
+                'borderwidth': 2,
                 'bordercolor': '#bdc3c7',
                 'steps': [
                     {'range': [0, 25], 'color': '#fadbd8'},
@@ -2108,79 +1933,34 @@ def mostrar_seguimiento_trimestral(registros_df):
                     {'range': [90, 100], 'color': '#d4edda'}
                 ],
                 'threshold': {
-                    'line': {'color': '#BE185D', 'width': 5},
-                    'thickness': 0.8,
+                    'line': {'color': '#BE185D', 'width': 4},
+                    'thickness': 0.75,
                     'value': 75
                 }
             },
-            number = {'font': {'size': 32, 'color': color, 'family': 'Arial'}, 'suffix': '%'}
+            number = {'font': {'size': 20}, 'suffix': '%'}
         ))
         
         fig.update_layout(
-            height=300,
-            margin=dict(l=20, r=20, t=60, b=20),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font={'color': '#2c3e50', 'family': 'Arial'}
+            height=250,
+            margin=dict(l=20, r=20, t=60, b=20)
         )
         
         return fig
     
-    # Función de cálculo LIMPIA (sin debug)
+    # Función de cálculo para trimestres
     def calcular_publicaciones_trimestrales(df, tipo_dato):
-        """Función limpia sin debug para calcular datos trimestrales"""
+        """Calcula datos trimestrales de publicaciones"""
         
-        # Verificar que existe la columna TipoDato
         if 'TipoDato' not in df.columns:
             return crear_datos_trimestre_vacio()
         
-        # Obtener valores únicos de TipoDato
-        valores_tipodato_reales = df['TipoDato'].dropna().unique()
-        
-        # Filtrado inteligente 
+        # Filtrar por tipo de dato
         try:
             if tipo_dato.upper() == 'NUEVO':
-                # Buscar variantes de "nuevo"
-                posibles_valores = []
-                for valor in valores_tipodato_reales:
-                    if pd.notna(valor):
-                        valor_str = str(valor).upper().strip()
-                        if any(palabra in valor_str for palabra in [
-                            'NUEVO', 'NUEVA', 'NEW', 'NUEV'
-                        ]):
-                            posibles_valores.append(valor)
-                
-                # Fallback: usar primer valor si no encuentra específico
-                if not posibles_valores and len(valores_tipodato_reales) >= 1:
-                    posibles_valores = [valores_tipodato_reales[0]]
-                
-                if posibles_valores:
-                    df_filtrado = df[df['TipoDato'].isin(posibles_valores)]
-                else:
-                    return crear_datos_trimestre_vacio()
-                    
+                df_filtrado = df[df['TipoDato'].str.upper().str.contains('NUEVO', na=False)]
             else:  # ACTUALIZAR
-                # Buscar variantes de "actualizar"
-                posibles_valores = []
-                for valor in valores_tipodato_reales:
-                    if pd.notna(valor):
-                        valor_str = str(valor).upper().strip()
-                        if any(palabra in valor_str for palabra in [
-                            'ACTUALIZAR', 'ACTUALIZACIÓN', 'UPDATE', 'ACTUA'
-                        ]):
-                            posibles_valores.append(valor)
-                
-                # Fallback: usar segundo valor si no encuentra específico
-                if not posibles_valores and len(valores_tipodato_reales) >= 2:
-                    posibles_valores = [valores_tipodato_reales[1]]
-                elif not posibles_valores:
-                    return crear_datos_trimestre_vacio()
-                
-                if posibles_valores:
-                    df_filtrado = df[df['TipoDato'].isin(posibles_valores)]
-                else:
-                    return crear_datos_trimestre_vacio()
-            
+                df_filtrado = df[df['TipoDato'].str.upper().str.contains('ACTUALIZAR', na=False)]
         except Exception:
             return crear_datos_trimestre_vacio()
         
@@ -2221,30 +2001,16 @@ def mostrar_seguimiento_trimestral(registros_df):
                 # Calcular porcentaje
                 porcentaje = (avance_publicaciones / meta_publicaciones * 100) if meta_publicaciones > 0 else 0
                 
-                # Información adicional
-                registros_programados = 0
-                if 'Fecha de publicación programada' in df_trimestre.columns and len(df_trimestre) > 0:
-                    try:
-                        mask_programada = (
-                            (df_trimestre['Fecha de publicación programada'].notna()) & 
-                            (df_trimestre['Fecha de publicación programada'].astype(str).str.strip() != '') &
-                            (~df_trimestre['Fecha de publicación programada'].astype(str).str.strip().isin(['nan', 'None', 'NaN']))
-                        )
-                        registros_programados = len(df_trimestre[mask_programada])
-                    except Exception:
-                        registros_programados = 0
-                
                 datos_trimestres[trimestre] = {
                     'meta': meta_publicaciones,
                     'avance': avance_publicaciones,
                     'porcentaje': porcentaje,
-                    'programados': registros_programados,
                     'pendientes': meta_publicaciones - avance_publicaciones
                 }
                 
             except Exception:
                 datos_trimestres[trimestre] = {
-                    'meta': 0, 'avance': 0, 'porcentaje': 0, 'programados': 0, 'pendientes': 0
+                    'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0
                 }
         
         return datos_trimestres
@@ -2252,14 +2018,11 @@ def mostrar_seguimiento_trimestral(registros_df):
     def crear_datos_trimestre_vacio():
         """Crea estructura vacía para trimestres sin datos"""
         return {
-            'Q1': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'programados': 0, 'pendientes': 0},
-            'Q2': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'programados': 0, 'pendientes': 0},
-            'Q3': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'programados': 0, 'pendientes': 0},
-            'Q4': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'programados': 0, 'pendientes': 0}
+            'Q1': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0},
+            'Q2': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0},
+            'Q3': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0},
+            'Q4': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0}
         }
-    
-    # Mostrar estadística básica
-    st.success(f"✅ {len(registros_con_mes)} registros con 'Mes Proyectado' asignado")
     
     # Pestañas para Nuevos y Actualizados
     tab_nuevos, tab_actualizados = st.tabs(["📈 Registros Nuevos", "🔄 Registros a Actualizar"])
@@ -2275,7 +2038,6 @@ def mostrar_seguimiento_trimestral(registros_df):
         
         if not trimestres_con_datos:
             st.warning("⚠️ No hay registros nuevos con 'Mes Proyectado' asignado.")
-            st.info("📝 Verifique que hay registros con TipoDato='Nuevo' y Mes Proyectado asignado")
         else:
             # Dividir en columnas
             cols = st.columns(min(len(trimestres_con_datos), 4))
@@ -2286,10 +2048,10 @@ def mostrar_seguimiento_trimestral(registros_df):
                 with cols[idx % 4]:
                     # Título del trimestre
                     trimestre_nombre = {
-                        'Q1': '🌱 Q1 2025\nEnero - Marzo',
-                        'Q2': '☀️ Q2 2025\nAbril - Junio',
-                        'Q3': '🍂 Q3 2025\nJulio - Septiembre',
-                        'Q4': '❄️ Q4 2025\nOctubre - Diciembre'
+                        'Q1': 'Q1 2025\n(Ene-Mar)',
+                        'Q2': 'Q2 2025\n(Abr-Jun)',
+                        'Q3': 'Q3 2025\n(Jul-Sep)',
+                        'Q4': 'Q4 2025\n(Oct-Dic)'
                     }[trimestre]
                     
                     # Crear medidor
@@ -2297,67 +2059,16 @@ def mostrar_seguimiento_trimestral(registros_df):
                         datos['porcentaje'],
                         trimestre_nombre,
                         datos['meta'],
-                        datos['avance'],
-                        trimestre
+                        datos['avance']
                     )
-                    st.plotly_chart(fig_publicacion, use_container_width=True, key=f"nuevos_pub_{trimestre}")
+                    st.plotly_chart(fig_publicacion, use_container_width=True)
                     
                     # Información detallada
-                    avance_class = get_avance_class(datos['porcentaje'])
                     st.markdown(f"""
-                    <div class="gauge-info-card">
-                        <div class="meta-vs-avance">
-                            <span class="meta-text">Meta: {datos['meta']} publicaciones</span>
-                            <span class="{avance_class}">Real: {datos['avance']} ({datos['porcentaje']:.1f}%)</span>
-                        </div>
-                        <div class="detalle-info">
-                            📅 Programadas: {datos['programados']} | ⏳ Pendientes: {datos['pendientes']}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            # Resumen para registros nuevos
-            st.markdown("### 📊 Resumen Anual - Registros Nuevos")
-            
-            total_meta_nuevos = sum([datos_nuevos[q]['meta'] for q in ['Q1', 'Q2', 'Q3', 'Q4']])
-            total_avance_nuevos = sum([datos_nuevos[q]['avance'] for q in ['Q1', 'Q2', 'Q3', 'Q4']])
-            promedio_nuevos = (total_avance_nuevos / total_meta_nuevos * 100) if total_meta_nuevos > 0 else 0
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.markdown(f"""
-                <div class="summary-card">
-                    <div class="summary-value">{promedio_nuevos:.1f}%</div>
-                    <div class="summary-label">Promedio Anual</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col2:
-                st.markdown(f"""
-                <div class="summary-card">
-                    <div class="summary-value">{total_avance_nuevos}/{total_meta_nuevos}</div>
-                    <div class="summary-label">Publicaciones Reales/Meta</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col3:
-                trimestres_activos = len(trimestres_con_datos)
-                st.markdown(f"""
-                <div class="summary-card">
-                    <div class="summary-value">{trimestres_activos}</div>
-                    <div class="summary-label">Trimestres Activos</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col4:
-                mejor_trimestre = max(trimestres_con_datos, key=lambda q: datos_nuevos[q]['porcentaje']) if trimestres_con_datos else "N/A"
-                st.markdown(f"""
-                <div class="summary-card">
-                    <div class="summary-value">{mejor_trimestre}</div>
-                    <div class="summary-label">Mejor Trimestre</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    **Meta:** {datos['meta']} publicaciones  
+                    **Real:** {datos['avance']} ({datos['porcentaje']:.1f}%)  
+                    **Pendientes:** {datos['pendientes']}
+                    """)
     
     # TAB REGISTROS A ACTUALIZAR
     with tab_actualizados:
@@ -2370,7 +2081,6 @@ def mostrar_seguimiento_trimestral(registros_df):
         
         if not trimestres_con_datos:
             st.warning("⚠️ No hay registros a actualizar con 'Mes Proyectado' asignado.")
-            st.info("📝 Verifique que hay registros con TipoDato='Actualizar' y Mes Proyectado asignado")
         else:
             # Dividir en columnas
             cols = st.columns(min(len(trimestres_con_datos), 4))
@@ -2381,10 +2091,10 @@ def mostrar_seguimiento_trimestral(registros_df):
                 with cols[idx % 4]:
                     # Título del trimestre
                     trimestre_nombre = {
-                        'Q1': '🌱 Q1 2025\nEnero - Marzo',
-                        'Q2': '☀️ Q2 2025\nAbril - Junio',
-                        'Q3': '🍂 Q3 2025\nJulio - Septiembre',
-                        'Q4': '❄️ Q4 2025\nOctubre - Diciembre'
+                        'Q1': 'Q1 2025\n(Ene-Mar)',
+                        'Q2': 'Q2 2025\n(Abr-Jun)',
+                        'Q3': 'Q3 2025\n(Jul-Sep)',
+                        'Q4': 'Q4 2025\n(Oct-Dic)'
                     }[trimestre]
                     
                     # Crear medidor
@@ -2392,67 +2102,16 @@ def mostrar_seguimiento_trimestral(registros_df):
                         datos['porcentaje'],
                         trimestre_nombre,
                         datos['meta'],
-                        datos['avance'],
-                        trimestre
+                        datos['avance']
                     )
-                    st.plotly_chart(fig_publicacion, use_container_width=True, key=f"actualizar_pub_{trimestre}")
+                    st.plotly_chart(fig_publicacion, use_container_width=True)
                     
                     # Información detallada
-                    avance_class = get_avance_class(datos['porcentaje'])
                     st.markdown(f"""
-                    <div class="gauge-info-card">
-                        <div class="meta-vs-avance">
-                            <span class="meta-text">Meta: {datos['meta']} publicaciones</span>
-                            <span class="{avance_class}">Real: {datos['avance']} ({datos['porcentaje']:.1f}%)</span>
-                        </div>
-                        <div class="detalle-info">
-                            📅 Programadas: {datos['programados']} | ⏳ Pendientes: {datos['pendientes']}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            # Resumen para registros a actualizar
-            st.markdown("### 📊 Resumen Anual - Registros a Actualizar")
-            
-            total_meta_actualizar = sum([datos_actualizar[q]['meta'] for q in ['Q1', 'Q2', 'Q3', 'Q4']])
-            total_avance_actualizar = sum([datos_actualizar[q]['avance'] for q in ['Q1', 'Q2', 'Q3', 'Q4']])
-            promedio_actualizar = (total_avance_actualizar / total_meta_actualizar * 100) if total_meta_actualizar > 0 else 0
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.markdown(f"""
-                <div class="summary-card">
-                    <div class="summary-value">{promedio_actualizar:.1f}%</div>
-                    <div class="summary-label">Promedio Anual</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col2:
-                st.markdown(f"""
-                <div class="summary-card">
-                    <div class="summary-value">{total_avance_actualizar}/{total_meta_actualizar}</div>
-                    <div class="summary-label">Publicaciones Reales/Meta</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col3:
-                trimestres_activos = len(trimestres_con_datos)
-                st.markdown(f"""
-                <div class="summary-card">
-                    <div class="summary-value">{trimestres_activos}</div>
-                    <div class="summary-label">Trimestres Activos</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col4:
-                mejor_trimestre = max(trimestres_con_datos, key=lambda q: datos_actualizar[q]['porcentaje']) if trimestres_con_datos else "N/A"
-                st.markdown(f"""
-                <div class="summary-card">
-                    <div class="summary-value">{mejor_trimestre}</div>
-                    <div class="summary-label">Mejor Trimestre</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    **Meta:** {datos['meta']} publicaciones  
+                    **Real:** {datos['avance']} ({datos['porcentaje']:.1f}%)  
+                    **Pendientes:** {datos['pendientes']}
+                    """)
     
 # ========== FUNCIÓN PRINCIPAL ==========
 
