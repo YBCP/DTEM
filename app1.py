@@ -1877,7 +1877,7 @@ def mostrar_seguimiento_trimestral(registros_df):
     """Muestra el seguimiento trimestral de publicaciones: avance real vs meta programada."""
     st.markdown('<div class="subtitle">Seguimiento Trimestral - Publicaciones: Meta vs Avance Real</div>', unsafe_allow_html=True)
     
-    # ✅ VERIFICACIÓN MEJORADA DE LA COLUMNA MES PROYECTADO
+    # Verificar disponibilidad de la columna Mes Proyectado
     if 'Mes Proyectado' not in registros_df.columns:
         st.error("❌ La columna 'Mes Proyectado' no está disponible en los datos")
         st.info("📋 Verifique que la hoja de Google Sheets tenga la columna 'Mes Proyectado'")
@@ -1888,98 +1888,30 @@ def mostrar_seguimiento_trimestral(registros_df):
             for i, col in enumerate(registros_df.columns):
                 st.write(f"{i+1}. {col}")
         
-        # Función de debug
-        with st.expander("🔍 Debug Completo de Datos"):
-            debug_datos_seguimiento_trimestral(registros_df)
-        
         return
     
-    # ✅ ANÁLISIS DETALLADO DE DATOS CON DEBUG
-    with st.expander("🔍 Análisis Detallado de Datos", expanded=False):
-        st.markdown("### 📊 Estadísticas de Datos")
-        
-        total_registros = len(registros_df)
-        st.write(f"📊 Total de registros: {total_registros}")
-        
-        # Analizar Mes Proyectado paso a paso
-        mes_no_nulo = len(registros_df[registros_df['Mes Proyectado'].notna()])
-        st.write(f"📅 Con Mes Proyectado no nulo: {mes_no_nulo}")
-        
-        mes_no_vacio = len(registros_df[
-            (registros_df['Mes Proyectado'].notna()) & 
-            (registros_df['Mes Proyectado'].astype(str).str.strip() != '')
-        ])
-        st.write(f"📅 Con Mes Proyectado no vacío: {mes_no_vacio}")
-        
-        # Mostrar valores únicos
-        if mes_no_nulo > 0:
-            valores_mes = registros_df['Mes Proyectado'].dropna().unique()
-            st.write(f"📅 Meses únicos encontrados: {list(valores_mes)}")
-            
-            # Distribución por mes
-            distribucion_mes = registros_df['Mes Proyectado'].value_counts()
-            st.write("📊 Distribución por mes:")
-            st.dataframe(distribucion_mes)
-        
-        # Analizar TipoDato
-        if 'TipoDato' in registros_df.columns:
-            tipo_no_nulo = len(registros_df[registros_df['TipoDato'].notna()])
-            st.write(f"🏷️ Con TipoDato no nulo: {tipo_no_nulo}")
-            
-            if tipo_no_nulo > 0:
-                valores_tipo = registros_df['TipoDato'].dropna().unique()
-                st.write(f"🏷️ Tipos únicos encontrados: {list(valores_tipo)}")
-                
-                distribucion_tipo = registros_df['TipoDato'].value_counts()
-                st.write("📊 Distribución por tipo:")
-                st.dataframe(distribucion_tipo)
-    
-    # ✅ FILTRADO MÁS PERMISIVO Y CON DEBUGGING
-    st.markdown("### 🔍 Proceso de Filtrado de Datos")
-    
-    # Paso 1: Filtrar registros con Mes Proyectado válido
-    registros_paso1 = registros_df[registros_df['Mes Proyectado'].notna()]
-    st.info(f"Paso 1 - Mes Proyectado no nulo: {len(registros_paso1)} registros")
-    
-    if len(registros_paso1) == 0:
-        st.error("❌ No hay registros con Mes Proyectado no nulo")
-        return
-    
-    # Paso 2: Filtrar registros con Mes Proyectado no vacío
-    registros_paso2 = registros_paso1[
-        registros_paso1['Mes Proyectado'].astype(str).str.strip() != ''
+    # Filtrado de registros con Mes Proyectado válido (SIN MOSTRAR DEBUG)
+    registros_con_mes = registros_df[
+        (registros_df['Mes Proyectado'].notna()) & 
+        (registros_df['Mes Proyectado'].astype(str).str.strip() != '') &
+        (~registros_df['Mes Proyectado'].astype(str).str.strip().isin(['nan', 'None', 'NaN']))
     ]
-    st.info(f"Paso 2 - Mes Proyectado no vacío: {len(registros_paso2)} registros")
-    
-    if len(registros_paso2) == 0:
-        st.error("❌ No hay registros con Mes Proyectado no vacío")
-        st.write("Valores encontrados:", registros_paso1['Mes Proyectado'].unique().tolist())
-        return
-    
-    # Paso 3: Filtrar valores problemáticos
-    registros_con_mes = registros_paso2[
-        (~registros_paso2['Mes Proyectado'].astype(str).str.strip().isin(['nan', 'None', 'NaN']))
-    ]
-    st.info(f"Paso 3 - Mes Proyectado válido: {len(registros_con_mes)} registros")
     
     if registros_con_mes.empty:
-        st.warning("⚠️ No hay registros con 'Mes Proyectado' válido después del filtrado")
-        st.write("Valores encontrados después del paso 2:", registros_paso2['Mes Proyectado'].unique().tolist())
+        st.warning("⚠️ No hay registros con 'Mes Proyectado' válido")
+        st.info("📝 Para usar el seguimiento trimestral, asigne un mes proyectado a los registros en la sección de Edición")
         
-        # Mostrar muestra de datos para debugging
-        st.markdown("### 🔍 Muestra de Datos para Debug")
-        if not registros_df.empty:
-            muestra_cols = ['Cod', 'Entidad', 'Mes Proyectado', 'TipoDato']
-            muestra_cols = [col for col in muestra_cols if col in registros_df.columns]
-            muestra = registros_df[muestra_cols].head(10)
-            st.dataframe(muestra)
+        # Mostrar estadísticas básicas
+        total_registros = len(registros_df)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total Registros", total_registros)
+        with col2:
+            st.metric("Con Mes Proyectado", len(registros_con_mes))
         
         return
     
-    # Si llegamos aquí, hay datos válidos para el seguimiento trimestral
-    st.success(f"✅ {len(registros_con_mes)} registros tienen 'Mes Proyectado' asignado")
-    
-    # CSS personalizado para los medidores (mismo código que antes)
+    # CSS personalizado para los medidores
     st.markdown("""
     <style>
     .trimestre-section {
@@ -2194,104 +2126,68 @@ def mostrar_seguimiento_trimestral(registros_df):
         
         return fig
     
-    # ✅ FUNCIÓN DE CÁLCULO CORREGIDA Y CON DEBUG
+    # Función de cálculo LIMPIA (sin debug)
     def calcular_publicaciones_trimestrales(df, tipo_dato):
-        """Función corregida con análisis automático de valores TipoDato"""
+        """Función limpia sin debug para calcular datos trimestrales"""
         
-        # Debug inicial
-        st.write(f"🔍 **Calculando para tipo: {tipo_dato}**")
-        st.write(f"📊 Registros de entrada: {len(df)}")
-        
-        # ✅ Verificar que existe la columna TipoDato
+        # Verificar que existe la columna TipoDato
         if 'TipoDato' not in df.columns:
-            st.error(f"❌ Columna 'TipoDato' no encontrada para tipo {tipo_dato}")
             return crear_datos_trimestre_vacio()
         
-        # ✅ NUEVO: Análisis automático de valores TipoDato
+        # Obtener valores únicos de TipoDato
         valores_tipodato_reales = df['TipoDato'].dropna().unique()
-        st.write(f"🏷️ **Valores únicos en TipoDato:** {list(valores_tipodato_reales)}")
         
-        # Mostrar distribución
-        conteo_tipodato = df['TipoDato'].value_counts()
-        st.write("📊 **Distribución de TipoDato:**")
-        for valor, cantidad in conteo_tipodato.items():
-            st.write(f"   • '{valor}': {cantidad} registros")
-        
-        # ✅ FILTRADO INTELIGENTE - detectar automáticamente los valores correctos
+        # Filtrado inteligente 
         try:
             if tipo_dato.upper() == 'NUEVO':
-                # Buscar cualquier valor que pueda ser "nuevo"
+                # Buscar variantes de "nuevo"
                 posibles_valores = []
                 for valor in valores_tipodato_reales:
                     if pd.notna(valor):
                         valor_str = str(valor).upper().strip()
-                        # Buscar variantes comunes
                         if any(palabra in valor_str for palabra in [
-                            'NUEVO', 'NUEVA', 'NEW', 'NUEV', 'N'
-                        ]) or valor_str == 'NUEVO':
+                            'NUEVO', 'NUEVA', 'NEW', 'NUEV'
+                        ]):
                             posibles_valores.append(valor)
                 
-                # Si no encuentra nada específico, usar el primer valor disponible como fallback
+                # Fallback: usar primer valor si no encuentra específico
                 if not posibles_valores and len(valores_tipodato_reales) >= 1:
-                    st.warning(f"⚠️ No se encontró valor específico para 'NUEVO', usando primer valor disponible")
                     posibles_valores = [valores_tipodato_reales[0]]
                 
                 if posibles_valores:
-                    st.success(f"✅ **Valores detectados para NUEVO:** {posibles_valores}")
                     df_filtrado = df[df['TipoDato'].isin(posibles_valores)]
                 else:
-                    st.error(f"❌ No se pudo detectar valor para NUEVO")
                     return crear_datos_trimestre_vacio()
                     
             else:  # ACTUALIZAR
-                # Buscar cualquier valor que pueda ser "actualizar"
+                # Buscar variantes de "actualizar"
                 posibles_valores = []
                 for valor in valores_tipodato_reales:
                     if pd.notna(valor):
                         valor_str = str(valor).upper().strip()
-                        # Buscar variantes comunes
                         if any(palabra in valor_str for palabra in [
-                            'ACTUALIZAR', 'ACTUALIZACIÓN', 'UPDATE', 'ACTUA', 'ACT', 'A'
-                        ]) or valor_str == 'ACTUALIZAR':
+                            'ACTUALIZAR', 'ACTUALIZACIÓN', 'UPDATE', 'ACTUA'
+                        ]):
                             posibles_valores.append(valor)
                 
-                # Si no encuentra nada específico y hay más de un valor, usar el segundo
+                # Fallback: usar segundo valor si no encuentra específico
                 if not posibles_valores and len(valores_tipodato_reales) >= 2:
-                    st.warning(f"⚠️ No se encontró valor específico para 'ACTUALIZAR', usando segundo valor disponible")
                     posibles_valores = [valores_tipodato_reales[1]]
-                elif not posibles_valores and len(valores_tipodato_reales) == 1:
-                    st.warning(f"⚠️ Solo hay un valor de TipoDato, no se puede separar ACTUALIZAR")
+                elif not posibles_valores:
                     return crear_datos_trimestre_vacio()
                 
                 if posibles_valores:
-                    st.success(f"✅ **Valores detectados para ACTUALIZAR:** {posibles_valores}")
                     df_filtrado = df[df['TipoDato'].isin(posibles_valores)]
                 else:
-                    st.error(f"❌ No se pudo detectar valor para ACTUALIZAR")
                     return crear_datos_trimestre_vacio()
             
-            st.write(f"📊 **Registros después de filtrar por tipo '{tipo_dato}':** {len(df_filtrado)}")
-            
-        except Exception as e:
-            st.error(f"❌ Error filtrando por tipo {tipo_dato}: {str(e)}")
+        except Exception:
             return crear_datos_trimestre_vacio()
         
         if df_filtrado.empty:
-            st.warning(f"⚠️ No hay registros de tipo '{tipo_dato}' con mes proyectado")
-            st.info("💡 **Sugerencias:**")
-            st.info("1. Verificar los valores exactos en la columna 'TipoDato'")
-            st.info("2. Asegurar que los valores sean consistentes")
-            st.info("3. Revisar que hay registros con ambos campos: TipoDato y Mes Proyectado")
             return crear_datos_trimestre_vacio()
         
-        # Mostrar distribución por mes para este tipo
-        if len(df_filtrado) > 0:
-            distribucion_meses = df_filtrado['Mes Proyectado'].value_counts()
-            st.write(f"📅 **Distribución por mes para {tipo_dato}:**")
-            for mes, cantidad in distribucion_meses.items():
-                st.write(f"   • {mes}: {cantidad} registros")
-        
-        # Definir trimestres (basado en Mes Proyectado)
+        # Definir trimestres
         trimestres = {
             'Q1': ['Enero', 'Febrero', 'Marzo'],
             'Q2': ['Abril', 'Mayo', 'Junio'], 
@@ -2306,9 +2202,7 @@ def mostrar_seguimiento_trimestral(registros_df):
                 # Filtrar registros del trimestre
                 df_trimestre = df_filtrado[df_filtrado['Mes Proyectado'].isin(meses)]
                 
-                st.write(f"📊 **{trimestre}** ({', '.join(meses)}): {len(df_trimestre)} registros")
-                
-                # META: Total de registros que deberían estar publicados al final del trimestre
+                # META: Total de registros que deberían estar publicados
                 meta_publicaciones = len(df_trimestre)
                 
                 # AVANCE: Registros con fecha real de publicación
@@ -2321,14 +2215,13 @@ def mostrar_seguimiento_trimestral(registros_df):
                             (~df_trimestre['Publicación'].astype(str).str.strip().isin(['nan', 'None', 'NaN']))
                         )
                         avance_publicaciones = len(df_trimestre[mask_publicacion])
-                    except Exception as pub_error:
-                        st.warning(f"⚠️ Error calculando publicaciones para {trimestre}: {str(pub_error)}")
+                    except Exception:
                         avance_publicaciones = 0
                 
                 # Calcular porcentaje
                 porcentaje = (avance_publicaciones / meta_publicaciones * 100) if meta_publicaciones > 0 else 0
                 
-                # Información adicional para debugging
+                # Información adicional
                 registros_programados = 0
                 if 'Fecha de publicación programada' in df_trimestre.columns and len(df_trimestre) > 0:
                     try:
@@ -2338,8 +2231,7 @@ def mostrar_seguimiento_trimestral(registros_df):
                             (~df_trimestre['Fecha de publicación programada'].astype(str).str.strip().isin(['nan', 'None', 'NaN']))
                         )
                         registros_programados = len(df_trimestre[mask_programada])
-                    except Exception as prog_error:
-                        st.warning(f"⚠️ Error calculando programadas para {trimestre}: {str(prog_error)}")
+                    except Exception:
                         registros_programados = 0
                 
                 datos_trimestres[trimestre] = {
@@ -2350,10 +2242,7 @@ def mostrar_seguimiento_trimestral(registros_df):
                     'pendientes': meta_publicaciones - avance_publicaciones
                 }
                 
-                st.write(f"   • Meta: {meta_publicaciones}, Avance: {avance_publicaciones}, Porcentaje: {porcentaje:.1f}%")
-                
-            except Exception as trimestre_error:
-                st.error(f"❌ Error procesando {trimestre}: {str(trimestre_error)}")
+            except Exception:
                 datos_trimestres[trimestre] = {
                     'meta': 0, 'avance': 0, 'porcentaje': 0, 'programados': 0, 'pendientes': 0
                 }
@@ -2368,25 +2257,24 @@ def mostrar_seguimiento_trimestral(registros_df):
             'Q3': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'programados': 0, 'pendientes': 0},
             'Q4': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'programados': 0, 'pendientes': 0}
         }
-
+    
+    # Mostrar estadística básica
+    st.success(f"✅ {len(registros_con_mes)} registros con 'Mes Proyectado' asignado")
+    
     # Pestañas para Nuevos y Actualizados
-    tab_nuevos, tab_actualizados, tab_debug = st.tabs(["📈 Registros Nuevos", "🔄 Registros a Actualizar", "🔍 Debug Detallado"])
+    tab_nuevos, tab_actualizados = st.tabs(["📈 Registros Nuevos", "🔄 Registros a Actualizar"])
     
     # TAB REGISTROS NUEVOS
     with tab_nuevos:
         st.markdown("### 🆕 Seguimiento de Publicaciones - Registros Nuevos")
         
-        with st.expander("🔍 Proceso de Cálculo - Registros Nuevos", expanded=False):
-            datos_nuevos = calcular_publicaciones_trimestrales(registros_con_mes, 'NUEVO')
-        
-        # Crear grid de medidores
-        st.markdown('<div class="trimestre-grid">', unsafe_allow_html=True)
+        datos_nuevos = calcular_publicaciones_trimestrales(registros_con_mes, 'NUEVO')
         
         # Crear medidores para cada trimestre que tenga datos
         trimestres_con_datos = [q for q in ['Q1', 'Q2', 'Q3', 'Q4'] if datos_nuevos[q]['meta'] > 0]
         
         if not trimestres_con_datos:
-            st.warning("⚠️ No hay registros nuevos con 'Mes Proyectado' asignado para mostrar en gráficos.")
+            st.warning("⚠️ No hay registros nuevos con 'Mes Proyectado' asignado.")
             st.info("📝 Verifique que hay registros con TipoDato='Nuevo' y Mes Proyectado asignado")
         else:
             # Dividir en columnas
@@ -2427,11 +2315,8 @@ def mostrar_seguimiento_trimestral(registros_df):
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Resumen para registros nuevos
-        if trimestres_con_datos:
+            
+            # Resumen para registros nuevos
             st.markdown("### 📊 Resumen Anual - Registros Nuevos")
             
             total_meta_nuevos = sum([datos_nuevos[q]['meta'] for q in ['Q1', 'Q2', 'Q3', 'Q4']])
@@ -2478,17 +2363,13 @@ def mostrar_seguimiento_trimestral(registros_df):
     with tab_actualizados:
         st.markdown("### 🔄 Seguimiento de Publicaciones - Registros a Actualizar")
         
-        with st.expander("🔍 Proceso de Cálculo - Registros a Actualizar", expanded=False):
-            datos_actualizar = calcular_publicaciones_trimestrales(registros_con_mes, 'ACTUALIZAR')
-        
-        # Crear grid de medidores
-        st.markdown('<div class="trimestre-grid">', unsafe_allow_html=True)
+        datos_actualizar = calcular_publicaciones_trimestrales(registros_con_mes, 'ACTUALIZAR')
         
         # Crear medidores para cada trimestre que tenga datos
         trimestres_con_datos = [q for q in ['Q1', 'Q2', 'Q3', 'Q4'] if datos_actualizar[q]['meta'] > 0]
         
         if not trimestres_con_datos:
-            st.warning("⚠️ No hay registros a actualizar con 'Mes Proyectado' asignado para mostrar en gráficos.")
+            st.warning("⚠️ No hay registros a actualizar con 'Mes Proyectado' asignado.")
             st.info("📝 Verifique que hay registros con TipoDato='Actualizar' y Mes Proyectado asignado")
         else:
             # Dividir en columnas
@@ -2529,11 +2410,8 @@ def mostrar_seguimiento_trimestral(registros_df):
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Resumen para registros a actualizar
-        if trimestres_con_datos:
+            
+            # Resumen para registros a actualizar
             st.markdown("### 📊 Resumen Anual - Registros a Actualizar")
             
             total_meta_actualizar = sum([datos_actualizar[q]['meta'] for q in ['Q1', 'Q2', 'Q3', 'Q4']])
@@ -2575,367 +2453,6 @@ def mostrar_seguimiento_trimestral(registros_df):
                     <div class="summary-label">Mejor Trimestre</div>
                 </div>
                 """, unsafe_allow_html=True)
-    
-    # TAB DEBUG DETALLADO
-    with tab_debug:
-        st.markdown("### 🔍 Debug Detallado del Sistema")
-        debug_datos_seguimiento_trimestral(registros_df)
-
-# Función de debug independiente (agregar al final del archivo)
-def debug_datos_seguimiento_trimestral(registros_df):
-    """Función específica para debuggear problemas del seguimiento trimestral"""
-    
-    st.markdown("## 🔍 DEBUG: Análisis Detallado de Datos")
-    
-    # 1. Verificar estructura general
-    st.markdown("### 1. Estructura General")
-    st.write(f"- Shape del DataFrame: {registros_df.shape}")
-    st.write(f"- Columnas totales: {len(registros_df.columns)}")
-    st.write(f"- Registros totales: {len(registros_df)}")
-    
-    # 2. Verificar columna Mes Proyectado
-    st.markdown("### 2. Análisis de 'Mes Proyectado'")
-    
-    if 'Mes Proyectado' in registros_df.columns:
-        st.success("✅ Columna 'Mes Proyectado' existe")
-        
-        # Estadísticas de la columna
-        mes_serie = registros_df['Mes Proyectado']
-        st.write(f"- Valores no nulos: {mes_serie.notna().sum()}")
-        st.write(f"- Valores nulos: {mes_serie.isna().sum()}")
-        
-        # Valores únicos
-        valores_unicos = mes_serie.dropna().unique()
-        st.write(f"- Valores únicos: {len(valores_unicos)}")
-        st.write(f"- Lista de valores: {valores_unicos.tolist()}")
-        
-        # Conteo por valor
-        conteo_valores = mes_serie.value_counts()
-        st.write("- Distribución:")
-        st.dataframe(conteo_valores)
-        
-        # Muestra de registros con mes proyectado
-        registros_con_mes = registros_df[registros_df['Mes Proyectado'].notna()]
-        st.write(f"- Registros con mes proyectado: {len(registros_con_mes)}")
-        
-        if len(registros_con_mes) > 0:
-            st.markdown("#### Muestra de registros con Mes Proyectado:")
-            muestra_cols = ['Cod', 'Entidad', 'Mes Proyectado', 'TipoDato']
-            muestra_cols = [col for col in muestra_cols if col in registros_df.columns]
-            st.dataframe(registros_con_mes[muestra_cols].head(10))
-    else:
-        st.error("❌ Columna 'Mes Proyectado' NO existe")
-        st.write("Columnas disponibles:")
-        for i, col in enumerate(registros_df.columns):
-            st.write(f"{i+1}. {col}")
-    
-    # 3. Verificar columna TipoDato
-    st.markdown("### 3. Análisis de 'TipoDato'")
-    
-    if 'TipoDato' in registros_df.columns:
-        st.success("✅ Columna 'TipoDato' existe")
-        
-        tipo_serie = registros_df['TipoDato']
-        st.write(f"- Valores no nulos: {tipo_serie.notna().sum()}")
-        st.write(f"- Valores nulos: {tipo_serie.isna().sum()}")
-        
-        # Valores únicos
-        valores_tipo = tipo_serie.dropna().unique()
-        st.write(f"- Valores únicos: {valores_tipo.tolist()}")
-        
-        # Conteo por tipo
-        conteo_tipo = tipo_serie.value_counts()
-        st.write("- Distribución:")
-        st.dataframe(conteo_tipo)
-    else:
-        st.error("❌ Columna 'TipoDato' NO existe")
-    
-    # 4. Análisis cruzado
-    st.markdown("### 4. Análisis Cruzado")
-    
-    if 'Mes Proyectado' in registros_df.columns and 'TipoDato' in registros_df.columns:
-        # Tabla cruzada
-        tabla_cruzada = pd.crosstab(
-            registros_df['Mes Proyectado'].fillna('Sin Mes'), 
-            registros_df['TipoDato'].fillna('Sin Tipo'),
-            margins=True
-        )
-        st.write("Tabla cruzada Mes Proyectado vs TipoDato:")
-        st.dataframe(tabla_cruzada)
-        
-        # Registros con ambos campos válidos
-        registros_completos = registros_df[
-            (registros_df['Mes Proyectado'].notna()) & 
-            (registros_df['TipoDato'].notna()) &
-            (registros_df['Mes Proyectado'].astype(str).str.strip() != '') &
-            (registros_df['TipoDato'].astype(str).str.strip() != '')
-        ]
-        
-        st.write(f"📊 Registros con Mes Proyectado Y TipoDato válidos: {len(registros_completos)}")
-        
-        if len(registros_completos) > 0:
-            # Separar por tipo
-            nuevos = registros_completos[registros_completos['TipoDato'].str.upper() == 'NUEVO']
-            actualizar = registros_completos[registros_completos['TipoDato'].str.upper() == 'ACTUALIZAR']
-            
-            st.write(f"- Registros NUEVOS con mes: {len(nuevos)}")
-            st.write(f"- Registros ACTUALIZAR con mes: {len(actualizar)}")
-            
-            # Distribución por trimestre
-            meses_q1 = ['Enero', 'Febrero', 'Marzo']
-            meses_q2 = ['Abril', 'Mayo', 'Junio']
-            meses_q3 = ['Julio', 'Agosto', 'Septiembre']
-            meses_q4 = ['Octubre', 'Noviembre', 'Diciembre']
-            
-            for tipo, df_tipo in [('NUEVOS', nuevos), ('ACTUALIZAR', actualizar)]:
-                st.write(f"\n**Distribución {tipo} por trimestre:**")
-                q1 = len(df_tipo[df_tipo['Mes Proyectado'].isin(meses_q1)])
-                q2 = len(df_tipo[df_tipo['Mes Proyectado'].isin(meses_q2)])
-                q3 = len(df_tipo[df_tipo['Mes Proyectado'].isin(meses_q3)])
-                q4 = len(df_tipo[df_tipo['Mes Proyectado'].isin(meses_q4)])
-                
-                st.write(f"- Q1: {q1}, Q2: {q2}, Q3: {q3}, Q4: {q4}")
-    
-    # 5. Verificar columnas de publicación
-    st.markdown("### 5. Análisis de Columnas de Publicación")
-    
-    columnas_publicacion = ['Publicación', 'Fecha de publicación programada']
-    for col in columnas_publicacion:
-        if col in registros_df.columns:
-            st.success(f"✅ Columna '{col}' existe")
-            
-            serie = registros_df[col]
-            valores_validos = serie[
-                (serie.notna()) & 
-                (serie.astype(str).str.strip() != '') &
-                (~serie.astype(str).str.strip().isin(['nan', 'None', 'NaN']))
-            ]
-            
-            st.write(f"- Valores válidos en '{col}': {len(valores_validos)}")
-            
-            if len(valores_validos) > 0:
-                st.write(f"- Muestra de valores válidos: {valores_validos.head().tolist()}")
-        else:
-            st.error(f"❌ Columna '{col}' NO existe")
-    
-    # 6. Muestra completa de datos
-    st.markdown("### 6. Muestra Completa de Datos")
-    
-    if not registros_df.empty:
-        # Mostrar primeros registros con columnas relevantes
-        columnas_relevantes = ['Cod', 'Entidad', 'Mes Proyectado', 'TipoDato', 'Publicación', 'Fecha de publicación programada']
-        columnas_disponibles = [col for col in columnas_relevantes if col in registros_df.columns]
-        
-        st.write("Primeros 10 registros con columnas relevantes:")
-        st.dataframe(registros_df[columnas_disponibles].head(10))
-        
-        # Mostrar últimos registros
-        st.write("Últimos 5 registros con columnas relevantes:")
-        st.dataframe(registros_df[columnas_disponibles].tail(5))
-    
-    return len(registros_df) > 0
-    
-    # Pestañas para Nuevos y Actualizados
-    tab_nuevos, tab_actualizados = st.tabs(["📈 Registros Nuevos", "🔄 Registros a Actualizar"])
-    
-    # TAB REGISTROS NUEVOS
-    with tab_nuevos:
-        st.markdown("### 🆕 Seguimiento de Publicaciones - Registros Nuevos")
-        
-        datos_nuevos = calcular_publicaciones_trimestrales(registros_df, 'NUEVO')
-        
-        # Crear grid de medidores
-        st.markdown('<div class="trimestre-grid">', unsafe_allow_html=True)
-        
-        # Crear medidores para cada trimestre que tenga datos
-        trimestres_con_datos = [q for q in ['Q1', 'Q2', 'Q3', 'Q4'] if datos_nuevos[q]['meta'] > 0]
-        
-        if not trimestres_con_datos:
-            st.warning("No hay registros nuevos con 'Mes Proyectado' asignado.")
-        else:
-            # Dividir en columnas
-            cols = st.columns(min(len(trimestres_con_datos), 4))
-            
-            for idx, trimestre in enumerate(trimestres_con_datos):
-                datos = datos_nuevos[trimestre]
-                
-                with cols[idx % 4]:
-                    # Título del trimestre
-                    trimestre_nombre = {
-                        'Q1': '🌱 Q1 2025\nEnero - Marzo',
-                        'Q2': '☀️ Q2 2025\nAbril - Junio',
-                        'Q3': '🍂 Q3 2025\nJulio - Septiembre',
-                        'Q4': '❄️ Q4 2025\nOctubre - Diciembre'
-                    }[trimestre]
-                    
-                    # Crear medidor
-                    fig_publicacion = crear_medidor_publicaciones(
-                        datos['porcentaje'],
-                        trimestre_nombre,
-                        datos['meta'],
-                        datos['avance'],
-                        trimestre
-                    )
-                    st.plotly_chart(fig_publicacion, use_container_width=True, key=f"nuevos_pub_{trimestre}")
-                    
-                    # Información detallada
-                    avance_class = get_avance_class(datos['porcentaje'])
-                    st.markdown(f"""
-                    <div class="gauge-info-card">
-                        <div class="meta-vs-avance">
-                            <span class="meta-text">Meta: {datos['meta']} publicaciones</span>
-                            <span class="{avance_class}">Real: {datos['avance']} ({datos['porcentaje']:.1f}%)</span>
-                        </div>
-                        <div class="detalle-info">
-                            📅 Programadas: {datos['programados']} | ⏳ Pendientes: {datos['pendientes']}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Resumen para registros nuevos
-        st.markdown("### 📊 Resumen Anual - Registros Nuevos")
-        
-        total_meta_nuevos = sum([datos_nuevos[q]['meta'] for q in ['Q1', 'Q2', 'Q3', 'Q4']])
-        total_avance_nuevos = sum([datos_nuevos[q]['avance'] for q in ['Q1', 'Q2', 'Q3', 'Q4']])
-        promedio_nuevos = (total_avance_nuevos / total_meta_nuevos * 100) if total_meta_nuevos > 0 else 0
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.markdown(f"""
-            <div class="summary-card">
-                <div class="summary-value">{promedio_nuevos:.1f}%</div>
-                <div class="summary-label">Promedio Anual</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown(f"""
-            <div class="summary-card">
-                <div class="summary-value">{total_avance_nuevos}/{total_meta_nuevos}</div>
-                <div class="summary-label">Publicaciones Reales/Meta</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            trimestres_activos = len(trimestres_con_datos)
-            st.markdown(f"""
-            <div class="summary-card">
-                <div class="summary-value">{trimestres_activos}</div>
-                <div class="summary-label">Trimestres Activos</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4:
-            mejor_trimestre = max(trimestres_con_datos, key=lambda q: datos_nuevos[q]['porcentaje']) if trimestres_con_datos else "N/A"
-            st.markdown(f"""
-            <div class="summary-card">
-                <div class="summary-value">{mejor_trimestre}</div>
-                <div class="summary-label">Mejor Trimestre</div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # TAB REGISTROS A ACTUALIZAR
-    with tab_actualizados:
-        st.markdown("### 🔄 Seguimiento de Publicaciones - Registros a Actualizar")
-        
-        datos_actualizar = calcular_publicaciones_trimestrales(registros_df, 'ACTUALIZAR')
-        
-        # Crear grid de medidores
-        st.markdown('<div class="trimestre-grid">', unsafe_allow_html=True)
-        
-        # Crear medidores para cada trimestre que tenga datos
-        trimestres_con_datos = [q for q in ['Q1', 'Q2', 'Q3', 'Q4'] if datos_actualizar[q]['meta'] > 0]
-        
-        if not trimestres_con_datos:
-            st.warning("No hay registros a actualizar con 'Mes Proyectado' asignado.")
-        else:
-            # Dividir en columnas
-            cols = st.columns(min(len(trimestres_con_datos), 4))
-            
-            for idx, trimestre in enumerate(trimestres_con_datos):
-                datos = datos_actualizar[trimestre]
-                
-                with cols[idx % 4]:
-                    # Título del trimestre
-                    trimestre_nombre = {
-                        'Q1': '🌱 Q1 2025\nEnero - Marzo',
-                        'Q2': '☀️ Q2 2025\nAbril - Junio',
-                        'Q3': '🍂 Q3 2025\nJulio - Septiembre',
-                        'Q4': '❄️ Q4 2025\nOctubre - Diciembre'
-                    }[trimestre]
-                    
-                    # Crear medidor
-                    fig_publicacion = crear_medidor_publicaciones(
-                        datos['porcentaje'],
-                        trimestre_nombre,
-                        datos['meta'],
-                        datos['avance'],
-                        trimestre
-                    )
-                    st.plotly_chart(fig_publicacion, use_container_width=True, key=f"actualizar_pub_{trimestre}")
-                    
-                    # Información detallada
-                    avance_class = get_avance_class(datos['porcentaje'])
-                    st.markdown(f"""
-                    <div class="gauge-info-card">
-                        <div class="meta-vs-avance">
-                            <span class="meta-text">Meta: {datos['meta']} publicaciones</span>
-                            <span class="{avance_class}">Real: {datos['avance']} ({datos['porcentaje']:.1f}%)</span>
-                        </div>
-                        <div class="detalle-info">
-                            📅 Programadas: {datos['programados']} | ⏳ Pendientes: {datos['pendientes']}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Resumen para registros a actualizar
-        st.markdown("### 📊 Resumen Anual - Registros a Actualizar")
-        
-        total_meta_actualizar = sum([datos_actualizar[q]['meta'] for q in ['Q1', 'Q2', 'Q3', 'Q4']])
-        total_avance_actualizar = sum([datos_actualizar[q]['avance'] for q in ['Q1', 'Q2', 'Q3', 'Q4']])
-        promedio_actualizar = (total_avance_actualizar / total_meta_actualizar * 100) if total_meta_actualizar > 0 else 0
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.markdown(f"""
-            <div class="summary-card">
-                <div class="summary-value">{promedio_actualizar:.1f}%</div>
-                <div class="summary-label">Promedio Anual</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown(f"""
-            <div class="summary-card">
-                <div class="summary-value">{total_avance_actualizar}/{total_meta_actualizar}</div>
-                <div class="summary-label">Publicaciones Reales/Meta</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            trimestres_activos = len(trimestres_con_datos)
-            st.markdown(f"""
-            <div class="summary-card">
-                <div class="summary-value">{trimestres_activos}</div>
-                <div class="summary-label">Trimestres Activos</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4:
-            mejor_trimestre = max(trimestres_con_datos, key=lambda q: datos_actualizar[q]['porcentaje']) if trimestres_con_datos else "N/A"
-            st.markdown(f"""
-            <div class="summary-card">
-                <div class="summary-value">{mejor_trimestre}</div>
-                <div class="summary-label">Mejor Trimestre</div>
-            </div>
-            """, unsafe_allow_html=True)
-    
     
 # ========== FUNCIÓN PRINCIPAL ==========
 
