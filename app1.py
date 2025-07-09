@@ -1873,7 +1873,7 @@ def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_fi
 # COPIAR ESTA FUNCIÓN COMPLETA EN TU app1.py ANTES DE def main():
 
 # ========== FUNCIÓN SEGUIMIENTO TRIMESTRAL - SOLO PUBLICACIONES ==========
-def mostrar_seguimiento_trimestral(registros_df):
+def mostrar_seguimiento_trimestral(registros_df, meta_df):
     """Muestra el seguimiento trimestral de publicaciones: avance real vs meta programada."""
     st.markdown('<div class="subtitle">Seguimiento Trimestral - Publicaciones: Meta vs Avance Real</div>', unsafe_allow_html=True)
     
@@ -1949,7 +1949,7 @@ def mostrar_seguimiento_trimestral(registros_df):
         return fig
     
     # Función de cálculo para trimestres
-    def calcular_publicaciones_trimestrales(df, tipo_dato):
+    def calcular_publicaciones_trimestrales(df, tipo_dato, meta_df):
         """Calcula datos trimestrales de publicaciones"""
         
         if 'TipoDato' not in df.columns:
@@ -1983,8 +1983,45 @@ def mostrar_seguimiento_trimestral(registros_df):
                 df_trimestre = df_filtrado[df_filtrado['Mes Proyectado'].isin(meses)]
                 
                 # META: Total de registros que deberían estar publicados
-                meta_publicaciones = len(df_trimestre)
-                
+                # NUEVO CÓDIGO: Calcular meta desde tabla de metas (diferencias acumuladas)
+                try:
+                    if tipo_dato.upper() == 'NUEVO':
+                        columna_meta = 4  # Columna de publicación para NUEVOS
+                    else:  # ACTUALIZAR
+                        columna_meta = 9  # Columna de publicación para ACTUALIZAR
+                    
+                    # Buscar valores en meta_df
+                    valor_31_marzo = None
+                    valor_30_junio = None
+                    valor_30_septiembre = None
+                    valor_31_diciembre = None
+                    
+                    for idx, row in meta_df.iterrows():
+                        fecha_str = str(row[0]).strip()
+                        if fecha_str == '31/03/2025':
+                            valor_31_marzo = int(row[columna_meta]) if pd.notna(row[columna_meta]) else 0
+                        elif fecha_str == '30/06/2025':
+                            valor_30_junio = int(row[columna_meta]) if pd.notna(row[columna_meta]) else 0
+                        elif fecha_str == '30/09/2025':
+                            valor_30_septiembre = int(row[columna_meta]) if pd.notna(row[columna_meta]) else 0
+                        elif fecha_str == '31/12/2025':
+                            valor_31_diciembre = int(row[columna_meta]) if pd.notna(row[columna_meta]) else 0
+                    
+                    # Calcular meta del trimestre según diferencias acumuladas
+                    if trimestre == 'Q1':
+                        meta_publicaciones = valor_31_marzo if valor_31_marzo is not None else 0
+                    elif trimestre == 'Q2':
+                        meta_publicaciones = (valor_30_junio - valor_31_marzo) if valor_30_junio is not None and valor_31_marzo is not None else 0
+                    elif trimestre == 'Q3':
+                        meta_publicaciones = (valor_30_septiembre - valor_30_junio) if valor_30_septiembre is not None and valor_30_junio is not None else 0
+                    else:  # Q4
+                        meta_publicaciones = (valor_31_diciembre - valor_30_septiembre) if valor_31_diciembre is not None and valor_30_septiembre is not None else 0
+                        
+                except Exception:
+                    # Fallback
+                    meta_publicaciones = len(df_trimestre)             
+
+               
                 # AVANCE: Registros con fecha real de publicación
                 avance_publicaciones = 0
                 if 'Publicación' in df_trimestre.columns and len(df_trimestre) > 0:
@@ -2031,7 +2068,7 @@ def mostrar_seguimiento_trimestral(registros_df):
     with tab_nuevos:
         st.markdown("### 🆕 Seguimiento de Publicaciones - Registros Nuevos")
         
-        datos_nuevos = calcular_publicaciones_trimestrales(registros_con_mes, 'NUEVO')
+        datos_nuevos = calcular_publicaciones_trimestrales(registros_con_mes, 'NUEVO', meta_df)
         
         # Crear medidores para cada trimestre que tenga datos
         trimestres_con_datos = [q for q in ['Q1', 'Q2', 'Q3', 'Q4'] if datos_nuevos[q]['meta'] > 0]
@@ -2074,7 +2111,7 @@ def mostrar_seguimiento_trimestral(registros_df):
     with tab_actualizados:
         st.markdown("### 🔄 Seguimiento de Publicaciones - Registros a Actualizar")
         
-        datos_actualizar = calcular_publicaciones_trimestrales(registros_con_mes, 'ACTUALIZAR')
+        datos_actualizar = calcular_publicaciones_trimestrales(registros_con_mes, 'ACTUALIZAR', meta_df)
         
         # Crear medidores para cada trimestre que tenga datos
         trimestres_con_datos = [q for q in ['Q1', 'Q2', 'Q3', 'Q4'] if datos_actualizar[q]['meta'] > 0]
@@ -2420,7 +2457,7 @@ def main():
             registros_df = mostrar_edicion_registros(registros_df)
 
         with tab3:
-            mostrar_seguimiento_trimestral(registros_df)
+            mostrar_seguimiento_trimestral(registros_df, meta_df)
         
         # ===== TAB 4: ALERTAS =====
         with tab4:
