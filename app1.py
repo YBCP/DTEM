@@ -2859,23 +2859,7 @@ def main():
                 except:
                     ultima_actualizacion = datetime.now().strftime("%H:%M")
                     st.metric("Actualizado", ultima_actualizacion)
-        # Información de versión con características de seguridad
-        st.info("""
-        **🛡️ Tablero de Control Ultra Seguro - Datos Temáticos - Ideca**
         
-        **Características de Seguridad Implementadas:**
-        - ✅ Verificación automática de integridad de datos
-        - ✅ Respaldo automático antes de cualquier modificación  
-        - ✅ Restauración automática en caso de pérdida de datos
-        - ✅ Respaldos locales adicionales como seguridad extra
-        - ✅ Detección automática de datos corruptos o vacíos
-        - ✅ Sistema de alertas en tiempo real sobre el estado de respaldos
-        - ✅ Panel de restauración manual para casos especiales
-        
-        **Protección Anti-Pérdida de Datos:** Si la tabla Registros se borra accidentalmente, 
-        el sistema detectará automáticamente el problema y restaurará los datos desde el último respaldo válido.
-        """)
-
     except Exception as e:
         st.error(f"Error crítico: {str(e)}")
         
