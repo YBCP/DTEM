@@ -1104,7 +1104,294 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         num_campos = len(registros_df.columns)
         st.info(
             f"El archivo de TODOS los registros incluirá {num_registros} registros con {num_campos} campos originales.")
+        
+        
+        
+        def crear_treemap_funcionarios(df_filtrado):
+            """Crea un treemap interactivo mostrando la distribución de registros por funcionario."""
+            
+            # Verificar si hay datos de funcionarios
+            if 'Funcionario' not in df_filtrado.columns:
+                st.warning("⚠️ No se encontró la columna 'Funcionario' en los datos")
+                return
+            
+            # Filtrar registros con funcionario asignado
+            registros_con_funcionario = df_filtrado[
+                (df_filtrado['Funcionario'].notna()) & 
+                (df_filtrado['Funcionario'].astype(str).str.strip() != '') &
+                (df_filtrado['Funcionario'].astype(str).str.strip() != 'nan') &
+                (df_filtrado['Funcionario'].astype(str).str.strip() != 'None')
+            ]
+            
+            if registros_con_funcionario.empty:
+                st.info("📋 No hay registros con funcionario asignado en los datos filtrados")
+                return
+            
+            # Contar registros por funcionario
+            funcionarios_count = registros_con_funcionario['Funcionario'].value_counts().reset_index()
+            funcionarios_count.columns = ['Funcionario', 'Cantidad']
+            
+            # Calcular estadísticas adicionales
+            total_registros = len(registros_con_funcionario)
+            funcionarios_count['Porcentaje'] = (funcionarios_count['Cantidad'] / total_registros * 100).round(2)
+            
+            # Calcular avance promedio por funcionario
+            avance_por_funcionario = []
+            for funcionario in funcionarios_count['Funcionario']:
+                registros_funcionario = registros_con_funcionario[registros_con_funcionario['Funcionario'] == funcionario]
+                if 'Porcentaje Avance' in registros_funcionario.columns:
+                    avance_promedio = registros_funcionario['Porcentaje Avance'].mean()
+                else:
+                    avance_promedio = 0
+                avance_por_funcionario.append(avance_promedio)
+            
+            funcionarios_count['Avance Promedio'] = avance_por_funcionario
+            
+            # Crear texto personalizado para el hover
+            hover_text = []
+            for idx, row in funcionarios_count.iterrows():
+                texto = f"""
+                <b>{row['Funcionario']}</b><br>
+                Registros: {row['Cantidad']}<br>
+                Porcentaje: {row['Porcentaje']:.1f}%<br>
+                Avance Promedio: {row['Avance Promedio']:.1f}%
+                """
+                hover_text.append(texto)
+            
+            # Crear colores basados en el avance promedio
+            def obtener_color_por_avance(avance):
+                if avance >= 90:
+                    return '#2E7D32'  # Verde oscuro - Excelente
+                elif avance >= 75:
+                    return '#388E3C'  # Verde - Muy bueno
+                elif avance >= 60:
+                    return '#689F38'  # Verde claro - Bueno
+                elif avance >= 40:
+                    return '#FBC02D'  # Amarillo - Regular
+                elif avance >= 25:
+                    return '#FF8F00'  # Naranja - Bajo
+                else:
+                    return '#D32F2F'  # Rojo - Crítico
+            
+            # Asignar colores basados en el avance
+            colores_avance = [obtener_color_por_avance(avance) for avance in funcionarios_count['Avance Promedio']]
+            
+            # Crear el treemap
+            fig_treemap = go.Figure(go.Treemap(
+                labels=funcionarios_count['Funcionario'],
+                values=funcionarios_count['Cantidad'],
+                parents=[""] * len(funcionarios_count),
+                
+                # Personalización del texto
+                text=[f"{func}<br>{cant} registros<br>{porc:.1f}%" 
+                      for func, cant, porc in zip(funcionarios_count['Funcionario'], 
+                                                funcionarios_count['Cantidad'], 
+                                                funcionarios_count['Porcentaje'])],
+                textinfo="text",
+                textfont=dict(size=12, color='white'),
+                
+                # Hover personalizado
+                hovertemplate='<b>%{label}</b><br>' +
+                             'Registros: %{value}<br>' +
+                             'Porcentaje: %{customdata[0]:.1f}%<br>' +
+                             'Avance Promedio: %{customdata[1]:.1f}%<br>' +
+                             '<extra></extra>',
+                customdata=list(zip(funcionarios_count['Porcentaje'], funcionarios_count['Avance Promedio'])),
+                
+                # Colores
+                marker=dict(
+                    colors=colores_avance,
+                    line=dict(color='white', width=2)
+                ),
+                
+                # Configuración del treemap
+                pathbar=dict(visible=False),
+                textposition="middle center",
+                
+                # Configuración de la fuente
+                texttemplate="%{label}<br>%{value} registros<br>%{customdata[0]:.1f}%",
+            ))
+            
+            # Personalizar el layout
+            fig_treemap.update_layout(
+                title={
+                    'text': "🗺️ Distribución de Registros por Funcionario",
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'font': {'size': 18, 'color': '#2c3e50'}
+                },
+                font=dict(family="Arial", size=12),
+                margin=dict(t=60, l=20, r=20, b=20),
+                height=500,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            
+            return fig_treemap, funcionarios_count
+        
+        # SECCIÓN PRINCIPAL: Agregar después de la sección de descarga
+        st.markdown("---")
+        st.markdown("### 🗺️ Distribución de Registros por Funcionario")
+        
+        # Crear el treemap
+        treemap_result = crear_treemap_funcionarios(df_filtrado)
+        
+        if treemap_result:
+            fig_treemap, funcionarios_data = treemap_result
+            
+            # Mostrar el treemap
+            st.plotly_chart(fig_treemap, use_container_width=True)
+            
+            # Crear métricas resumidas
+            st.markdown("#### 📊 Métricas de Distribución")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                total_funcionarios = len(funcionarios_data)
+                st.metric("Total Funcionarios", total_funcionarios)
+            
+            with col2:
+                max_registros = funcionarios_data['Cantidad'].max()
+                funcionario_top = funcionarios_data.loc[funcionarios_data['Cantidad'].idxmax(), 'Funcionario']
+                st.metric("Máximo Registros", f"{max_registros}", help=f"Funcionario: {funcionario_top}")
+            
+            with col3:
+                promedio_registros = funcionarios_data['Cantidad'].mean()
+                st.metric("Promedio por Funcionario", f"{promedio_registros:.1f}")
+            
+            with col4:
+                avance_general = funcionarios_data['Avance Promedio'].mean()
+                st.metric("Avance Promedio General", f"{avance_general:.1f}%")
+            
+            # Leyenda de colores
+            st.markdown("#### 🎨 Leyenda de Colores (Basada en Avance Promedio)")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown("""
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 20px; height: 20px; background-color: #2E7D32; border-radius: 4px;"></div>
+                        <span>90-100%: Excelente</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 20px; height: 20px; background-color: #388E3C; border-radius: 4px;"></div>
+                        <span>75-89%: Muy Bueno</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown("""
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 20px; height: 20px; background-color: #689F38; border-radius: 4px;"></div>
+                        <span>60-74%: Bueno</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 20px; height: 20px; background-color: #FBC02D; border-radius: 4px;"></div>
+                        <span>40-59%: Regular</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown("""
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 20px; height: 20px; background-color: #FF8F00; border-radius: 4px;"></div>
+                        <span>25-39%: Bajo</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 20px; height: 20px; background-color: #D32F2F; border-radius: 4px;"></div>
+                        <span>0-24%: Crítico</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Tabla detallada expandible
+            with st.expander("📋 Ver Tabla Detallada"):
+                # Ordenar por cantidad descendente
+                tabla_ordenada = funcionarios_data.sort_values('Cantidad', ascending=False)
+                
+                # Formatear la tabla
+                tabla_formateada = tabla_ordenada.copy()
+                tabla_formateada['Porcentaje'] = tabla_formateada['Porcentaje'].apply(lambda x: f"{x:.1f}%")
+                tabla_formateada['Avance Promedio'] = tabla_formateada['Avance Promedio'].apply(lambda x: f"{x:.1f}%")
+                
+                # Mostrar tabla con estilo
+                st.dataframe(
+                    tabla_formateada.style.format({
+                        'Cantidad': '{:,}',
+                    }).background_gradient(subset=['Cantidad'], cmap='Blues'),
+                    use_container_width=True
+                )
+                
+                # Botón para descargar tabla de funcionarios
+                output_funcionarios = io.BytesIO()
+                with pd.ExcelWriter(output_funcionarios, engine='openpyxl') as writer:
+                    funcionarios_data.to_excel(writer, sheet_name='Distribución Funcionarios', index=False)
+        
+                excel_funcionarios = output_funcionarios.getvalue()
+                st.download_button(
+                    label="📥 Descargar distribución por funcionarios (Excel)",
+                    data=excel_funcionarios,
+                    file_name=f"distribucion_funcionarios_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    help="Descarga la tabla de distribución de registros por funcionario"
+                )
+            
+            # Insights automáticos
+            st.markdown("#### 💡 Insights Automáticos")
+            
+            # Calcular insights
+            funcionario_mas_registros = funcionarios_data.loc[funcionarios_data['Cantidad'].idxmax()]
+            funcionario_mejor_avance = funcionarios_data.loc[funcionarios_data['Avance Promedio'].idxmax()]
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.info(f"""
+                **👑 Funcionario con más registros:**
+                
+                {funcionario_mas_registros['Funcionario']}
+                - {funcionario_mas_registros['Cantidad']} registros ({funcionario_mas_registros['Porcentaje']:.1f}%)
+                - Avance promedio: {funcionario_mas_registros['Avance Promedio']:.1f}%
+                """)
+            
+            with col2:
+                st.success(f"""
+                **⭐ Funcionario con mejor avance:**
+                
+                {funcionario_mejor_avance['Funcionario']}
+                - {funcionario_mejor_avance['Cantidad']} registros
+                - Avance promedio: {funcionario_mejor_avance['Avance Promedio']:.1f}%
+                """)
+            
+            # Recomendaciones
+            if funcionarios_data['Avance Promedio'].min() < 50:
+                funcionarios_bajo_avance = funcionarios_data[funcionarios_data['Avance Promedio'] < 50]
+                st.warning(f"""
+                **⚠️ Atención requerida:** {len(funcionarios_bajo_avance)} funcionario(s) tienen avance promedio inferior al 50%:
+                
+                {', '.join(funcionarios_bajo_avance['Funcionario'].tolist())}
+                """)
+            
+            # Mostrar distribución equilibrada
+            desviacion_estandar = funcionarios_data['Cantidad'].std()
+            coeficiente_variacion = desviacion_estandar / funcionarios_data['Cantidad'].mean()
+            
+            if coeficiente_variacion < 0.3:
+                st.success("✅ **Distribución equilibrada:** La carga de trabajo está bien distribuida entre funcionarios")
+            elif coeficiente_variacion < 0.6:
+                st.warning("⚠️ **Distribución moderada:** Considere redistribuir algunos registros para equilibrar la carga")
+            else:
+                st.error("🚨 **Distribución desbalanceada:** Se recomienda redistribuir registros para mejorar el equilibrio")
 
+
+                         
     except Exception as e:
         st.error(f"Error al mostrar la tabla de registros: {e}")
         if 'columnas_mostrar_existentes' in locals():
