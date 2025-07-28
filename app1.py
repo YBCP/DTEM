@@ -2178,8 +2178,7 @@ def mostrar_reportes(registros_df, entidad_filtro, tipo_dato_filtro, acuerdo_fil
         st.info("**Mostrando todos los registros** (sin filtros aplicados)")
 
 
-# ========== FUNCIÓN SEGUIMIENTO TRIMESTRAL - COMPLETA Y CORRECTA ==========
-# COPIAR ESTA FUNCIÓN COMPLETA EN TU app1.py ANTES DE def main():
+
 
 # ========== FUNCIÓN SEGUIMIENTO TRIMESTRAL - SOLO PUBLICACIONES ==========
 def mostrar_seguimiento_trimestral(registros_df, meta_df):
@@ -2522,93 +2521,183 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
             'Q4': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0}
         }
     
-    # Pestañas para Nuevos y Actualizados
+    
+    # Calcular datos una vez para ambas pestañas
+    datos_nuevos = calcular_publicaciones_trimestrales(registros_con_mes, 'NUEVO', meta_df)
+    datos_actualizar = calcular_publicaciones_trimestrales(registros_con_mes, 'ACTUALIZAR', meta_df)
+    
+    # GRÁFICO PRINCIPAL DE LÍNEAS (antes de las pestañas)
+    st.markdown("### 📈 Vista General - Evolución Acumulativa")
+    fig_lineas = crear_grafico_lineas_acumulativo(datos_nuevos, datos_actualizar)
+    st.plotly_chart(fig_lineas, use_container_width=True)
+    
+    # Pestañas para detalles específicos
     tab_nuevos, tab_actualizados = st.tabs(["📈 Registros Nuevos", "🔄 Registros a Actualizar"])
     
     # TAB REGISTROS NUEVOS
     with tab_nuevos:
-        st.markdown("### 🆕 Seguimiento de Publicaciones - Registros Nuevos")
+        st.markdown("### 🆕 Seguimiento Acumulativo - Registros Nuevos")
         
-        datos_nuevos = calcular_publicaciones_trimestrales(registros_con_mes, 'NUEVO', meta_df)
-        
-        # Crear medidores para cada trimestre que tenga datos
+        # Verificar si hay datos
         trimestres_con_datos = [q for q in ['Q1', 'Q2', 'Q3', 'Q4'] if datos_nuevos[q]['meta'] > 0]
         
         if not trimestres_con_datos:
             st.warning("⚠️ No hay registros nuevos con 'Mes Proyectado' asignado.")
         else:
-            # Dividir en columnas
-            cols = st.columns(min(len(trimestres_con_datos), 4))
+            # MÉTRICAS RESUMEN
+            col1, col2, col3, col4 = st.columns(4)
             
-            for idx, trimestre in enumerate(trimestres_con_datos):
-                datos = datos_nuevos[trimestre]
-                
-                with cols[idx % 4]:
-                    # Título del trimestre
-                    trimestre_nombre = {
-                        'Q1': 'Q1 2025\n(Ene-Mar)',
-                        'Q2': 'Q2 2025\n(Abr-Jun)',
-                        'Q3': 'Q3 2025\n(Jul-Sep)',
-                        'Q4': 'Q4 2025\n(Oct-Dic)'
-                    }[trimestre]
-                    
-                    # Crear medidor
-                    fig_publicacion = crear_medidor_publicaciones(
-                        datos['porcentaje'],
-                        trimestre_nombre,
-                        datos['meta'],
-                        datos['avance']
+            # Calcular métricas totales
+            meta_total = datos_nuevos['Q4']['meta']
+            avance_total = datos_nuevos['Q4']['avance']
+            porcentaje_total = (avance_total / meta_total * 100) if meta_total > 0 else 0
+            pendientes_total = meta_total - avance_total
+            
+            with col1:
+                st.metric("Meta Total 2025", f"{meta_total}", help="Publicaciones esperadas para fin de año")
+            with col2:
+                st.metric("Publicadas", f"{avance_total}", help="Publicaciones completadas acumuladas")
+            with col3:
+                st.metric("% Cumplimiento", f"{porcentaje_total:.1f}%", help="Porcentaje de cumplimiento acumulado")
+            with col4:
+                st.metric("Pendientes", f"{pendientes_total}", help="Publicaciones pendientes hasta fin de año")
+            
+            st.markdown("---")
+            
+            # MEDIDORES CIRCULARES - Solo trimestres actuales (Q1, Q2)
+            st.markdown("#### 🎯 Medidores de Cumplimiento Acumulativo")
+            
+            col1, col2, col3 = st.columns([1, 1, 1])
+            
+            with col1:
+                if datos_nuevos['Q1']['meta'] > 0:
+                    fig_q1 = crear_medidor_publicaciones(
+                        datos_nuevos['Q1']['porcentaje'],
+                        'Q1 2025<br>(Ene-Mar)',
+                        datos_nuevos['Q1']['meta'],
+                        datos_nuevos['Q1']['avance']
                     )
-                    st.plotly_chart(fig_publicacion, use_container_width=True, key=f"nuevos_{trimestre}")
+                    st.plotly_chart(fig_q1, use_container_width=True, key="nuevos_q1_medidor")
                     
-                    # Información detallada
+                    # Información adicional
                     st.markdown(f"""
-                    **Meta:** {datos['meta']} publicaciones  
-                    **Real:** {datos['avance']} ({datos['porcentaje']:.1f}%)  
-                    **Pendientes:** {datos['pendientes']}
+                    **📊 Detalles Q1:**
+                    - Meta acumulada: {datos_nuevos['Q1']['meta']}
+                    - Publicadas: {datos_nuevos['Q1']['avance']}
+                    - Pendientes: {datos_nuevos['Q1']['pendientes']}
+                    """)
+            
+            with col2:
+                if datos_nuevos['Q2']['meta'] > 0:
+                    fig_q2 = crear_medidor_publicaciones(
+                        datos_nuevos['Q2']['porcentaje'],
+                        'Q2 2025<br>(Ene-Jun)',
+                        datos_nuevos['Q2']['meta'],
+                        datos_nuevos['Q2']['avance']
+                    )
+                    st.plotly_chart(fig_q2, use_container_width=True, key="nuevos_q2_medidor")
+                    
+                    # Información adicional
+                    st.markdown(f"""
+                    **📊 Detalles Q2:**
+                    - Meta acumulada: {datos_nuevos['Q2']['meta']}
+                    - Publicadas: {datos_nuevos['Q2']['avance']}
+                    - Pendientes: {datos_nuevos['Q2']['pendientes']}
+                    """)
+            
+            with col3:
+                # Proyección o información adicional
+                if datos_nuevos['Q3']['meta'] > 0:
+                    st.markdown("#### 📈 Proyección Q3")
+                    st.info(f"""
+                    **Meta Q3 (Ene-Sep):** {datos_nuevos['Q3']['meta']}
+                    
+                    **Para alcanzar la meta:**
+                    - Publicaciones adicionales necesarias: {datos_nuevos['Q3']['pendientes']}
+                    - Trimestres restantes: Q3, Q4
                     """)
     
     # TAB REGISTROS A ACTUALIZAR
     with tab_actualizados:
-        st.markdown("### 🔄 Seguimiento de Publicaciones - Registros a Actualizar")
+        st.markdown("### 🔄 Seguimiento Acumulativo - Registros a Actualizar")
         
-        datos_actualizar = calcular_publicaciones_trimestrales(registros_con_mes, 'ACTUALIZAR', meta_df)
-        
-        # Crear medidores para cada trimestre que tenga datos
+        # Verificar si hay datos
         trimestres_con_datos = [q for q in ['Q1', 'Q2', 'Q3', 'Q4'] if datos_actualizar[q]['meta'] > 0]
         
         if not trimestres_con_datos:
             st.warning("⚠️ No hay registros a actualizar con 'Mes Proyectado' asignado.")
         else:
-            # Dividir en columnas
-            cols = st.columns(min(len(trimestres_con_datos), 4))
+            # MÉTRICAS RESUMEN
+            col1, col2, col3, col4 = st.columns(4)
             
-            for idx, trimestre in enumerate(trimestres_con_datos):
-                datos = datos_actualizar[trimestre]
-                
-                with cols[idx % 4]:
-                    # Título del trimestre
-                    trimestre_nombre = {
-                        'Q1': 'Q1 2025\n(Ene-Mar)',
-                        'Q2': 'Q2 2025\n(Abr-Jun)',
-                        'Q3': 'Q3 2025\n(Jul-Sep)',
-                        'Q4': 'Q4 2025\n(Oct-Dic)'
-                    }[trimestre]
-                    
-                    # Crear medidor
-                    fig_publicacion = crear_medidor_publicaciones(
-                        datos['porcentaje'],
-                        trimestre_nombre,
-                        datos['meta'],
-                        datos['avance']
+            # Calcular métricas totales
+            meta_total = datos_actualizar['Q4']['meta']
+            avance_total = datos_actualizar['Q4']['avance']
+            porcentaje_total = (avance_total / meta_total * 100) if meta_total > 0 else 0
+            pendientes_total = meta_total - avance_total
+            
+            with col1:
+                st.metric("Meta Total 2025", f"{meta_total}", help="Publicaciones esperadas para fin de año")
+            with col2:
+                st.metric("Publicadas", f"{avance_total}", help="Publicaciones completadas acumuladas")
+            with col3:
+                st.metric("% Cumplimiento", f"{porcentaje_total:.1f}%", help="Porcentaje de cumplimiento acumulado")
+            with col4:
+                st.metric("Pendientes", f"{pendientes_total}", help="Publicaciones pendientes hasta fin de año")
+            
+            st.markdown("---")
+            
+            # MEDIDORES CIRCULARES - Solo trimestres actuales (Q1, Q2)
+            st.markdown("#### 🎯 Medidores de Cumplimiento Acumulativo")
+            
+            col1, col2, col3 = st.columns([1, 1, 1])
+            
+            with col1:
+                if datos_actualizar['Q1']['meta'] > 0:
+                    fig_q1 = crear_medidor_publicaciones(
+                        datos_actualizar['Q1']['porcentaje'],
+                        'Q1 2025<br>(Ene-Mar)',
+                        datos_actualizar['Q1']['meta'],
+                        datos_actualizar['Q1']['avance']
                     )
-                    st.plotly_chart(fig_publicacion, use_container_width=True, key=f"actualizar_{trimestre}")
+                    st.plotly_chart(fig_q1, use_container_width=True, key="actualizar_q1_medidor")
                     
-                    # Información detallada
+                    # Información adicional
                     st.markdown(f"""
-                    **Meta:** {datos['meta']} publicaciones  
-                    **Real:** {datos['avance']} ({datos['porcentaje']:.1f}%)  
-                    **Pendientes:** {datos['pendientes']}
+                    **📊 Detalles Q1:**
+                    - Meta acumulada: {datos_actualizar['Q1']['meta']}
+                    - Publicadas: {datos_actualizar['Q1']['avance']}
+                    - Pendientes: {datos_actualizar['Q1']['pendientes']}
+                    """)
+            
+            with col2:
+                if datos_actualizar['Q2']['meta'] > 0:
+                    fig_q2 = crear_medidor_publicaciones(
+                        datos_actualizar['Q2']['porcentaje'],
+                        'Q2 2025<br>(Ene-Jun)',
+                        datos_actualizar['Q2']['meta'],
+                        datos_actualizar['Q2']['avance']
+                    )
+                    st.plotly_chart(fig_q2, use_container_width=True, key="actualizar_q2_medidor")
+                    
+                    # Información adicional
+                    st.markdown(f"""
+                    **📊 Detalles Q2:**
+                    - Meta acumulada: {datos_actualizar['Q2']['meta']}
+                    - Publicadas: {datos_actualizar['Q2']['avance']}
+                    - Pendientes: {datos_actualizar['Q2']['pendientes']}
+                    """)
+            
+            with col3:
+                # Proyección o información adicional
+                if datos_actualizar['Q3']['meta'] > 0:
+                    st.markdown("#### 📈 Proyección Q3")
+                    st.info(f"""
+                    **Meta Q3 (Ene-Sep):** {datos_actualizar['Q3']['meta']}
+                    
+                    **Para alcanzar la meta:**
+                    - Publicaciones adicionales necesarias: {datos_actualizar['Q3']['pendientes']}
+                    - Trimestres restantes: Q3, Q4
                     """)
     
 # ========== FUNCIÓN PRINCIPAL ==========
