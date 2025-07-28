@@ -2216,47 +2216,91 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     
     # Función para crear medidor circular
     def crear_medidor_publicaciones(valor, titulo, meta_num, avance_num):
+            
         # Determinar color según porcentaje
-        if valor >= 90: color = '#27ae60'
-        elif valor >= 75: color = '#2ecc71'
-        elif valor >= 50: color = '#f39c12'
-        elif valor >= 25: color = '#e74c3c'
-        else: color = '#c0392b'
+        if valor >= 90: 
+            color = '#27ae60'  # Verde oscuro
+            color_bg = '#d5f4e6'  # Verde claro
+        elif valor >= 75: 
+            color = '#2ecc71'  # Verde
+            color_bg = '#d5f4e6'
+        elif valor >= 50: 
+            color = '#f39c12'  # Amarillo/Naranja
+            color_bg = '#fef9e7'
+        elif valor >= 25: 
+            color = '#e67e22'  # Naranja
+            color_bg = '#fef2e7'
+        else: 
+            color = '#e74c3c'  # Rojo
+            color_bg = '#fadbd8'
         
         fig = go.Figure(go.Indicator(
-            mode = "gauge+number",
+            mode = "gauge+number+delta",
             value = valor,
             domain = {'x': [0, 1], 'y': [0, 1]},
-            title = {'text': titulo, 'font': {'size': 16}},
+            title = {
+                'text': f"<b>{titulo}</b><br><span style='font-size:12px'>Acumulado</span>",
+                'font': {'size': 16, 'color': '#2c3e50'}
+            },
+            delta = {
+                'reference': 75,  # Referencia del 75% como objetivo
+                'increasing': {'color': "#27ae60"},
+                'decreasing': {'color': "#e74c3c"}
+            },
             gauge = {
-                'axis': {'range': [None, 100]},
-                'bar': {'color': color},
+                'axis': {
+                    'range': [None, 100],
+                    'tickwidth': 1,
+                    'tickcolor': "#34495e"
+                },
+                'bar': {
+                    'color': color,
+                    'thickness': 0.75
+                },
                 'bgcolor': '#ecf0f1',
                 'borderwidth': 2,
                 'bordercolor': '#bdc3c7',
                 'steps': [
-                    {'range': [0, 25], 'color': '#fadbd8'},
-                    {'range': [25, 50], 'color': '#f8d7da'},
-                    {'range': [50, 75], 'color': '#fff3cd'},
-                    {'range': [75, 90], 'color': '#d1ecf1'},
-                    {'range': [90, 100], 'color': '#d4edda'}
+                    {'range': [0, 25], 'color': '#fadbd8'},   # Rojo claro
+                    {'range': [25, 50], 'color': '#fef2e7'},  # Naranja claro
+                    {'range': [50, 75], 'color': '#fef9e7'},  # Amarillo claro
+                    {'range': [75, 90], 'color': '#d1ecf1'},  # Azul claro
+                    {'range': [90, 100], 'color': '#d5f4e6'}  # Verde claro
                 ],
                 'threshold': {
-                    'line': {'color': '#BE185D', 'width': 4},
+                    'line': {'color': '#8e44ad', 'width': 4},
                     'thickness': 0.75,
-                    'value': 75
+                    'value': 75  # Línea objetivo del 75%
                 }
             },
-            number = {'font': {'size': 20}, 'suffix': '%'}
+            number = {
+                'font': {'size': 24, 'color': '#2c3e50'},
+                'suffix': '%'
+            }
         ))
         
+        # Personalizar layout
         fig.update_layout(
-            height=250,
-            margin=dict(l=20, r=20, t=60, b=20)
+            height=280,
+            margin=dict(l=20, r=20, t=60, b=20),
+            paper_bgcolor='white',
+            plot_bgcolor='white',
+            font={'family': 'Arial', 'color': '#2c3e50'}
+        )
+        
+        # Agregar anotación con información detallada
+        fig.add_annotation(
+            text=f"<b>{avance_num}/{meta_num}</b><br>publicaciones",
+            x=0.5, y=0.15,
+            showarrow=False,
+            font=dict(size=14, color='#34495e'),
+            bgcolor='rgba(255,255,255,0.8)',
+            bordercolor='#bdc3c7',
+            borderwidth=1
         )
         
         return fig
-    
+        
     # Función de cálculo para trimestres
    
     def calcular_publicaciones_trimestrales(df, tipo_dato, meta_df):
