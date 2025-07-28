@@ -2684,6 +2684,7 @@ def main():
         ])
      
         # ===== TAB 1: DASHBOARD =====
+        # ===== TAB 1: DASHBOARD =====
         with tab1:
             st.markdown("### Filtros")
             col1, col2, col3, col4 = st.columns(4)
@@ -2693,28 +2694,38 @@ def main():
                 entidades = ['Todas'] + sorted([e for e in registros_df['Entidad'].unique().tolist() if e])
                 entidad_seleccionada = st.selectbox('Entidad', entidades, key="dash_entidad")
             
+            # Filtrar dataset base según entidad seleccionada
+            df_base_filtros = registros_df.copy()
+            if entidad_seleccionada != 'Todas':
+                df_base_filtros = df_base_filtros[df_base_filtros['Entidad'] == entidad_seleccionada]
+            
             with col2:
-                # Filtro por funcionario
+                # Filtro por funcionario - solo los de la entidad seleccionada
                 funcionarios = ['Todos']
-                if 'Funcionario' in registros_df.columns:
-                    funcionarios_unicos = [f for f in registros_df['Funcionario'].dropna().unique().tolist() if f]
+                if 'Funcionario' in df_base_filtros.columns:
+                    funcionarios_unicos = [f for f in df_base_filtros['Funcionario'].dropna().unique().tolist() if f]
                     funcionarios += sorted(funcionarios_unicos)
                 funcionario_seleccionado = st.selectbox('Funcionario', funcionarios, key="dash_funcionario")
             
+            # Filtrar más según funcionario
+            if funcionario_seleccionado != 'Todos':
+                df_base_filtros = df_base_filtros[df_base_filtros['Funcionario'] == funcionario_seleccionado]
+            
             with col3:
-                # Filtro por tipo de dato
-                tipos_dato = ['Todos'] + sorted([t for t in registros_df['TipoDato'].dropna().unique().tolist() if t])
+                # Filtro por tipo de dato - solo los disponibles en filtros anteriores
+                tipos_dato = ['Todos'] + sorted([t for t in df_base_filtros['TipoDato'].dropna().unique().tolist() if t])
                 tipo_dato_seleccionado = st.selectbox('Tipo de Dato', tipos_dato, key="dash_tipo")
             
+            # Filtrar más según tipo de dato
+            if tipo_dato_seleccionado != 'Todos':
+                df_base_filtros = df_base_filtros[df_base_filtros['TipoDato'] == tipo_dato_seleccionado]
+            
             with col4:
-                # Filtro por nivel de información dependiente de entidad
-                if entidad_seleccionada != 'Todas':
-                    niveles_entidad = registros_df[registros_df['Entidad'] == entidad_seleccionada]['Nivel Información '].dropna().unique().tolist()
-                    niveles_entidad = [n for n in niveles_entidad if n]
-                    niveles = ['Todos'] + sorted(niveles_entidad)
-                    nivel_seleccionado = st.selectbox('Nivel de Información', niveles, key="dash_nivel")
-                else:
-                    nivel_seleccionado = 'Todos'
+                # Filtro por nivel de información - solo los disponibles en filtros anteriores
+                niveles = ['Todos'] + sorted([n for n in df_base_filtros['Nivel Información '].dropna().unique().tolist() if n])
+                nivel_seleccionado = st.selectbox('Nivel de Información', niveles, key="dash_nivel")
+            
+        
             
             # Aplicar filtros
             df_filtrado = registros_df.copy()
