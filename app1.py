@@ -2300,9 +2300,111 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         )
         
         return fig
+    def crear_grafico_lineas_acumulativo(datos_nuevos, datos_actualizar):
+        """Crea gráfico de líneas acumulativo para seguimiento trimestral"""
         
-    # Función de cálculo para trimestres
-   
+        trimestres = ['Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025']
+        
+        # Extraer datos para nuevos
+        metas_nuevos = [datos_nuevos[q]['meta'] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
+        avance_nuevos = [datos_nuevos[q]['avance'] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
+        
+        # Extraer datos para actualizar
+        metas_actualizar = [datos_actualizar[q]['meta'] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
+        avance_actualizar = [datos_actualizar[q]['avance'] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
+        
+        # Crear figura
+        fig = go.Figure()
+        
+        # Líneas para NUEVOS
+        fig.add_trace(go.Scatter(
+            x=trimestres,
+            y=metas_nuevos,
+            mode='lines+markers',
+            name='🎯 Meta Nuevos',
+            line=dict(color='#e74c3c', width=3, dash='dash'),
+            marker=dict(size=10, symbol='diamond'),
+            hovertemplate='<b>Meta Nuevos</b><br>%{x}: %{y} publicaciones<extra></extra>'
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=trimestres,
+            y=avance_nuevos,
+            mode='lines+markers',
+            name='✅ Avance Nuevos',
+            line=dict(color='#27ae60', width=3),
+            marker=dict(size=10),
+            hovertemplate='<b>Avance Nuevos</b><br>%{x}: %{y} publicaciones<extra></extra>'
+        ))
+        
+        # Líneas para ACTUALIZAR
+        fig.add_trace(go.Scatter(
+            x=trimestres,
+            y=metas_actualizar,
+            mode='lines+markers',
+            name='🎯 Meta Actualizar',
+            line=dict(color='#8e44ad', width=3, dash='dash'),
+            marker=dict(size=10, symbol='diamond'),
+            hovertemplate='<b>Meta Actualizar</b><br>%{x}: %{y} publicaciones<extra></extra>'
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=trimestres,
+            y=avance_actualizar,
+            mode='lines+markers',
+            name='✅ Avance Actualizar',
+            line=dict(color='#3498db', width=3),
+            marker=dict(size=10),
+            hovertemplate='<b>Avance Actualizar</b><br>%{x}: %{y} publicaciones<extra></extra>'
+        ))
+        
+        # Configurar layout
+        fig.update_layout(
+            title={
+                'text': '📈 Evolución Acumulativa: Meta vs Avance Real',
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 18, 'color': '#2c3e50'}
+            },
+            xaxis={
+                'title': 'Trimestre',
+                'gridcolor': '#ecf0f1',
+                'linecolor': '#bdc3c7'
+            },
+            yaxis={
+                'title': 'Publicaciones Acumuladas',
+                'gridcolor': '#ecf0f1',
+                'linecolor': '#bdc3c7'
+            },
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            font={'family': 'Arial', 'color': '#2c3e50'},
+            legend={
+                'x': 0.02,
+                'y': 0.98,
+                'bgcolor': 'rgba(255,255,255,0.9)',
+                'bordercolor': '#bdc3c7',
+                'borderwidth': 1
+            },
+            height=500,
+            hovermode='x unified'
+        )
+        
+        # Agregar línea de referencia (ejemplo: 75% de cumplimiento promedio)
+        max_meta = max(max(metas_nuevos), max(metas_actualizar))
+        referencia_75 = max_meta * 0.75
+        
+        fig.add_hline(
+            y=referencia_75,
+            line_dash="dot",
+            line_color="gray",
+            annotation_text="75% Objetivo",
+            annotation_position="bottom right"
+        )
+        
+        return fig    
+        # Función de cálculo para trimestres
+       
     def calcular_publicaciones_trimestrales(df, tipo_dato, meta_df):
     """Calcula datos trimestrales de publicaciones - VERSIÓN ACUMULATIVA"""
     
