@@ -1928,9 +1928,11 @@ def mostrar_alertas_vencimientos(registros_df):
     else:
         st.success("¡No hay alertas de vencimientos pendientes!")
 
+
 # ========== FUNCIÓN REPORTES CON MES PROYECTADO ==========
 
-def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_filtro, 
+
+def mostrar_reportes(registros_df, entidad_filtro, tipo_dato_filtro, acuerdo_filtro, analisis_filtro, 
                     estandares_filtro, publicacion_filtro, finalizado_filtro, mes_filtro):
     """Muestra la pestaña de reportes con tabla completa y filtros específicos - VERSIÓN COMPLETA CON MES."""
     st.markdown('<div class="subtitle">Reportes de Registros</div>', unsafe_allow_html=True)
@@ -1939,9 +1941,8 @@ def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_fi
     df_filtrado = registros_df.copy()
 
     # Filtro por entidad
-    if entidad_reporte != 'Todas':
-        df_filtrado = df_filtrado[df_filtrado['Entidad'] == entidad_reporte]
-
+    if entidad_filtro != 'Todas':
+        df_filtrado = df_filtrado[df_filtrado['Entidad'] == entidad_filtro]
                        
     # Filtro por tipo de dato
     if tipo_dato_filtro != 'Todos':
@@ -2831,7 +2832,8 @@ def main():
             st.markdown("---")
             
             # Mostrar reportes
-            mostrar_reportes(registros_df, tipo_dato_reporte, acuerdo_filtro, analisis_filtro, 
+            # Mostrar reportes
+            mostrar_reportes(registros_df, entidad_reporte, tipo_dato_reporte, acuerdo_filtro, analisis_filtro, 
                            estandares_filtro, publicacion_filtro, finalizado_filtro, mes_filtro)
 
         # ===== FOOTER =====
