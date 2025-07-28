@@ -1937,7 +1937,11 @@ def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_fi
     
     # Aplicar filtros
     df_filtrado = registros_df.copy()
-    
+
+    # Filtro por entidad
+    if entidad_reporte != 'Todas':
+        df_filtrado = df_filtrado[df_filtrado['Entidad'] == entidad_reporte]
+                        
     # Filtro por tipo de dato
     if tipo_dato_filtro != 'Todos':
         df_filtrado = df_filtrado[df_filtrado['TipoDato'].str.upper() == tipo_dato_filtro.upper()]
@@ -2779,39 +2783,43 @@ def main():
             st.markdown("### Filtros de Reportes")
             
             # Primera fila de filtros
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             
             with col1:
+                # Filtro por Entidad
+                entidades_reporte = ['Todas'] + sorted([e for e in registros_df['Entidad'].unique().tolist() if e])
+                entidad_reporte = st.selectbox('Entidad', entidades_reporte, key="reporte_entidad")
+            
+            with col2:
                 tipos_dato_reporte = ['Todos'] + sorted([t for t in registros_df['TipoDato'].dropna().unique().tolist() if t])
                 tipo_dato_reporte = st.selectbox('Tipo de Dato', tipos_dato_reporte, key="reporte_tipo")
             
-            with col2:
+            with col3:
                 acuerdo_opciones = ['Todos', 'Suscrito', 'No Suscrito']
                 acuerdo_filtro = st.selectbox('Acuerdo de Compromiso', acuerdo_opciones, key="reporte_acuerdo")
             
-            with col3:
+            with col4:
                 analisis_opciones = ['Todos', 'Completado', 'No Completado']
                 analisis_filtro = st.selectbox('Análisis y Cronograma', analisis_opciones, key="reporte_analisis")
             
             # Segunda fila de filtros
-            col4, col5, col6 = st.columns(3)
+            col5, col6, col7, col8 = st.columns(4)
             
-            with col4:
+            with col5:
                 estandares_opciones = ['Todos', 'Completado', 'No Completado']
                 estandares_filtro = st.selectbox('Estándares', estandares_opciones, key="reporte_estandares")
             
-            with col5:
+            with col6:
                 publicacion_opciones = ['Todos', 'Completado', 'No Completado']
                 publicacion_filtro = st.selectbox('Publicación', publicacion_opciones, key="reporte_publicacion")
             
-            with col6:
+            with col7:
                 finalizado_opciones = ['Todos', 'Finalizado', 'No Finalizado']
                 finalizado_filtro = st.selectbox('Finalizado', finalizado_opciones, key="reporte_finalizado")
             
-            # Tercera fila de filtros
-            col7, col8, col9 = st.columns(3)
             
-            with col7:
+            
+            with col8:
                 # FILTRO: Mes Proyectado
                 meses_disponibles = ['Todos']
                 if 'Mes Proyectado' in registros_df.columns:
