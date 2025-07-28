@@ -2405,7 +2405,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         # Función de cálculo para trimestres
        
     def calcular_publicaciones_trimestrales(df, tipo_dato, meta_df):
-    """Calcula datos trimestrales de publicaciones - VERSIÓN ACUMULATIVA"""
+        """Calcula datos trimestrales de publicaciones - VERSIÓN ACUMULATIVA"""
     
         if 'TipoDato' not in df.columns:
             return crear_datos_trimestre_vacio()
