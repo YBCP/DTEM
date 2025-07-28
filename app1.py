@@ -14,6 +14,9 @@ import os
 import re
 from fecha_utils import calcular_plazo_analisis, actualizar_plazo_analisis, calcular_plazo_cronograma, actualizar_plazo_cronograma, calcular_plazo_oficio_cierre, actualizar_plazo_oficio_cierre
 
+# Importar funciones de autenticación
+from auth_utils import mostrar_login, mostrar_estado_autenticacion, verificar_autenticacion
+
 # Importar las funciones corregidas
 from config import setup_page, load_css
 from data_utils import (
