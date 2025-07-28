@@ -1761,12 +1761,10 @@ def mostrar_alertas_vencimientos(registros_df):
         col1, col2, col3, col4, col5, col6 = st.columns(6)
 
         with col1:
-            # Filtro por Entidad
-            entidades_alertas = ['Todas'] + sorted([e for e in df_alertas['Entidad'].unique().tolist() if e])
-            entidad_filtro_alertas = st.selectbox(
+            entidad_filtro_alertas = st.multiselect(
                 "Entidad",
-                options=entidades_alertas,
-                key="alerta_entidad"
+                options=df_alertas['Entidad'].unique().tolist(),
+                default=df_alertas['Entidad'].unique().tolist()
             )
 
         with col2:
@@ -1819,8 +1817,9 @@ def mostrar_alertas_vencimientos(registros_df):
         # Aplicar filtros
         df_alertas_filtrado = df_alertas.copy()
 
-        if entidad_filtro_alertas != 'Todas':
-            df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Entidad'] == entidad_filtro_alertas]
+        # Filtro por entidad
+        if entidad_filtro_alertas:
+            df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Entidad'].isin(entidad_filtro_alertas)]
 
         if tipo_alerta_filtro:
             df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Tipo Alerta'].isin(tipo_alerta_filtro)]
