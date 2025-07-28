@@ -1753,58 +1753,37 @@ def mostrar_alertas_vencimientos(registros_df):
                 return 'background-color: #dbeafe; color: #1e40af'
             return ''
 
-        # Mostrar estadísticas de alertas
-        st.markdown("### Resumen de Alertas")
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            num_vencidos = len(df_alertas[df_alertas['Estado'] == 'Vencido'])
-            st.markdown(f"""
-            <div class="metric-card" style="background-color: #fee2e2;">
-                <p style="font-size: 1rem; color: #b91c1c;">Vencidos</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #b91c1c;">{num_vencidos}</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-        with col2:
-            num_proximos = len(df_alertas[df_alertas['Estado'] == 'Próximo a vencer'])
-            st.markdown(f"""
-            <div class="metric-card" style="background-color: #fef3c7;">
-                <p style="font-size: 1rem; color: #b45309;">Próximos a vencer</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #b45309;">{num_proximos}</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-        with col3:
-            num_retrasados = len(df_alertas[df_alertas['Estado'] == 'Completado con retraso'])
-            st.markdown(f"""
-            <div class="metric-card" style="background-color: #dbeafe;">
-                <p style="font-size: 1rem; color: #1e40af;">Completados con retraso</p>
-                <p style="font-size: 2.5rem; font-weight: bold; color: #1e40af;">{num_retrasados}</p>
-            </div>
-            """, unsafe_allow_html=True)
+        
 
         # Filtros para la tabla de alertas
         st.markdown("### Filtrar Alertas")
 
-        col1, col2, col3, col4, col5 = st.columns(5)
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
 
         with col1:
+            # Filtro por Entidad
+            entidades_alertas = ['Todas'] + sorted([e for e in df_alertas['Entidad'].unique().tolist() if e])
+            entidad_filtro_alertas = st.selectbox(
+                "Entidad",
+                options=entidades_alertas,
+                key="alerta_entidad"
+            )
+
+        with col2:
             tipo_alerta_filtro = st.multiselect(
                 "Tipo de Alerta",
                 options=df_alertas['Tipo Alerta'].unique().tolist(),
                 default=df_alertas['Tipo Alerta'].unique().tolist()
             )
 
-        with col2:
+        with col3:
             estado_filtro = st.multiselect(
                 "Estado",
                 options=df_alertas['Estado'].unique().tolist(),
                 default=df_alertas['Estado'].unique().tolist()
             )
 
-        with col3:
+        with col4:
             if 'Funcionario' in df_alertas.columns and not df_alertas['Funcionario'].isna().all():
                 funcionarios = [f for f in df_alertas['Funcionario'].dropna().unique().tolist() if f]
                 if funcionarios:
@@ -1818,7 +1797,7 @@ def mostrar_alertas_vencimientos(registros_df):
             else:
                 funcionario_filtro = ["Todos"]
 
-        with col4:
+        with col5:
             tipos_dato_alertas = ['Todos'] + sorted(registros_df['TipoDato'].dropna().unique().tolist())
             tipo_dato_filtro_alertas = st.multiselect(
                 "Tipo de Dato",
@@ -1826,7 +1805,7 @@ def mostrar_alertas_vencimientos(registros_df):
                 default=["Todos"]
             )
 
-        with col5:
+        with col6:
             meses_disponibles_alertas = ['Todos']
             if 'Mes Proyectado' in registros_df.columns:
                 meses_unicos_alertas = [m for m in registros_df['Mes Proyectado'].dropna().unique().tolist() if m]
@@ -1839,6 +1818,9 @@ def mostrar_alertas_vencimientos(registros_df):
             
         # Aplicar filtros
         df_alertas_filtrado = df_alertas.copy()
+
+        if entidad_filtro_alertas != 'Todas':
+            df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Entidad'] == entidad_filtro_alertas]
 
         if tipo_alerta_filtro:
             df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Tipo Alerta'].isin(tipo_alerta_filtro)]
@@ -1859,6 +1841,38 @@ def mostrar_alertas_vencimientos(registros_df):
             # Obtener códigos de registros que coinciden con el mes proyectado
             codigos_mes_proyectado = registros_df[registros_df['Mes Proyectado'].isin(mes_filtro_alertas)]['Cod'].tolist()
             df_alertas_filtrado = df_alertas_filtrado[df_alertas_filtrado['Cod'].isin(codigos_mes_proyectado)]
+
+        # Mostrar estadísticas de alertas FILTRADAS
+        st.markdown("### Resumen de Alertas")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            num_vencidos = len(df_alertas_filtrado[df_alertas_filtrado['Estado'] == 'Vencido'])
+            st.markdown(f"""
+            <div class="metric-card" style="background-color: #fee2e2;">
+                <p style="font-size: 1rem; color: #b91c1c;">Vencidos</p>
+                <p style="font-size: 2.5rem; font-weight: bold; color: #b91c1c;">{num_vencidos}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col2:
+            num_proximos = len(df_alertas_filtrado[df_alertas_filtrado['Estado'] == 'Próximo a vencer'])
+            st.markdown(f"""
+            <div class="metric-card" style="background-color: #fef3c7;">
+                <p style="font-size: 1rem; color: #b45309;">Próximos a vencer</p>
+                <p style="font-size: 2.5rem; font-weight: bold; color: #b45309;">{num_proximos}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col3:
+            num_retrasados = len(df_alertas_filtrado[df_alertas_filtrado['Estado'] == 'Completado con retraso'])
+            st.markdown(f"""
+            <div class="metric-card" style="background-color: #dbeafe;">
+                <p style="font-size: 1rem; color: #1e40af;">Completados con retraso</p>
+                <p style="font-size: 2.5rem; font-weight: bold; color: #1e40af;">{num_retrasados}</p>
+            </div>
+            """, unsafe_allow_html=True)
         
         # Mostrar tabla de alertas con formato
         st.markdown("### Listado de Alertas")
