@@ -2481,8 +2481,8 @@ def main():
         
         # ===== SIDEBAR CON AUTENTICACIÓN =====
         # Sistema de autenticación
-        # mostrar_login()
-        # mostrar_estado_autenticacion()
+        mostrar_login()
+        mostrar_estado_autenticacion()
         
         # Configuración de Google Sheets
         mostrar_configuracion_sheets()
@@ -2770,8 +2770,38 @@ def main():
         # ===== TAB 2: EDICIÓN =====
               
         with tab2:
-            # Llamar a la función de edición
-            registros_df = mostrar_edicion_registros(registros_df)
+            # Verificar autenticación para edición
+            from auth_utils import verificar_autenticacion
+            
+            if verificar_autenticacion():
+                # Usuario autenticado - permitir edición
+                registros_df = mostrar_edicion_registros(registros_df)
+            else:
+                # Usuario no autenticado - mostrar mensaje
+                st.markdown('<div class="subtitle">🔐 Acceso Restringido - Edición de Registros</div>', unsafe_allow_html=True)
+                
+                st.warning("🔒 **Se requiere autenticación para acceder a la edición de registros**")
+                
+                st.info("""
+                **Para acceder a esta funcionalidad:**
+                1. 🔐 Use el panel "Acceso Administrativo" en la barra lateral
+                2. 👤 Ingrese las credenciales de administrador
+                3. ✅ Una vez autenticado, podrá editar registros
+                
+                **Funcionalidades disponibles sin autenticación:**
+                - 📊 Dashboard y métricas
+                - 📈 Seguimiento trimestral  
+                - ⚠️ Alertas de vencimientos
+                - 📋 Reportes y descargas
+                """)
+                
+                # Mostrar imagen o icono decorativo
+                st.markdown("""
+                <div style="text-align: center; padding: 2rem;">
+                    <div style="font-size: 4rem; color: #64748b;">🔐</div>
+                    <p style="color: #64748b; font-style: italic;">Protección de datos habilitada</p>
+                </div>
+                """, unsafe_allow_html=True)
 
         with tab3:
             mostrar_seguimiento_trimestral(registros_df, meta_df)
