@@ -1941,7 +1941,8 @@ def mostrar_reportes(registros_df, tipo_dato_filtro, acuerdo_filtro, analisis_fi
     # Filtro por entidad
     if entidad_reporte != 'Todas':
         df_filtrado = df_filtrado[df_filtrado['Entidad'] == entidad_reporte]
-                        
+
+                       
     # Filtro por tipo de dato
     if tipo_dato_filtro != 'Todos':
         df_filtrado = df_filtrado[df_filtrado['TipoDato'].str.upper() == tipo_dato_filtro.upper()]
