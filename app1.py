@@ -2299,7 +2299,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         )
         
         return fig
-    def crear_grafico_lineas_acumulativo(datos_nuevos, datos_actualizar):
+def crear_grafico_lineas_acumulativo(datos_nuevos, datos_actualizar):
         """Crea gráfico de líneas acumulativo para seguimiento trimestral"""
         
         trimestres = ['Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025']
@@ -2403,7 +2403,6 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         
         return fig    
         # Función de cálculo para trimestres
-       
     def calcular_publicaciones_trimestrales(df, tipo_dato, meta_df):
         """Calcula datos trimestrales de publicaciones - VERSIÓN ACUMULATIVA"""
     
@@ -2512,7 +2511,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         
         return datos_trimestres
     
-    def crear_datos_trimestre_vacio():
+def crear_datos_trimestre_vacio():
         """Crea estructura vacía para trimestres sin datos"""
         return {
             'Q1': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0},
