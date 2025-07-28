@@ -2258,9 +2258,10 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         return fig
     
     # Función de cálculo para trimestres
+   
     def calcular_publicaciones_trimestrales(df, tipo_dato, meta_df):
-        """Calcula datos trimestrales de publicaciones"""
-        
+    """Calcula datos trimestrales de publicaciones - VERSIÓN ACUMULATIVA"""
+    
         if 'TipoDato' not in df.columns:
             return crear_datos_trimestre_vacio()
         
@@ -2276,7 +2277,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         if df_filtrado.empty:
             return crear_datos_trimestre_vacio()
         
-        # Definir trimestres
+        # Definir trimestres y sus meses
         trimestres = {
             'Q1': ['Enero', 'Febrero', 'Marzo'],
             'Q2': ['Abril', 'Mayo', 'Junio'], 
@@ -2284,74 +2285,79 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
             'Q4': ['Octubre', 'Noviembre', 'Diciembre']
         }
         
+        # Obtener metas acumuladas desde la tabla de metas
+        try:
+            if tipo_dato.upper() == 'NUEVO':
+                columna_meta = 4  # Columna de publicación para NUEVOS
+            else:  # ACTUALIZAR
+                columna_meta = 9  # Columna de publicación para ACTUALIZAR
+            
+            # Buscar valores acumulados en meta_df
+            metas_acumuladas = {}
+            
+            for idx, row in meta_df.iterrows():
+                fecha_str = str(row[0]).strip()
+                valor = int(row[columna_meta]) if pd.notna(row[columna_meta]) else 0
+                
+                if fecha_str == '31/03/2025':
+                    metas_acumuladas['Q1'] = valor
+                elif fecha_str == '30/06/2025':
+                    metas_acumuladas['Q2'] = valor  # ACUMULADO hasta Q2
+                elif fecha_str == '30/09/2025':
+                    metas_acumuladas['Q3'] = valor  # ACUMULADO hasta Q3
+                elif fecha_str == '31/12/2025':
+                    metas_acumuladas['Q4'] = valor  # ACUMULADO hasta Q4
+                    
+        except Exception:
+            # Fallback: usar número de registros como meta
+            metas_acumuladas = {
+                'Q1': len(df_filtrado[df_filtrado['Mes Proyectado'].isin(['Enero', 'Febrero', 'Marzo'])]),
+                'Q2': len(df_filtrado[df_filtrado['Mes Proyectado'].isin(['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio'])]),
+                'Q3': len(df_filtrado[df_filtrado['Mes Proyectado'].isin(['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre'])]),
+                'Q4': len(df_filtrado)
+            }
+        
         datos_trimestres = {}
         
         for trimestre, meses in trimestres.items():
             try:
-                # Filtrar registros del trimestre
-                df_trimestre = df_filtrado[df_filtrado['Mes Proyectado'].isin(meses)]
+                # AVANCE ACUMULADO: Contar publicaciones desde enero hasta final del trimestre actual
+                meses_acumulados = []
+                for q, m in trimestres.items():
+                    meses_acumulados.extend(m)
+                    if q == trimestre:
+                        break
                 
-                # META: Total de registros que deberían estar publicados
-                # NUEVO CÓDIGO: Calcular meta desde tabla de metas (diferencias acumuladas)
-                try:
-                    if tipo_dato.upper() == 'NUEVO':
-                        columna_meta = 4  # Columna de publicación para NUEVOS
-                    else:  # ACTUALIZAR
-                        columna_meta = 9  # Columna de publicación para ACTUALIZAR
-                    
-                    # Buscar valores en meta_df
-                    valor_31_marzo = None
-                    valor_30_junio = None
-                    valor_30_septiembre = None
-                    valor_31_diciembre = None
-                    
-                    for idx, row in meta_df.iterrows():
-                        fecha_str = str(row[0]).strip()
-                        if fecha_str == '31/03/2025':
-                            valor_31_marzo = int(row[columna_meta]) if pd.notna(row[columna_meta]) else 0
-                        elif fecha_str == '30/06/2025':
-                            valor_30_junio = int(row[columna_meta]) if pd.notna(row[columna_meta]) else 0
-                        elif fecha_str == '30/09/2025':
-                            valor_30_septiembre = int(row[columna_meta]) if pd.notna(row[columna_meta]) else 0
-                        elif fecha_str == '31/12/2025':
-                            valor_31_diciembre = int(row[columna_meta]) if pd.notna(row[columna_meta]) else 0
-                    
-                    # Calcular meta del trimestre según diferencias acumuladas
-                    if trimestre == 'Q1':
-                        meta_publicaciones = valor_31_marzo if valor_31_marzo is not None else 0
-                    elif trimestre == 'Q2':
-                        meta_publicaciones = (valor_30_junio - valor_31_marzo) if valor_30_junio is not None and valor_31_marzo is not None else 0
-                    elif trimestre == 'Q3':
-                        meta_publicaciones = (valor_30_septiembre - valor_30_junio) if valor_30_septiembre is not None and valor_30_junio is not None else 0
-                    else:  # Q4
-                        meta_publicaciones = (valor_31_diciembre - valor_30_septiembre) if valor_31_diciembre is not None and valor_30_septiembre is not None else 0
-                        
-                except Exception:
-                    # Fallback
-                    meta_publicaciones = len(df_trimestre)             
-
-               
-                # AVANCE: Registros con fecha real de publicación
-                avance_publicaciones = 0
-                if 'Publicación' in df_trimestre.columns and len(df_trimestre) > 0:
+                # Filtrar registros del período acumulado
+                df_acumulado = df_filtrado[df_filtrado['Mes Proyectado'].isin(meses_acumulados)]
+                
+                # META ACUMULADA: Desde tabla de metas
+                meta_acumulada = metas_acumuladas.get(trimestre, 0)
+                
+                # AVANCE ACUMULADO: Registros con fecha real de publicación
+                avance_acumulado = 0
+                if 'Publicación' in df_acumulado.columns and len(df_acumulado) > 0:
                     try:
                         mask_publicacion = (
-                            (df_trimestre['Publicación'].notna()) & 
-                            (df_trimestre['Publicación'].astype(str).str.strip() != '') &
-                            (~df_trimestre['Publicación'].astype(str).str.strip().isin(['nan', 'None', 'NaN']))
+                            (df_acumulado['Publicación'].notna()) & 
+                            (df_acumulado['Publicación'].astype(str).str.strip() != '') &
+                            (~df_acumulado['Publicación'].astype(str).str.strip().isin(['nan', 'None', 'NaN']))
                         )
-                        avance_publicaciones = len(df_trimestre[mask_publicacion])
+                        avance_acumulado = len(df_acumulado[mask_publicacion])
                     except Exception:
-                        avance_publicaciones = 0
+                        avance_acumulado = 0
                 
-                # Calcular porcentaje
-                porcentaje = (avance_publicaciones / meta_publicaciones * 100) if meta_publicaciones > 0 else 0
+                # Calcular porcentaje acumulado
+                porcentaje_acumulado = (avance_acumulado / meta_acumulada * 100) if meta_acumulada > 0 else 0
+                
+                # Calcular pendientes acumulados
+                pendientes_acumulados = meta_acumulada - avance_acumulado
                 
                 datos_trimestres[trimestre] = {
-                    'meta': meta_publicaciones,
-                    'avance': avance_publicaciones,
-                    'porcentaje': porcentaje,
-                    'pendientes': meta_publicaciones - avance_publicaciones
+                    'meta': meta_acumulada,
+                    'avance': avance_acumulado,
+                    'porcentaje': porcentaje_acumulado,
+                    'pendientes': pendientes_acumulados
                 }
                 
             except Exception:
