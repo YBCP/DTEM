@@ -2188,10 +2188,15 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
                             df_filtrado['Publicación'].apply(lambda x: es_fecha_valida(x))
                         ]
                         
+                        
                         # Si hay Mes Proyectado, filtrar por meses acumulados
                         if 'Mes Proyectado' in registros_publicados.columns:
+                            # Solo contar los que tienen Mes Proyectado VÁLIDO y están en meses acumulados
                             publicaciones_acumuladas = registros_publicados[
-                                registros_publicados['Mes Proyectado'].isin(meses_acumulados)
+                                (registros_publicados['Mes Proyectado'].notna()) & 
+                                (registros_publicados['Mes Proyectado'].astype(str).str.strip() != '') &
+                                (~registros_publicados['Mes Proyectado'].astype(str).str.strip().isin(['nan', 'None', 'NaN'])) &
+                                (registros_publicados['Mes Proyectado'].isin(meses_acumulados))
                             ]
                             # Contar los que NO tienen Mes Proyectado válido pero SÍ tienen fecha de Publicación
                             publicaciones_sin_mes = registros_publicados[
