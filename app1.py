@@ -2113,9 +2113,10 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
             'Q4': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0}
         }
     
+    
     def calcular_publicaciones_trimestrales_simple(df, tipo_dato):
-        """Versión corregida - usa metas de meta_df columnas E y J"""
-        
+    """Versión corregida - usa metas de meta_df columnas E y J"""
+    
         if 'TipoDato' not in df.columns:
             return crear_datos_trimestre_vacio()
         
@@ -2182,13 +2183,10 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
                             if q == trimestre:
                                 break
                         
-                        
-                        # Contar registros con fecha de publicación válida (verificar que sea fecha real)
-                        mask_publicacion = df_filtrado['Publicación'].apply(
-                            lambda x: es_fecha_valida(x) if pd.notna(x) else False
-                        )
-                        
-                        registros_publicados = df_filtrado[mask_publicacion]
+                        # CORREGIDO: Contar registros con fecha de publicación válida usando es_fecha_valida
+                        registros_publicados = df_filtrado[
+                            df_filtrado['Publicación'].apply(lambda x: es_fecha_valida(x))
+                        ]
                         
                         # Si hay Mes Proyectado, filtrar por meses acumulados
                         if 'Mes Proyectado' in registros_publicados.columns:
@@ -2224,7 +2222,6 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
                 }
         
         return datos_trimestres
-
     # CALCULAR DATOS TRIMESTRALES
     try:
         datos_nuevos = calcular_publicaciones_trimestrales_simple(registros_con_mes, 'NUEVO')
@@ -2816,81 +2813,176 @@ def main():
        
        
         # ===== TAB 1: DASHBOARD =====
+               
         with tab1:
             st.markdown("### Filtros")
+            
+            # Inicializar valores por defecto si no existen en session_state
+            if 'dash_entidad' not in st.session_state:
+                st.session_state.dash_entidad = 'Todas'
+            if 'dash_funcionario' not in st.session_state:
+                st.session_state.dash_funcionario = 'Todos'
+            if 'dash_tipo' not in st.session_state:
+                st.session_state.dash_tipo = 'Todos'
+            if 'dash_nivel' not in st.session_state:
+                st.session_state.dash_nivel = 'Todos'
+            
             col1, col2, col3, col4 = st.columns(4)
             
+            # Aplicar filtros actuales para obtener datos disponibles
+            df_temp = registros_df.copy()
+            
+            # Aplicar filtros existentes (excepto el que se está modificando)
+            if st.session_state.dash_entidad != 'Todas':
+                df_temp = df_temp[df_temp['Entidad'] == st.session_state.dash_entidad]
+            
+            if st.session_state.dash_funcionario != 'Todos' and 'Funcionario' in df_temp.columns:
+                df_temp = df_temp[df_temp['Funcionario'] == st.session_state.dash_funcionario]
+            
+            if st.session_state.dash_tipo != 'Todos':
+                df_temp = df_temp[df_temp['TipoDato'].str.upper() == st.session_state.dash_tipo.upper()]
+            
+            if st.session_state.dash_nivel != 'Todos':
+                df_temp = df_temp[df_temp['Nivel Información '] == st.session_state.dash_nivel]
+            
             with col1:
-                # Filtro por entidad
-                entidades = ['Todas'] + sorted([e for e in registros_df['Entidad'].unique().tolist() if e])
-                entidad_seleccionada = st.selectbox('Entidad', entidades, key="dash_entidad")
+                # Obtener entidades disponibles según otros filtros
+                df_for_entidades = registros_df.copy()
+                if st.session_state.dash_funcionario != 'Todos' and 'Funcionario' in df_for_entidades.columns:
+                    df_for_entidades = df_for_entidades[df_for_entidades['Funcionario'] == st.session_state.dash_funcionario]
+                if st.session_state.dash_tipo != 'Todos':
+                    df_for_entidades = df_for_entidades[df_for_entidades['TipoDato'].str.upper() == st.session_state.dash_tipo.upper()]
+                if st.session_state.dash_nivel != 'Todos':
+                    df_for_entidades = df_for_entidades[df_for_entidades['Nivel Información '] == st.session_state.dash_nivel]
+                
+                entidades_disponibles = ['Todas'] + sorted([e for e in df_for_entidades['Entidad'].unique().tolist() if e])
+                
+                # Si la entidad actual no está disponible, resetear
+                if st.session_state.dash_entidad not in entidades_disponibles:
+                    st.session_state.dash_entidad = 'Todas'
+                
+                entidad_seleccionada = st.selectbox(
+                    'Entidad', 
+                    entidades_disponibles,
+                    index=entidades_disponibles.index(st.session_state.dash_entidad) if st.session_state.dash_entidad in entidades_disponibles else 0,
+                    key="dash_entidad_selector"
+                )
+                
+                if entidad_seleccionada != st.session_state.dash_entidad:
+                    st.session_state.dash_entidad = entidad_seleccionada
+                    st.rerun()
             
             with col2:
-                # Filtro por funcionario
-                funcionarios = ['Todos']
-                if 'Funcionario' in registros_df.columns:
-                    funcionarios_unicos = [f for f in registros_df['Funcionario'].dropna().unique().tolist() if f]
-                    funcionarios += sorted(funcionarios_unicos)
-                funcionario_seleccionado = st.selectbox('Funcionario', funcionarios, key="dash_funcionario")
+                # Obtener funcionarios disponibles según otros filtros
+                df_for_funcionarios = registros_df.copy()
+                if st.session_state.dash_entidad != 'Todas':
+                    df_for_funcionarios = df_for_funcionarios[df_for_funcionarios['Entidad'] == st.session_state.dash_entidad]
+                if st.session_state.dash_tipo != 'Todos':
+                    df_for_funcionarios = df_for_funcionarios[df_for_funcionarios['TipoDato'].str.upper() == st.session_state.dash_tipo.upper()]
+                if st.session_state.dash_nivel != 'Todos':
+                    df_for_funcionarios = df_for_funcionarios[df_for_funcionarios['Nivel Información '] == st.session_state.dash_nivel]
+                
+                funcionarios_disponibles = ['Todos']
+                if 'Funcionario' in df_for_funcionarios.columns:
+                    funcionarios_unicos = [f for f in df_for_funcionarios['Funcionario'].dropna().unique().tolist() if f]
+                    funcionarios_disponibles += sorted(funcionarios_unicos)
+                
+                # Si el funcionario actual no está disponible, resetear
+                if st.session_state.dash_funcionario not in funcionarios_disponibles:
+                    st.session_state.dash_funcionario = 'Todos'
+                
+                funcionario_seleccionado = st.selectbox(
+                    'Funcionario', 
+                    funcionarios_disponibles,
+                    index=funcionarios_disponibles.index(st.session_state.dash_funcionario) if st.session_state.dash_funcionario in funcionarios_disponibles else 0,
+                    key="dash_funcionario_selector"
+                )
+                
+                if funcionario_seleccionado != st.session_state.dash_funcionario:
+                    st.session_state.dash_funcionario = funcionario_seleccionado
+                    st.rerun()
             
             with col3:
-                # Filtro por tipo de dato
-                tipos_dato = ['Todos'] + sorted([t for t in registros_df['TipoDato'].dropna().unique().tolist() if t])
-                tipo_dato_seleccionado = st.selectbox('Tipo de Dato', tipos_dato, key="dash_tipo")
+                # Obtener tipos de dato disponibles según otros filtros
+                df_for_tipos = registros_df.copy()
+                if st.session_state.dash_entidad != 'Todas':
+                    df_for_tipos = df_for_tipos[df_for_tipos['Entidad'] == st.session_state.dash_entidad]
+                if st.session_state.dash_funcionario != 'Todos' and 'Funcionario' in df_for_tipos.columns:
+                    df_for_tipos = df_for_tipos[df_for_tipos['Funcionario'] == st.session_state.dash_funcionario]
+                if st.session_state.dash_nivel != 'Todos':
+                    df_for_tipos = df_for_tipos[df_for_tipos['Nivel Información '] == st.session_state.dash_nivel]
+                
+                tipos_disponibles = ['Todos'] + sorted([t for t in df_for_tipos['TipoDato'].dropna().unique().tolist() if t])
+                
+                # Si el tipo actual no está disponible, resetear
+                if st.session_state.dash_tipo not in tipos_disponibles:
+                    st.session_state.dash_tipo = 'Todos'
+                
+                tipo_dato_seleccionado = st.selectbox(
+                    'Tipo de Dato', 
+                    tipos_disponibles,
+                    index=tipos_disponibles.index(st.session_state.dash_tipo) if st.session_state.dash_tipo in tipos_disponibles else 0,
+                    key="dash_tipo_selector"
+                )
+                
+                if tipo_dato_seleccionado != st.session_state.dash_tipo:
+                    st.session_state.dash_tipo = tipo_dato_seleccionado
+                    st.rerun()
             
             with col4:
-                # Filtro por nivel de información - solo activo si hay entidad seleccionada
-                if entidad_seleccionada != 'Todas':
-                    niveles = ['Todos'] + sorted([n for n in registros_df['Nivel Información '].dropna().unique().tolist() if n])
-                    nivel_seleccionado = st.selectbox('Nivel de Información', niveles, key="dash_nivel")
+                # Nivel de información solo activo si hay entidad seleccionada
+                if st.session_state.dash_entidad != 'Todas':
+                    # Obtener niveles disponibles según otros filtros
+                    df_for_niveles = registros_df.copy()
+                    if st.session_state.dash_entidad != 'Todas':
+                        df_for_niveles = df_for_niveles[df_for_niveles['Entidad'] == st.session_state.dash_entidad]
+                    if st.session_state.dash_funcionario != 'Todos' and 'Funcionario' in df_for_niveles.columns:
+                        df_for_niveles = df_for_niveles[df_for_niveles['Funcionario'] == st.session_state.dash_funcionario]
+                    if st.session_state.dash_tipo != 'Todos':
+                        df_for_niveles = df_for_niveles[df_for_niveles['TipoDato'].str.upper() == st.session_state.dash_tipo.upper()]
+                    
+                    niveles_disponibles = ['Todos'] + sorted([n for n in df_for_niveles['Nivel Información '].dropna().unique().tolist() if n])
+                    
+                    # Si el nivel actual no está disponible, resetear
+                    if st.session_state.dash_nivel not in niveles_disponibles:
+                        st.session_state.dash_nivel = 'Todos'
+                    
+                    nivel_seleccionado = st.selectbox(
+                        'Nivel de Información', 
+                        niveles_disponibles,
+                        index=niveles_disponibles.index(st.session_state.dash_nivel) if st.session_state.dash_nivel in niveles_disponibles else 0,
+                        key="dash_nivel_selector"
+                    )
+                    
+                    if nivel_seleccionado != st.session_state.dash_nivel:
+                        st.session_state.dash_nivel = nivel_seleccionado
+                        st.rerun()
                 else:
+                    st.session_state.dash_nivel = 'Todos'
                     nivel_seleccionado = 'Todos'
                     st.selectbox('Nivel de Información', ['Todos'], disabled=True, key="dash_nivel_disabled", 
                                 help="Seleccione una entidad primero")
             
-            # Aplicar filtros y actualizar opciones dinámicamente
-            df_temp = registros_df.copy()
+            # Usar los valores del session_state
+            entidad_seleccionada = st.session_state.dash_entidad
+            funcionario_seleccionado = st.session_state.dash_funcionario
+            tipo_dato_seleccionado = st.session_state.dash_tipo
+            nivel_seleccionado = st.session_state.dash_nivel
             
-            # Aplicar filtros seleccionados
+            # Aplicar todos los filtros al dataframe final
+            df_filtrado = registros_df.copy()
+            
             if entidad_seleccionada != 'Todas':
-                df_temp = df_temp[df_temp['Entidad'] == entidad_seleccionada]
+                df_filtrado = df_filtrado[df_filtrado['Entidad'] == entidad_seleccionada]
             
-            if funcionario_seleccionado != 'Todos' and 'Funcionario' in df_temp.columns:
-                df_temp = df_temp[df_temp['Funcionario'] == funcionario_seleccionado]
+            if funcionario_seleccionado != 'Todos' and 'Funcionario' in df_filtrado.columns:
+                df_filtrado = df_filtrado[df_filtrado['Funcionario'] == funcionario_seleccionado]
             
             if tipo_dato_seleccionado != 'Todos':
-                df_temp = df_temp[df_temp['TipoDato'].str.upper() == tipo_dato_seleccionado.upper()]
+                df_filtrado = df_filtrado[df_filtrado['TipoDato'].str.upper() == tipo_dato_seleccionado.upper()]
             
             if nivel_seleccionado != 'Todos':
-                df_temp = df_temp[df_temp['Nivel Información '] == nivel_seleccionado]
-            
-            # Actualizar opciones de los filtros basado en datos filtrados
-            with st.expander("🔄 Opciones disponibles con filtros actuales", expanded=False):
-                col_a, col_b, col_c, col_d = st.columns(4)
-                
-                with col_a:
-                    entidades_disponibles = ['Todas'] + sorted([e for e in df_temp['Entidad'].unique().tolist() if e])
-                    st.write(f"**Entidades:** {len(entidades_disponibles)-1}")
-                    
-                with col_b:
-                    if 'Funcionario' in df_temp.columns:
-                        funcionarios_disponibles = [f for f in df_temp['Funcionario'].dropna().unique().tolist() if f]
-                        st.write(f"**Funcionarios:** {len(funcionarios_disponibles)}")
-                    else:
-                        st.write("**Funcionarios:** 0")
-                    
-                with col_c:
-                    tipos_disponibles = [t for t in df_temp['TipoDato'].dropna().unique().tolist() if t]
-                    st.write(f"**Tipos de Dato:** {len(tipos_disponibles)}")
-                    
-                with col_d:
-                    niveles_disponibles = [n for n in df_temp['Nivel Información '].dropna().unique().tolist() if n]
-                    st.write(f"**Niveles:** {len(niveles_disponibles)}")
-                    
-        
-            
-            # Aplicar filtros
-            df_filtrado = df_temp.copy()
+                df_filtrado = df_filtrado[df_filtrado['Nivel Información '] == nivel_seleccionado]
             
             st.markdown("---")
             
