@@ -2207,7 +2207,26 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
                             ]
                             
                             # NUEVA LÓGICA: Para que Q4 coincida con dashboard, sumar todos en Q4
-                            if trimestre == 'Q4':
+                            # Determinar el trimestre actual basado en la fecha de hoy
+                            from datetime import datetime
+                            fecha_actual = datetime.now()
+                            mes_actual = fecha_actual.month
+                            
+                            if mes_actual <= 3:
+                                trimestre_actual = 'Q1'
+                            elif mes_actual <= 6:
+                                trimestre_actual = 'Q2'
+                            elif mes_actual <= 9:
+                                trimestre_actual = 'Q3'
+                            else:
+                                trimestre_actual = 'Q4'
+                            
+                            # Para el trimestre actual Y TODOS LOS SIGUIENTES, mostrar TODOS los publicados
+                            trimestres_orden = ['Q1', 'Q2', 'Q3', 'Q4']
+                            indice_actual = trimestres_orden.index(trimestre_actual)
+                            indice_este_trimestre = trimestres_orden.index(trimestre)
+                            
+                            if indice_este_trimestre >= indice_actual:
                                 avance_acumulado = len(registros_publicados)  # TODOS los publicados
                             else:
                                 avance_acumulado = len(publicaciones_acumuladas) + len(publicaciones_sin_mes)
