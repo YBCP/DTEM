@@ -2058,7 +2058,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         porcentaje_total = datos['Q4']['porcentaje']
         pendientes_total = datos['Q4']['pendientes']
         
-        st.markdown(f"#### 📊 Resumen {titulo_tipo}")
+        st.markdown(f"#### Resumen {titulo_tipo}")
         
         col1, col2, col3, col4 = st.columns(4)
         
