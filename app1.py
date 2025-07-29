@@ -2173,19 +2173,18 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
                 meta_acumulada = metas_por_trimestre.get(trimestre, 0)
                 
                 # AVANCE: Contar publicaciones reales acumuladas hasta este trimestre
+                # AVANCE: Contar publicaciones reales acumuladas hasta este trimestre
                 avance_acumulado = 0
                 if 'Publicación' in df_filtrado.columns and len(df_filtrado) > 0:
                     try:
-                        # Calcular meses acumulados hasta este trimestre
-                        meses_acumulados = []
-                        for q, m in trimestres.items():
-                            meses_acumulados.extend(m)
-                            if q == trimestre:
-                                break
-                        
                         # CORREGIDO: Contar registros con fecha de publicación válida usando es_fecha_valida
-                        # SIMPLE: Solo contar registros con fecha válida en Publicación
-                        avance_acumulado = len(registros_publicados)                            
+                        registros_publicados = df_filtrado[
+                            df_filtrado['Publicación'].apply(lambda x: es_fecha_valida(x))
+                        ]
+                        
+                        # Para el trimestre actual: usar TODOS los registros con fecha de publicación
+                        avance_acumulado = len(registros_publicados)
+                        
                     except Exception:
                         avance_acumulado = 0
                 
