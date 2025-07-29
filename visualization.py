@@ -5,7 +5,7 @@ import plotly.figure_factory as ff
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import streamlit as st
-from data_utils import procesar_fecha, verificar_completado_por_fecha
+from data_utils import procesar_fecha, verificar_completado_por_fecha, es_fecha_valida
 
 
 def crear_gantt(df):
@@ -242,24 +242,21 @@ def comparar_avance_metas(df, metas_nuevas_df, metas_actualizar_df):
         registros_nuevos = df[df['TipoDato'].str.upper() == 'NUEVO']
         registros_actualizar = df[df['TipoDato'].str.upper() == 'ACTUALIZAR']
 
-        # Función auxiliar para contar registros con fecha válida
-        def contar_con_fecha_valida(registros_filtrados, columna):
-            if columna not in registros_filtrados.columns:
-                return 0
-            return len(registros_filtrados[
-                (registros_filtrados[columna].notna()) & 
-                (registros_filtrados[columna].astype(str).str.strip() != '')
-            ])
-
         # Para registros nuevos - contar directamente las fechas reales
         completados_nuevos = {
             'Acuerdo de compromiso': len(registros_nuevos[
                 registros_nuevos['Acuerdo de compromiso'].astype(str).str.upper().isin(
                     ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])
             ]) if 'Acuerdo de compromiso' in registros_nuevos.columns else 0,
-            'Análisis y cronograma': contar_con_fecha_valida(registros_nuevos, 'Análisis y cronograma'),
-            'Estándares': contar_con_fecha_valida(registros_nuevos, 'Estándares'),
-            'Publicación': contar_con_fecha_valida(registros_nuevos, 'Publicación')
+            'Análisis y cronograma': len(registros_nuevos[
+                registros_nuevos['Análisis y cronograma'].apply(lambda x: es_fecha_valida(x))
+            ]) if 'Análisis y cronograma' in registros_nuevos.columns else 0,
+            'Estándares': len(registros_nuevos[
+                registros_nuevos['Estándares'].apply(lambda x: es_fecha_valida(x))
+            ]) if 'Estándares' in registros_nuevos.columns else 0,
+            'Publicación': len(registros_nuevos[
+                registros_nuevos['Publicación'].apply(lambda x: es_fecha_valida(x))
+            ]) if 'Publicación' in registros_nuevos.columns else 0
         }
 
         # Para registros a actualizar - contar directamente las fechas reales
@@ -268,9 +265,15 @@ def comparar_avance_metas(df, metas_nuevas_df, metas_actualizar_df):
                 registros_actualizar['Acuerdo de compromiso'].astype(str).str.upper().isin(
                     ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])
             ]) if 'Acuerdo de compromiso' in registros_actualizar.columns else 0,
-            'Análisis y cronograma': contar_con_fecha_valida(registros_actualizar, 'Análisis y cronograma'),
-            'Estándares': contar_con_fecha_valida(registros_actualizar, 'Estándares'),
-            'Publicación': contar_con_fecha_valida(registros_actualizar, 'Publicación')
+            'Análisis y cronograma': len(registros_actualizar[
+                registros_actualizar['Análisis y cronograma'].apply(lambda x: es_fecha_valida(x))
+            ]) if 'Análisis y cronograma' in registros_actualizar.columns else 0,
+            'Estándares': len(registros_actualizar[
+                registros_actualizar['Estándares'].apply(lambda x: es_fecha_valida(x))
+            ]) if 'Estándares' in registros_actualizar.columns else 0,
+            'Publicación': len(registros_actualizar[
+                registros_actualizar['Publicación'].apply(lambda x: es_fecha_valida(x))
+            ]) if 'Publicación' in registros_actualizar.columns else 0
         }
 
         # Crear dataframes para la comparación
