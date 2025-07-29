@@ -2229,7 +2229,8 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
                             if indice_este_trimestre >= indice_actual:
                                 avance_acumulado = len(registros_publicados)  # TODOS los publicados
                             else:
-                                avance_acumulado = len(registros_publicados)
+                                # Para trimestres pasados, usar la lógica original
+                                avance_acumulado = len(publicaciones_acumuladas)
                                 
                         else:
                             # Sin Mes Proyectado, usar proporción acumulada
