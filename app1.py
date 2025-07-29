@@ -2165,102 +2165,121 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         }
     
     
+    
     def calcular_publicaciones_trimestrales_simple(df, tipo_dato):
-        """Versión corregida - las metas ya son acumuladas, solo se acumula el avance"""
-        
-        if 'TipoDato' not in df.columns:
-            return crear_datos_trimestre_vacio()
-        
-        # Filtrar por tipo de dato de manera más robusta
-        try:
-            if tipo_dato.upper() == 'NUEVO':
-                df_filtrado = df[df['TipoDato'].astype(str).str.upper().str.contains('NUEVO', na=False)]
-            else:  # ACTUALIZAR
-                df_filtrado = df[df['TipoDato'].astype(str).str.upper().str.contains('ACTUALIZAR', na=False)]
-        except Exception:
-            return crear_datos_trimestre_vacio()
-        
-        if df_filtrado.empty:
-            return crear_datos_trimestre_vacio()
-        
-        # Definir trimestres
-        trimestres = {
-            'Q1': ['Enero', 'Febrero', 'Marzo'],
-            'Q2': ['Abril', 'Mayo', 'Junio'], 
-            'Q3': ['Julio', 'Agosto', 'Septiembre'],
-            'Q4': ['Octubre', 'Noviembre', 'Diciembre']
-        }
-        
-        datos_trimestres = {}
-        
-        for trimestre, meses in trimestres.items():
+            """Versión corregida - usa metas de meta_df columnas E y J"""
+            
+            if 'TipoDato' not in df.columns:
+                return crear_datos_trimestre_vacio()
+            
+            # Filtrar por tipo de dato
             try:
-                # META: NO ACUMULADA - usar solo los registros del trimestre actual
-                # Ya que las metas en la tabla de metas YA son acumuladas
-                if 'Mes Proyectado' in df_filtrado.columns:
-                    # Contar registros SOLO del trimestre actual
-                    df_trimestre_actual = df_filtrado[
-                        df_filtrado['Mes Proyectado'].isin(meses)
-                    ]
-                    meta_trimestre = len(df_trimestre_actual)
-                else:
-                    # Si no hay Mes Proyectado, distribuir uniformemente
-                    meta_trimestre = len(df_filtrado) // 4
-                
-                # AVANCE: SÍ ACUMULADO - contar publicaciones desde enero hasta fin del trimestre
-                avance_acumulado = 0
-                if 'Publicación' in df_filtrado.columns and len(df_filtrado) > 0:
+                if tipo_dato.upper() == 'NUEVO':
+                    df_filtrado = df[df['TipoDato'].astype(str).str.upper().str.contains('NUEVO', na=False)]
+                    columna_meta = 4  # Columna E (índice 4) para NUEVOS
+                else:  # ACTUALIZAR
+                    df_filtrado = df[df['TipoDato'].astype(str).str.upper().str.contains('ACTUALIZAR', na=False)]
+                    columna_meta = 9  # Columna J (índice 9) para ACTUALIZAR
+            except Exception:
+                return crear_datos_trimestre_vacio()
+            
+            if df_filtrado.empty:
+                return crear_datos_trimestre_vacio()
+            
+            # Definir trimestres
+            trimestres = {
+                'Q1': ['Enero', 'Febrero', 'Marzo'],
+                'Q2': ['Abril', 'Mayo', 'Junio'], 
+                'Q3': ['Julio', 'Agosto', 'Septiembre'],
+                'Q4': ['Octubre', 'Noviembre', 'Diciembre']
+            }
+            
+            # Obtener metas desde meta_df
+            metas_por_trimestre = {}
+            try:
+                for idx, row in meta_df.iterrows():
                     try:
-                        # Calcular meses acumulados hasta este trimestre
-                        meses_acumulados = []
-                        for q, m in trimestres.items():
-                            meses_acumulados.extend(m)
-                            if q == trimestre:
-                                break
+                        fecha_str = str(row[0]).strip()
+                        valor_meta = int(row[columna_meta]) if pd.notna(row[columna_meta]) and str(row[columna_meta]).strip() != '' else 0
                         
-                        # Contar registros con fecha de publicación válida
-                        mask_publicacion = (
-                            (df_filtrado['Publicación'].notna()) & 
-                            (df_filtrado['Publicación'].astype(str).str.strip() != '') &
-                            (~df_filtrado['Publicación'].astype(str).str.strip().isin(['nan', 'None', 'NaN', '']))
-                        )
-                        
-                        registros_publicados = df_filtrado[mask_publicacion]
-                        
-                        # Si hay Mes Proyectado, filtrar acumulado
-                        if 'Mes Proyectado' in registros_publicados.columns:
-                            registros_acumulados = registros_publicados[
-                                registros_publicados['Mes Proyectado'].isin(meses_acumulados)
-                            ]
-                            avance_acumulado = len(registros_acumulados)
-                        else:
-                            # Sin Mes Proyectado, usar proporción acumulada
-                            trimestre_index = list(trimestres.keys()).index(trimestre) + 1
-                            avance_acumulado = (len(registros_publicados) * trimestre_index) // 4
-                            
+                        # Mapear fechas específicas a trimestres
+                        if fecha_str == '31/03/2025':
+                            metas_por_trimestre['Q1'] = valor_meta
+                        elif fecha_str == '30/06/2025':
+                            metas_por_trimestre['Q2'] = valor_meta
+                        elif fecha_str == '30/09/2025':
+                            metas_por_trimestre['Q3'] = valor_meta
+                        elif fecha_str == '31/12/2025':
+                            metas_por_trimestre['Q4'] = valor_meta
                     except Exception:
-                        avance_acumulado = 0
-                
-                # Calcular porcentaje
-                porcentaje = (avance_acumulado / meta_trimestre * 100) if meta_trimestre > 0 else 0
-                
-                # Pendientes
-                pendientes = max(0, meta_trimestre - avance_acumulado)
-                
-                datos_trimestres[trimestre] = {
-                    'meta': meta_trimestre,
-                    'avance': avance_acumulado,
-                    'porcentaje': round(porcentaje, 1),
-                    'pendientes': pendientes
-                }
-                
-            except Exception as e:
-                st.warning(f"Error calculando {trimestre}: {e}")
-                datos_trimestres[trimestre] = {
-                    'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0
-                }
+                        continue
+            except Exception:
+                # Fallback: si no se pueden leer las metas, usar 0
+                metas_por_trimestre = {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
+            
+            datos_trimestres = {}
+            
+            for trimestre, meses in trimestres.items():
+                try:
+                    # META: Directamente desde meta_df (ya son acumuladas)
+                    meta_acumulada = metas_por_trimestre.get(trimestre, 0)
+                    
+                    # AVANCE: Contar publicaciones reales acumuladas hasta este trimestre
+                    avance_acumulado = 0
+                    if 'Publicación' in df_filtrado.columns and len(df_filtrado) > 0:
+                        try:
+                            # Calcular meses acumulados hasta este trimestre
+                            meses_acumulados = []
+                            for q, m in trimestres.items():
+                                meses_acumulados.extend(m)
+                                if q == trimestre:
+                                    break
+                            
+                            # Contar registros con fecha de publicación válida
+                            mask_publicacion = (
+                                (df_filtrado['Publicación'].notna()) & 
+                                (df_filtrado['Publicación'].astype(str).str.strip() != '') &
+                                (~df_filtrado['Publicación'].astype(str).str.strip().isin(['nan', 'None', 'NaN', '']))
+                            )
+                            
+                            registros_publicados = df_filtrado[mask_publicacion]
+                            
+                            # Si hay Mes Proyectado, filtrar por meses acumulados
+                            if 'Mes Proyectado' in registros_publicados.columns:
+                                publicaciones_acumuladas = registros_publicados[
+                                    registros_publicados['Mes Proyectado'].isin(meses_acumulados)
+                                ]
+                                avance_acumulado = len(publicaciones_acumuladas)
+                            else:
+                                # Sin Mes Proyectado, usar proporción acumulada
+                                trimestre_index = list(trimestres.keys()).index(trimestre) + 1
+                                avance_acumulado = (len(registros_publicados) * trimestre_index) // 4
+                                
+                        except Exception:
+                            avance_acumulado = 0
+                    
+                    # Calcular porcentaje
+                    porcentaje = (avance_acumulado / meta_acumulada * 100) if meta_acumulada > 0 else 0
+                    
+                    # Pendientes
+                    pendientes = max(0, meta_acumulada - avance_acumulado)
+                    
+                    datos_trimestres[trimestre] = {
+                        'meta': meta_acumulada,
+                        'avance': avance_acumulado,
+                        'porcentaje': round(porcentaje, 1),
+                        'pendientes': pendientes
+                    }
+                    
+                except Exception as e:
+                    st.warning(f"Error calculando {trimestre}: {e}")
+                    datos_trimestres[trimestre] = {
+                        'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0
+                    }
+            
+            return datos_trimestres
+
         
-        return datos_trimestres
     # CALCULAR DATOS TRIMESTRALES
     try:
         datos_nuevos = calcular_publicaciones_trimestrales_simple(registros_con_mes, 'NUEVO')
