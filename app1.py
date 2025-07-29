@@ -2250,7 +2250,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         return
 
     # LAYOUT PRINCIPAL: GRÁFICOS LADO A LADO
-    st.markdown("### 📈 Evolución Acumulativa por Tipo de Registro")
+    st.markdown("### Evolución Acumulativa por Tipo de Registro")
     
     col_actualizar, col_nuevos = st.columns(2)
     
