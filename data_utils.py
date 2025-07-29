@@ -575,19 +575,12 @@ def contar_registros_completados_por_fecha(df, columna_fecha_programada, columna
         if columna_fecha_programada in row and pd.notna(row[columna_fecha_programada]) and str(row[columna_fecha_programada]).strip() != '':
             fecha_programada = row[columna_fecha_programada]
 
-            # Verificar si hay una fecha de completado
+            # Verificar si hay una fecha de completado VÁLIDA
             fecha_completado = None
-            if (columna_fecha_completado in row and 
-                pd.notna(row[columna_fecha_completado]) and 
-                str(row[columna_fecha_completado]).strip() != ''):
-                # Intentar procesar como fecha primero
-                fecha_completado = procesar_fecha(row[columna_fecha_completado])
-                # Si no es una fecha, verificar si es un valor booleano positivo
-                if fecha_completado is None and str(row[columna_fecha_completado]).strip().upper() in ['SI', 'SÍ',
-                                                                                                       'S', 'YES',
-                                                                                                       'Y',
-                                                                                                       'COMPLETO']:
-                    fecha_completado = datetime.now()  # Usar fecha actual como completado
+            if columna_fecha_completado in row:
+                # Usar es_fecha_valida para verificar si realmente es una fecha
+                if es_fecha_valida(row[columna_fecha_completado]):
+                    fecha_completado = procesar_fecha(row[columna_fecha_completado])
 
             if verificar_completado_por_fecha(fecha_programada, fecha_completado):
                 count += 1
