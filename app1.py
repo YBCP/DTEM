@@ -2115,7 +2115,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     
     
     def calcular_publicaciones_trimestrales_simple(df, tipo_dato):
-    """Versión corregida - usa metas de meta_df columnas E y J"""
+        """Versión corregida - usa metas de meta_df columnas E y J"""
     
         if 'TipoDato' not in df.columns:
             return crear_datos_trimestre_vacio()
