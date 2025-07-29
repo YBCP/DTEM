@@ -2515,13 +2515,13 @@ def crear_grafico_lineas_acumulativo(datos_nuevos, datos_actualizar):
     
     
 def crear_datos_trimestre_vacio():
-        """Crea estructura vacía para trimestres sin datos"""
-        return {
+    """Crea estructura vacía para trimestres sin datos"""
+    return {
             'Q1': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0},
             'Q2': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0},
             'Q3': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0},
             'Q4': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0}
-        }
+    }
     
     
     # Calcular datos una vez para ambas pestañas
