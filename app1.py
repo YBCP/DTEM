@@ -2184,34 +2184,8 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
                                 break
                         
                         # CORREGIDO: Contar registros con fecha de publicación válida usando es_fecha_valida
-                        registros_publicados = df_filtrado[
-                            df_filtrado['Publicación'].apply(lambda x: es_fecha_valida(x))
-                        ]
-                        
-                        
-                        # Si hay Mes Proyectado, filtrar por meses acumulados
-                        if 'Mes Proyectado' in registros_publicados.columns:
-                            # Solo contar los que tienen Mes Proyectado VÁLIDO y están en meses acumulados
-                            publicaciones_acumuladas = registros_publicados[
-                                (registros_publicados['Mes Proyectado'].notna()) & 
-                                (registros_publicados['Mes Proyectado'].astype(str).str.strip() != '') &
-                                (~registros_publicados['Mes Proyectado'].astype(str).str.strip().isin(['nan', 'None', 'NaN'])) &
-                                (registros_publicados['Mes Proyectado'].isin(meses_acumulados))
-                            ]
-                            # Contar los que NO tienen Mes Proyectado válido pero SÍ tienen fecha de Publicación
-                            publicaciones_sin_mes = registros_publicados[
-                                (registros_publicados['Mes Proyectado'].isna()) | 
-                                (registros_publicados['Mes Proyectado'].astype(str).str.strip() == '') |
-                                (registros_publicados['Mes Proyectado'].astype(str).str.strip().isin(['nan', 'None', 'NaN']))
-                            ]
-                            
-                            # SUMAR ambos grupos
-                            avance_acumulado = len(publicaciones_acumuladas) + len(publicaciones_sin_mes)
-                        else:
-                            # Sin Mes Proyectado, usar proporción acumulada
-                            trimestre_index = list(trimestres.keys()).index(trimestre) + 1
-                            avance_acumulado = (len(registros_publicados) * trimestre_index) // 4
-                            
+                        # SIMPLE: Solo contar registros con fecha válida en Publicación
+                        avance_acumulado = len(registros_publicados)                            
                     except Exception:
                         avance_acumulado = 0
                 
