@@ -2806,7 +2806,12 @@ def main():
         metas_nuevas_df, metas_actualizar_df = procesar_metas(meta_df)
 
         # Agregar columnas calculadas
-        registros_df['Porcentaje Avance'] = registros_df.apply(calcular_porcentaje_avance, axis=1)
+       
+        if len(registros_df) > 100:  # Usar versión vectorizada para datasets grandes
+            from data_utils import calcular_porcentajes_avance_vectorizado
+            registros_df['Porcentaje Avance'] = calcular_porcentajes_avance_vectorizado(registros_df)
+        else:
+            registros_df['Porcentaje Avance'] = registros_df.apply(calcular_porcentaje_avance, axis=1)
         registros_df['Estado Fechas'] = registros_df.apply(verificar_estado_fechas, axis=1)
         # GUARDAR las columnas calculadas en Google Sheets
         try:
