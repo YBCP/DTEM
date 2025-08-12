@@ -131,9 +131,21 @@ def mostrar_edicion_registros(registros_df):
         st.session_state.mensaje_guardado = None
 
     st.markdown("### Edición Individual de Registros")
+    col_nuevo, col_selector = st.columns([1, 3])
 
+    with col_nuevo:
+        if st.button("➕ Crear Nuevo Registro", type="secondary"):
+            st.session_state.crear_nuevo_registro = True
+    
+    with col_selector:
+        if st.session_state.get('crear_nuevo_registro', False):
+            st.info("🆕 Modo: Creando nuevo registro")
+            modo_nuevo = True
+        else:
+            modo_nuevo = False
+            
     # Verificar que hay registros para editar
-    if registros_df.empty:
+    if registros_df.empty and not st.session_state.get('crear_nuevo_registro', False):
         st.warning("No hay registros disponibles para editar.")
         return registros_df
 
