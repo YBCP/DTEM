@@ -213,7 +213,7 @@ def crear_gantt(df):
         traceback.print_exc()
         return None
 
-@st.cache_data(ttl=300)
+
 def comparar_avance_metas(df, metas_nuevas_df, metas_actualizar_df):
     """Compara el avance actual con las metas establecidas."""
     try:
