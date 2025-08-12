@@ -47,6 +47,9 @@ def limpiar_valor(valor):
 
     return valor.strip()
 
+import streamlit as st
+
+@st.cache_data(ttl=300)  # Cache por 5 minutos
 def cargar_datos():
     """
     VERSIÓN ULTRA SEGURA: Carga los datos con verificación adicional de Metas.
@@ -321,6 +324,7 @@ def calcular_porcentaje_avance(registro):
         st.warning(f"Error al calcular porcentaje de avance: {e}")
         return 0
         
+@st.cache_data(ttl=600)  # Cache por 10 minutos
 def procesar_metas(meta_df):
     """Procesa las metas a partir del DataFrame de metas."""
     try:
