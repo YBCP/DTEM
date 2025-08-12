@@ -2362,7 +2362,7 @@ def mostrar_reportes(registros_df, entidad_filtro, tipo_dato_filtro, acuerdo_fil
     
     # Aplicar filtros
     df_filtrado = registros_df.copy()
-
+    
     # Filtro por entidad
     if entidad_filtro != 'Todas':
         df_filtrado = df_filtrado[df_filtrado['Entidad'] == entidad_filtro]
@@ -3009,18 +3009,22 @@ def main():
             
             # Aplicar todos los filtros al dataframe final
             df_filtrado = registros_df.copy()
-            
+            mascara = pd.Series([True] * len(registros_df), index=registros_df.index)
+
             if entidad_seleccionada != 'Todas':
-                df_filtrado = df_filtrado[df_filtrado['Entidad'] == entidad_seleccionada]
+                mascara &= (registros_df['Entidad'] == entidad_seleccionada)
             
-            if funcionario_seleccionado != 'Todos' and 'Funcionario' in df_filtrado.columns:
-                df_filtrado = df_filtrado[df_filtrado['Funcionario'] == funcionario_seleccionado]
+            if funcionario_seleccionado != 'Todos' and 'Funcionario' in registros_df.columns:
+                mascara &= (registros_df['Funcionario'] == funcionario_seleccionado)
             
             if tipo_dato_seleccionado != 'Todos':
-                df_filtrado = df_filtrado[df_filtrado['TipoDato'].str.upper() == tipo_dato_seleccionado.upper()]
+                mascara &= (registros_df['TipoDato'].str.upper() == tipo_dato_seleccionado.upper())
             
             if nivel_seleccionado != 'Todos':
-                df_filtrado = df_filtrado[df_filtrado['Nivel Información '] == nivel_seleccionado]
+                mascara &= (registros_df['Nivel Información '] == nivel_seleccionado)
+            
+            # Aplicar máscara una sola vez
+            df_filtrado = registros_df[mascara]
             
             st.markdown("---")
             
