@@ -1014,19 +1014,16 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         nivel_seleccionado != 'Todos'
     )
 
-    if filtros_aplicados and len(df_filtrado) <= 15:  # Solo con muy pocos registros
+    if filtros_aplicados:
         # Crear el diagrama de Gantt solo si hay filtros
         fig_gantt = crear_gantt(df_filtrado)
         if fig_gantt is not None:
             st.plotly_chart(fig_gantt, use_container_width=True)
         else:
             st.warning("No hay datos suficientes para crear el diagrama de Gantt con los filtros aplicados.")
-    elif filtros_aplicados:
-        st.info(f"Diagrama de Gantt deshabilitado por rendimiento ({len(df_filtrado)} registros). Aplique más filtros (máximo 15 registros).")
     else:
         # Mostrar mensaje cuando no hay filtros aplicados
         st.info("Para visualizar el diagrama de Gantt seleccione la entidad o funcionario de su interés.")
-
     # Tabla de registros con porcentaje de avance
     st.markdown('<div class="subtitle">Detalle de Registros</div>', unsafe_allow_html=True)
 
