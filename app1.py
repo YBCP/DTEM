@@ -809,7 +809,7 @@ def mostrar_edicion_registros(registros_df):
 
     return registros_df
 # ========== FUNCIÓN DASHBOARD MODIFICADA ==========
-
+@st.cache_data(ttl=60)  # Cache por 1 minuto
 def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registros_df, 
                      entidad_seleccionada, funcionario_seleccionado, nivel_seleccionado):
     """Muestra el dashboard principal con métricas y gráficos - VERSIÓN COMPLETA RESTAURADA CON MODIFICACIONES."""
