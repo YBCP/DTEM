@@ -262,6 +262,39 @@ def verificar_completado_por_fecha(fecha_programada, fecha_completado=None):
 
     return False
 
+def calcular_porcentajes_avance_vectorizado(df):
+    """Versión vectorizada más rápida del cálculo de porcentajes"""
+    import numpy as np
+    
+    # Inicializar con zeros
+    porcentajes = np.zeros(len(df))
+    
+    # Verificar fecha de oficio de cierre (100% automático)
+    tiene_oficio = (df['Fecha de oficio de cierre'].notna()) & (df['Fecha de oficio de cierre'] != '')
+    porcentajes[tiene_oficio] = 100
+    
+    # Para los que no tienen oficio, calcular normalmente
+    sin_oficio = ~tiene_oficio
+    
+    if sin_oficio.any():
+        # Acuerdo de compromiso (20%)
+        acuerdo_ok = df.loc[sin_oficio, 'Acuerdo de compromiso'].astype(str).str.upper().isin(['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])
+        porcentajes[sin_oficio.values] += acuerdo_ok.astype(int) * 20
+        
+        # Análisis y cronograma (20%)
+        analisis_ok = (df.loc[sin_oficio, 'Análisis y cronograma'].notna()) & (df.loc[sin_oficio, 'Análisis y cronograma'].astype(str) != '')
+        porcentajes[sin_oficio.values] += analisis_ok.astype(int) * 20
+        
+        # Estándares (30%)
+        estandares_ok = (df.loc[sin_oficio, 'Estándares'].notna()) & (df.loc[sin_oficio, 'Estándares'].astype(str) != '')
+        porcentajes[sin_oficio.values] += estandares_ok.astype(int) * 30
+        
+        # Publicación (25%)
+        publicacion_ok = (df.loc[sin_oficio, 'Publicación'].notna()) & (df.loc[sin_oficio, 'Publicación'].astype(str) != '')
+        porcentajes[sin_oficio.values] += publicacion_ok.astype(int) * 25
+    
+    return porcentajes
+
 def calcular_porcentaje_avance(registro):
     """
     MODIFICADO: Calcula el porcentaje de avance de un registro basado en los campos de completitud.
