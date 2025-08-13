@@ -197,7 +197,7 @@ def mostrar_edicion_registros(registros_df):
         edited = False
 
         # Contenedor para los datos de edición
-           with st.container():
+        with st.container():
                 st.markdown("---")
                 # Título del registro
                 st.markdown(f"### Editando Registro #{row['Cod']} - {row['Entidad']}")
@@ -215,6 +215,7 @@ def mostrar_edicion_registros(registros_df):
                     edited = True
                 st.markdown(f"**Nivel de Información:** {nuevo_nivel_info}")
                 st.markdown("---")
+               
             # ===== SECCIÓN 1: INFORMACIÓN BÁSICA =====
             st.markdown("### 1. Información Básica")
             col1, col2, col3 = st.columns(3)
