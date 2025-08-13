@@ -418,30 +418,7 @@ def mostrar_edicion_registros(registros_df):
     return registros_df
 
 
-# ===== FUNCIONES AUXILIARES (mantener las mismas) =====
 
-def fecha_para_selector(fecha_str):
-    """Convierte una fecha en string a un objeto datetime para el selector."""
-    if not fecha_str or pd.isna(fecha_str) or fecha_str == '':
-        return None
-    try:
-        from data_utils import procesar_fecha
-        fecha = procesar_fecha(fecha_str)
-        if fecha is not None:
-            return fecha.date() if hasattr(fecha, 'date') else fecha
-    except:
-        pass
-    return None
-
-def fecha_desde_selector_a_string(fecha):
-    """Convierte un objeto datetime del selector a string con formato DD/MM/AAAA."""
-    if fecha is None:
-        return ""
-    return fecha.strftime('%d/%m/%Y')
-
-def on_change_callback():
-    """Callback para marcar que hay cambios pendientes."""
-    st.session_state.cambios_pendientes = True
 # ========== FUNCIÓN DASHBOARD MODIFICADA ==========
 
 def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registros_df, 
