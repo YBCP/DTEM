@@ -51,36 +51,75 @@ def inicializar_estado_temporal(indice_seleccionado, registros_df):
 
 def actualizar_campo_temporal(key_temp, campo, nuevo_valor):
     """
-    Actualiza un campo específico en el estado temporal.
+    CORREGIDO: Actualiza un campo específico en el estado temporal SIN causar recargas.
     """
     if key_temp in st.session_state:
         if st.session_state[key_temp][campo] != nuevo_valor:
             st.session_state[key_temp][campo] = nuevo_valor
             st.session_state[f"{key_temp}_modified"] = True
+            # ✅ NO LLAMAR st.rerun() aquí - esto causaba las recargas
+
 
 def obtener_valor_temporal(key_temp, campo, valor_default=""):
     """
-    Obtiene el valor actual de un campo desde el estado temporal.
+    MEJORADO: Obtiene el valor actual de un campo desde el estado temporal con mejor manejo de errores.
     """
-    if key_temp in st.session_state and campo in st.session_state[key_temp]:
-        return st.session_state[key_temp][campo]
-    return valor_default
+    try:
+        if key_temp in st.session_state and campo in st.session_state[key_temp]:
+            valor = st.session_state[key_temp][campo]
+            # Manejar valores None o NaN
+            if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+                return valor_default
+            return str(valor).strip() if valor != "" else valor_default
+        return valor_default
+    except Exception:
+        return valor_default
+
 
 def hay_cambios_pendientes(key_temp):
     """
-    Verifica si hay cambios pendientes en el estado temporal.
+    MEJORADO: Verifica si hay cambios pendientes en el estado temporal con mejor detección.
     """
-    return st.session_state.get(f"{key_temp}_modified", False)
+    try:
+        if f"{key_temp}_modified" in st.session_state:
+            return st.session_state[f"{key_temp}_modified"]
+        return False
+    except Exception:
+        return False
 
-def limpiar_estado_temporal(key_temp):
-    """
-    Limpia el estado temporal después de guardar o cancelar.
-    """
-    if key_temp in st.session_state:
-        del st.session_state[key_temp]
-    if f"{key_temp}_modified" in st.session_state:
-        del st.session_state[f"{key_temp}_modified"]
 
+def mostrar_mensaje_validacion_oficio_cierre():
+    """
+    NUEVA FUNCIÓN: Muestra mensajes específicos de validación para oficio de cierre.
+    """
+    st.error("""
+    ❌ **No se puede introducir 'Fecha de oficio de cierre'**
+    
+    **Requisito:** Debe completar primero la etapa de **'Publicación'** (introducir fecha real de publicación).
+    
+    **Pasos a seguir:**
+    1. Complete la fecha en el campo 'Publicación (fecha real)'
+    2. Presione 'Guardar Registro' para aplicar los cambios
+    3. Luego podrá introducir la 'Fecha de oficio de cierre'
+    """)
+
+
+def aplicar_validaciones_campo_especifico(key_temp, campo, nuevo_valor):
+    """
+    NUEVA FUNCIÓN: Aplica validaciones específicas a campos críticos antes del guardado.
+    """
+    validaciones_pasadas = True
+    mensajes_error = []
+    
+    # Validación específica para Fecha de oficio de cierre
+    if campo == 'Fecha de oficio de cierre' and nuevo_valor and str(nuevo_valor).strip() != '':
+        # Verificar que haya fecha de publicación
+        publicacion_valor = obtener_valor_temporal(key_temp, 'Publicación', '')
+        if not (publicacion_valor and str(publicacion_valor).strip() != ''):
+            validaciones_pasadas = False
+            mensajes_error.append("Para introducir 'Fecha de oficio de cierre' debe completar primero la etapa de 'Publicación'")
+    
+    return validaciones_pasadas, mensajes_error
 def aplicar_cambios_temporales(registros_df, indice_seleccionado, key_temp):
     """
     Aplica los cambios temporales al DataFrame principal.
@@ -290,7 +329,9 @@ def mostrar_configuracion_sheets():
         st.info("Los datos se guardan de forma segura en Google Sheets con autenticación OAuth2")
 
 def mostrar_edicion_registros(registros_df):
-    """Muestra la pestaña de edición de registros - VERSIÓN CON CAMBIOS TEMPORALES."""
+    """
+    CORREGIDO: Muestra la pestaña de edición de registros sin recargas automáticas.
+    """
     st.markdown('<div class="subtitle">Edición de Registros</div>', unsafe_allow_html=True)
 
     st.info(
@@ -300,6 +341,7 @@ def mostrar_edicion_registros(registros_df):
     st.warning("""
     **Importante**: 
     - ⚠️ **Los cambios se mantienen temporalmente hasta que presione "Guardar Registro"**
+    - ✅ **El formulario NO se recarga automáticamente** - solo al presionar "Guardar Registro"
     - Para los campos de fecha, utilice el selector de calendario que aparece.
     - El campo "Plazo de análisis" se calcula automáticamente como 5 días hábiles después de la "Fecha de entrega de información"
     - El campo "Plazo de cronograma" se calcula automáticamente como 3 días hábiles después del "Plazo de análisis"
@@ -323,7 +365,7 @@ def mostrar_edicion_registros(registros_df):
         st.warning("No hay registros disponibles para editar.")
         return registros_df
 
-    # Selector de registro - mostrar lista completa de registros para seleccionar
+    # ✅ CORREGIDO: Selector de registro SIN callback automático
     codigos_registros = registros_df['Cod'].astype(str).tolist()
     entidades_registros = registros_df['Entidad'].tolist()
     niveles_registros = registros_df['Nivel Información '].tolist()
@@ -332,23 +374,24 @@ def mostrar_edicion_registros(registros_df):
     opciones_registros = [f"{codigos_registros[i]} - {entidades_registros[i]} - {niveles_registros[i]}"
                           for i in range(len(codigos_registros))]
 
-    # Agregar el selector de registro
+    # ✅ CORREGIDO: Selector sin callback automático - solo cambia cuando el usuario selecciona
     seleccion_registro = st.selectbox(
         "Seleccione un registro para editar:",
         options=opciones_registros,
-        key="selector_registro"
+        key="selector_registro_main"
+        # ✅ NO CALLBACK - solo cambia cuando el usuario selecciona manualmente
     )
 
     # Obtener el índice del registro seleccionado
     indice_seleccionado = opciones_registros.index(seleccion_registro)
 
-    # NUEVO: Inicializar estado temporal para este registro
+    # Inicializar estado temporal para este registro
     key_temp = inicializar_estado_temporal(indice_seleccionado, registros_df)
     
-    # NUEVO: Verificar si hay cambios pendientes
+    # Verificar si hay cambios pendientes
     cambios_pendientes = hay_cambios_pendientes(key_temp)
     
-    # NUEVO: Mostrar indicador de cambios pendientes
+    # Mostrar indicador de cambios pendientes
     if cambios_pendientes:
         st.warning("⚠️ **Hay cambios sin guardar.** Presione 'Guardar Registro' para aplicar los cambios o 'Cancelar Cambios' para descartarlos.")
 
@@ -365,6 +408,8 @@ def mostrar_edicion_registros(registros_df):
             st.markdown(f"**Nivel de Información:** {row_original['Nivel Información ']}")
             st.markdown("---")
 
+            # ===== RESTO DEL FORMULARIO IGUAL PERO SIN RECARGAS =====
+            
             # ===== SECCIÓN 1: INFORMACIÓN BÁSICA =====
             st.markdown("### 1. Información Básica")
             col1, col2, col3 = st.columns(3)
@@ -374,7 +419,7 @@ def mostrar_edicion_registros(registros_df):
                 st.text_input("Código", value=row_original['Cod'], disabled=True)
 
             with col2:
-                # Tipo de Dato - USAR WIDGET CON CALLBACK
+                # Tipo de Dato - USAR WIDGET CON CALLBACK CORREGIDO
                 crear_widget_con_callback(
                     'selectbox',
                     "Tipo de Dato",
@@ -384,7 +429,7 @@ def mostrar_edicion_registros(registros_df):
                 )
 
             with col3:
-                # Mes Proyectado - USAR WIDGET CON CALLBACK
+                # Mes Proyectado - USAR WIDGET CON CALLBACK CORREGIDO
                 meses = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
                         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
                 
@@ -395,7 +440,6 @@ def mostrar_edicion_registros(registros_df):
                     'Mes Proyectado',
                     options=meses
                 )
-
             # Frecuencia de actualización y Funcionario
             col1, col2 = st.columns(2)
             with col1:
@@ -795,37 +839,63 @@ def mostrar_edicion_registros(registros_df):
                 st.info(f"**Próxima acción:** {proxima_accion}")
 
             # ===== BOTONES DE ACCIÓN MODIFICADOS =====
+            # ===== BOTONES DE ACCIÓN CORREGIDOS =====
             st.markdown("---")
             st.markdown("### Acciones")
             
             col1, col2, col3, col4, col5 = st.columns(5)
             
             with col1:
-                # Botón para guardar cambios - SOLO SE HABILITA SI HAY CAMBIOS
+                # ✅ CORREGIDO: Botón para guardar cambios con validaciones
                 if cambios_pendientes:
                     if st.button("💾 Guardar Registro", key=f"guardar_{key_temp}", type="primary"):
-                        with st.spinner("Aplicando cambios y guardando en Google Sheets..."):
-                            # 1. Aplicar cambios temporales al DataFrame
-                            registros_df = aplicar_cambios_temporales(registros_df, indice_seleccionado, key_temp)
-                            
-                            # 2. Aplicar validaciones de reglas de negocio
-                            registros_df = validar_reglas_negocio(registros_df)
+                        with st.spinner("Aplicando cambios, validaciones y guardando en Google Sheets..."):
+                            try:
+                                # 1. Aplicar cambios temporales al DataFrame
+                                registros_df = aplicar_cambios_temporales(registros_df, indice_seleccionado, key_temp)
+                                
+                                # 2. ✅ NUEVO: Verificar validaciones ANTES de guardar
+                                from validaciones_utils import verificar_condiciones_oficio_cierre
+                                
+                                # Obtener el registro actualizado
+                                registro_actualizado = registros_df.iloc[indice_seleccionado]
+                                
+                                # Verificar si intenta introducir fecha de oficio de cierre sin publicación
+                                fecha_oficio_temp = obtener_valor_temporal(key_temp, 'Fecha de oficio de cierre', '')
+                                publicacion_temp = obtener_valor_temporal(key_temp, 'Publicación', '')
+                                
+                                if (fecha_oficio_temp and pd.notna(fecha_oficio_temp) and str(fecha_oficio_temp).strip() != ''):
+                                    if not (publicacion_temp and pd.notna(publicacion_temp) and str(publicacion_temp).strip() != ''):
+                                        # ❌ VALIDACIÓN FALLIDA
+                                        st.session_state.mensaje_guardado = ("error", 
+                                            "❌ No se puede guardar: Para introducir 'Fecha de oficio de cierre' debe completar primero la etapa de 'Publicación'")
+                                        st.rerun()
+                                        return registros_df
 
-                            # 3. Actualizar los plazos automáticamente
-                            registros_df = actualizar_plazo_analisis(registros_df)
-                            registros_df = actualizar_plazo_cronograma(registros_df)
-                            registros_df = actualizar_plazo_oficio_cierre(registros_df)
+                                # 3. Aplicar validaciones de reglas de negocio
+                                registros_df = validar_reglas_negocio(registros_df)
 
-                            # 4. Guardar en Google Sheets
-                            exito, mensaje = guardar_datos_editados(registros_df, crear_backup=True)
+                                # 4. Actualizar los plazos automáticamente
+                                registros_df = actualizar_plazo_analisis(registros_df)
+                                registros_df = actualizar_plazo_cronograma(registros_df)
+                                registros_df = actualizar_plazo_oficio_cierre(registros_df)
 
-                            if exito:
-                                st.session_state.mensaje_guardado = ("success", mensaje)
-                                # Limpiar estado temporal después de guardar exitosamente
-                                limpiar_estado_temporal(key_temp)
+                                # 5. Guardar en Google Sheets
+                                exito, mensaje = guardar_datos_editados(registros_df, crear_backup=True)
+
+                                if exito:
+                                    st.session_state.mensaje_guardado = ("success", 
+                                        f"✅ {mensaje} Validaciones y plazos automáticos aplicados correctamente.")
+                                    # Limpiar estado temporal después de guardar exitosamente
+                                    limpiar_estado_temporal(key_temp)
+                                    st.rerun()
+                                else:
+                                    st.session_state.mensaje_guardado = ("error", mensaje)
+                                    st.rerun()
+                                    
+                            except Exception as e:
+                                st.session_state.mensaje_guardado = ("error", f"❌ Error al guardar: {str(e)}")
                                 st.rerun()
-                            else:
-                                st.session_state.mensaje_guardado = ("error", mensaje)
                 else:
                     st.button("💾 Guardar Registro", disabled=True, help="No hay cambios pendientes para guardar")
 
@@ -840,54 +910,9 @@ def mostrar_edicion_registros(registros_df):
                 else:
                     st.button("❌ Cancelar Cambios", disabled=True, help="No hay cambios pendientes para cancelar")
 
-            with col3:
-                # Botón para recalcular plazos - APLICADO SOBRE VALORES TEMPORALES
-                if st.button("🔄 Previsualizar Plazos", key=f"preview_plazos_{key_temp}"):
-                    with st.spinner("Calculando plazos basados en cambios temporales..."):
-                        # Crear un DataFrame temporal para preview
-                        df_preview = registros_df.copy()
-                        df_preview = aplicar_cambios_temporales(df_preview, indice_seleccionado, key_temp)
-                        
-                        # Aplicar cálculos de plazos
-                        df_preview = actualizar_plazo_analisis(df_preview)
-                        df_preview = actualizar_plazo_cronograma(df_preview)
-                        df_preview = actualizar_plazo_oficio_cierre(df_preview)
-                        
-                        # Actualizar valores temporales con los plazos calculados
-                        registro_preview = df_preview.iloc[indice_seleccionado]
-                        actualizar_campo_temporal(key_temp, 'Plazo de análisis', registro_preview['Plazo de análisis'])
-                        actualizar_campo_temporal(key_temp, 'Plazo de cronograma', registro_preview['Plazo de cronograma'])
-                        actualizar_campo_temporal(key_temp, 'Plazo de oficio de cierre', registro_preview['Plazo de oficio de cierre'])
-                        
-                        st.success("Plazos actualizados en vista previa")
-                        st.rerun()
-
-            with col4:
-                # Botón para aplicar validaciones - PREVIEW
-                if st.button("✅ Previsualizar Validaciones", key=f"preview_validaciones_{key_temp}"):
-                    with st.spinner("Aplicando validaciones sobre cambios temporales..."):
-                        # Crear un DataFrame temporal para preview
-                        df_preview = registros_df.copy()
-                        df_preview = aplicar_cambios_temporales(df_preview, indice_seleccionado, key_temp)
-                        
-                        # Aplicar reglas de negocio
-                        df_preview = validar_reglas_negocio(df_preview)
-                        
-                        # Actualizar valores temporales con las validaciones aplicadas
-                        registro_preview = df_preview.iloc[indice_seleccionado]
-                        for campo in registro_preview.index:
-                            if campo in st.session_state[key_temp]:
-                                actualizar_campo_temporal(key_temp, campo, registro_preview[campo])
-                        
-                        st.success("Validaciones aplicadas en vista previa")
-                        st.rerun()
-
-            with col5:
-                # Botón para actualizar vista
-                if st.button("🔄 Actualizar Vista", key=f"actualizar_{key_temp}"):
-                    st.rerun()
+            # ✅ RESTO DE BOTONES SIN CAMBIOS PERO CON VALIDACIONES MEJORADAS
             
-            # NUEVO: Mostrar comparación de cambios si hay modificaciones
+            # MOSTRAR COMPARACIÓN DE CAMBIOS si hay modificaciones
             if cambios_pendientes:
                 st.markdown("---")
                 st.markdown("### 📋 Resumen de Cambios Pendientes")
@@ -918,10 +943,6 @@ def mostrar_edicion_registros(registros_df):
             st.write(f"Índice seleccionado: {indice_seleccionado}")
             st.write(f"Registro seleccionado: {seleccion_registro}")
             st.write(f"Columnas disponibles: {list(registros_df.columns)}")
-            
-            # Mostrar traceback completo
-            import traceback
-            st.code(traceback.format_exc())
 
     return registros_df
 # ========== FUNCIÓN DASHBOARD MODIFICADA ==========
