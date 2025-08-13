@@ -94,7 +94,7 @@ def aplicar_cambios_temporales(registros_df, indice_seleccionado, key_temp):
 
 def crear_widget_con_callback(widget_type, label, key_temp, campo, **kwargs):
     """
-    Crea un widget que actualiza automáticamente el estado temporal.
+    Crea un widget que actualiza automáticamente el estado temporal SIN RECARGAR la página.
     """
     # Obtener valor actual
     valor_actual = obtener_valor_temporal(key_temp, campo, kwargs.get('value', ''))
@@ -102,10 +102,11 @@ def crear_widget_con_callback(widget_type, label, key_temp, campo, **kwargs):
     # Configurar key único para el widget
     widget_key = f"{key_temp}_{campo}_widget"
     
-    # Función callback para actualizar estado temporal
-    def callback():
+    # Función callback para actualizar estado temporal SIN st.rerun()
+    def callback_sin_recarga():
         nuevo_valor = st.session_state[widget_key]
         actualizar_campo_temporal(key_temp, campo, nuevo_valor)
+        # ✅ ELIMINADO: st.rerun() - esa era la causa de las recargas
     
     # Crear widget según tipo
     if widget_type == 'selectbox':
@@ -116,7 +117,7 @@ def crear_widget_con_callback(widget_type, label, key_temp, campo, **kwargs):
             options=options,
             index=index,
             key=widget_key,
-            on_change=callback,
+            on_change=callback_sin_recarga,  # ✅ Sin recarga
             **{k: v for k, v in kwargs.items() if k not in ['options', 'value']}
         )
     
@@ -125,23 +126,7 @@ def crear_widget_con_callback(widget_type, label, key_temp, campo, **kwargs):
             label,
             value=valor_actual,
             key=widget_key,
-            on_change=callback,
-            **{k: v for k, v in kwargs.items() if k not in ['value']}
-        )
-    
-    elif widget_type == 'date_input':
-        fecha_valor = fecha_para_selector(valor_actual) if valor_actual else None
-        
-        def date_callback():
-            nuevo_valor = st.session_state[widget_key]
-            fecha_str = fecha_desde_selector_a_string(nuevo_valor) if nuevo_valor else ""
-            actualizar_campo_temporal(key_temp, campo, fecha_str)
-        
-        return st.date_input(
-            label,
-            value=fecha_valor,
-            key=widget_key,
-            on_change=date_callback,
+            on_change=callback_sin_recarga,  # ✅ Sin recarga
             **{k: v for k, v in kwargs.items() if k not in ['value']}
         )
     
@@ -150,11 +135,79 @@ def crear_widget_con_callback(widget_type, label, key_temp, campo, **kwargs):
             label,
             value=valor_actual,
             key=widget_key,
-            on_change=callback,
+            on_change=callback_sin_recarga,  # ✅ Sin recarga
             **{k: v for k, v in kwargs.items() if k not in ['value']}
         )
     
+    # ❌ ELIMINAMOS date_input de aquí - usaremos función especializada
+    
     return None
+
+def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None):
+    """
+    Selector de fecha especializado que permite borrar completamente.
+    """
+    valor_actual = obtener_valor_temporal(key_temp, campo, "")
+    widget_key = f"{key_temp}_{campo}_widget"
+    
+    # Crear contenedor para la fecha
+    with st.container():
+        # Crear tres columnas: checkbox, fecha, botón borrar
+        col_check, col_fecha, col_borrar = st.columns([1, 6, 1])
+        
+        with col_check:
+            # Checkbox para activar/desactivar fecha
+            tiene_fecha = bool(valor_actual and valor_actual.strip())
+            usar_fecha = st.checkbox(
+                "📅", 
+                value=tiene_fecha,
+                key=f"check_{widget_key}",
+                help="Marcar para usar fecha"
+            )
+        
+        with col_fecha:
+            if usar_fecha:
+                # Solo mostrar date_input si está activado
+                fecha_valor = fecha_para_selector(valor_actual) if valor_actual else None
+                
+                # Si no hay fecha válida, usar fecha actual como default
+                if fecha_valor is None:
+                    fecha_valor = datetime.now().date()
+                
+                nueva_fecha = st.date_input(
+                    label,
+                    value=fecha_valor,
+                    key=widget_key,
+                    help=help_text
+                )
+                
+                # Actualizar estado temporal cuando cambia (SIN st.rerun)
+                fecha_str = fecha_desde_selector_a_string(nueva_fecha)
+                if fecha_str != valor_actual:
+                    actualizar_campo_temporal(key_temp, campo, fecha_str)
+            else:
+                # Si no está activado, mostrar campo deshabilitado
+                st.text_input(
+                    label,
+                    value="(Sin fecha asignada)",
+                    disabled=True,
+                    key=f"disabled_{widget_key}"
+                )
+                # Limpiar fecha del estado temporal si había una
+                if valor_actual:
+                    actualizar_campo_temporal(key_temp, campo, "")
+        
+        with col_borrar:
+            if usar_fecha:
+                # Botón para limpiar fecha
+                if st.button("🗑️", key=f"clear_{widget_key}", help="Limpiar fecha"):
+                    # Limpiar fecha y desactivar checkbox
+                    actualizar_campo_temporal(key_temp, campo, "")
+                    st.session_state[f"check_{widget_key}"] = False
+                    st.rerun()  # ✅ Solo aquí sí recargamos para limpiar el widget
+            else:
+                # Espaciador visual
+                st.write("")
 
 def string_a_fecha(fecha_str):
     """Convierte un string de fecha a objeto datetime para mostrar en el selector de fecha."""
@@ -393,9 +446,9 @@ def mostrar_edicion_registros(registros_df):
                     options=["", "Si", "No"]
                 )
 
-                # Suscripción acuerdo de compromiso - SELECTOR DE FECHA
-                crear_widget_con_callback(
-                    'date_input',
+                
+                # Suscripción acuerdo de compromiso - SELECTOR DE FECHA BORRABLE
+                crear_selector_fecha_borrable(
                     "Suscripción acuerdo de compromiso",
                     key_temp,
                     'Suscripción acuerdo de compromiso'
@@ -403,8 +456,7 @@ def mostrar_edicion_registros(registros_df):
 
             with col2:
                 # Entrega acuerdo de compromiso - SELECTOR DE FECHA
-                crear_widget_con_callback(
-                    'date_input',
+                crear_selector_fecha_borrable(
                     "Entrega acuerdo de compromiso",
                     key_temp,
                     'Entrega acuerdo de compromiso'
@@ -436,9 +488,8 @@ def mostrar_edicion_registros(registros_df):
                 )
 
             with col2:
-                # Fecha de entrega de información - SELECTOR DE FECHA
-                crear_widget_con_callback(
-                    'date_input',
+                # Fecha de entrega de información - SELECTOR DE FECHA BORRABLE
+                crear_selector_fecha_borrable(
                     "Fecha de entrega de información",
                     key_temp,
                     'Fecha de entrega de información'
@@ -462,13 +513,10 @@ def mostrar_edicion_registros(registros_df):
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                # Análisis de información
-                crear_widget_con_callback(
-                    'selectbox',
-                    "Análisis de información",
+                crear_selector_fecha_borrable(
+                    "Análisis y cronograma (fecha real)",
                     key_temp,
-                    'Análisis de información',
-                    options=["", "Si", "No"]
+                    'Análisis y cronograma'
                 )
 
             with col2:
@@ -505,8 +553,7 @@ def mostrar_edicion_registros(registros_df):
             # Análisis y cronograma fecha - SELECTOR DE FECHA
             col1, col2 = st.columns(2)
             with col1:
-                crear_widget_con_callback(
-                    'date_input',
+                crear_selector_fecha_borrable(
                     "Análisis y cronograma (fecha real)",
                     key_temp,
                     'Análisis y cronograma'
@@ -545,18 +592,16 @@ def mostrar_edicion_registros(registros_df):
             col1, col2 = st.columns(2)
             
             with col1:
-                # Estándares fecha programada - SELECTOR DE FECHA
-                crear_widget_con_callback(
-                    'date_input',
+                # Estándares fecha programada - SELECTOR DE FECHA BORRABLE
+                crear_selector_fecha_borrable(
                     "Estándares (fecha programada)",
                     key_temp,
                     'Estándares (fecha programada)'
                 )
 
             with col2:
-                # Estándares fecha real - SELECTOR DE FECHA
-                crear_widget_con_callback(
-                    'date_input',
+                # Estándares fecha real - SELECTOR DE FECHA BORRABLE
+                crear_selector_fecha_borrable(
                     "Estándares (fecha real)",
                     key_temp,
                     'Estándares'
@@ -596,18 +641,16 @@ def mostrar_edicion_registros(registros_df):
             col1, col2 = st.columns(2)
             
             with col1:
-                # Fecha de publicación programada - SELECTOR DE FECHA
-                crear_widget_con_callback(
-                    'date_input',
+                # Fecha de publicación programada - SELECTOR DE FECHA BORRABLE
+                crear_selector_fecha_borrable(
                     "Fecha de publicación programada",
                     key_temp,
                     'Fecha de publicación programada'
                 )
 
             with col2:
-                # Publicación fecha real - SELECTOR DE FECHA
-                crear_widget_con_callback(
-                    'date_input',
+                # Publicación fecha real - SELECTOR DE FECHA BORRABLE
+                crear_selector_fecha_borrable(
                     "Publicación (fecha real)",
                     key_temp,
                     'Publicación'
@@ -654,8 +697,7 @@ def mostrar_edicion_registros(registros_df):
                         key=f"oficio_disabled_{key_temp}"
                     )
                 else:
-                    crear_widget_con_callback(
-                        'date_input',
+                    crear_selector_fecha_borrable(
                         "Fecha de oficio de cierre",
                         key_temp,
                         'Fecha de oficio de cierre'
