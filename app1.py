@@ -144,23 +144,54 @@ def mostrar_edicion_registros(registros_df):
     niveles_registros = registros_df['Nivel Información '].tolist()
 
     # Crear opciones para el selector combinando información
-    opciones_registros = [f"{codigos_registros[i]} - {entidades_registros[i]} - {niveles_registros[i]}"
+    # Crear opciones para el selector combinando información
+    opciones_registros = ["➕ Agregar Nuevo Registro"] + [f"{codigos_registros[i]} - {entidades_registros[i]} - {niveles_registros[i]}"
                           for i in range(len(codigos_registros))]
-
+    
     # Agregar el selector de registro
     seleccion_registro = st.selectbox(
         "Seleccione un registro para editar:",
         options=opciones_registros,
         key="selector_registro"
     )
-
-    # Obtener el índice del registro seleccionado
-    indice_seleccionado = opciones_registros.index(seleccion_registro)
+    
+    # Verificar si se seleccionó crear nuevo registro
+    if seleccion_registro == "➕ Agregar Nuevo Registro":
+        # Calcular siguiente código automático
+        if not registros_df.empty and 'Cod' in registros_df.columns:
+            codigos_existentes = pd.to_numeric(registros_df['Cod'], errors='coerce').dropna()
+            if not codigos_existentes.empty:
+                siguiente_codigo = int(codigos_existentes.max()) + 1
+            else:
+                siguiente_codigo = 1
+        else:
+            siguiente_codigo = 1
+        
+        # Crear registro vacío con código automático
+        row = pd.Series(dtype=object)
+        row['Cod'] = siguiente_codigo
+        
+        # Inicializar todos los campos vacíos
+        for col in registros_df.columns:
+            if col != 'Cod':
+                row[col] = ''
+        
+        # Marcar que es nuevo registro
+        modo_nuevo_registro = True
+        indice_seleccionado = -1  # Índice especial para nuevo registro
+    else:
+        # Obtener el índice del registro seleccionado (restar 1 por la opción agregada)
+        indice_seleccionado = opciones_registros.index(seleccion_registro) - 1
+        row = registros_df.iloc[indice_seleccionado].copy()
+        modo_nuevo_registro = False
 
     # Mostrar el registro seleccionado para edición
     try:
-        # Obtener el registro seleccionado
-        row = registros_df.iloc[indice_seleccionado].copy()
+        # El registro ya se obtuvo arriba según la selección
+        if modo_nuevo_registro:
+            st.success(f"🆕 Creando nuevo registro con código: {row['Cod']}")
+        else:
+            st.info(f"✏️ Editando registro existente: {row['Cod']}")
 
         # Flag para detectar cambios
         edited = False
@@ -738,7 +769,14 @@ def mostrar_edicion_registros(registros_df):
             with col1:
                 # Botón para guardar cambios individuales
                 if edited or st.session_state.get('cambios_pendientes', False):
-                    if st.button("💾 Guardar Cambios", key=f"guardar_individual_{indice_seleccionado}", type="primary"):
+                    if modo_nuevo_registro:
+                        boton_texto = "💾 Crear Registro"
+                        boton_key = "guardar_nuevo_registro"
+                    else:
+                        boton_texto = "💾 Guardar Cambios"
+                        boton_key = f"guardar_individual_{indice_seleccionado}"
+                    
+                    if st.button(boton_texto, key=boton_key, type="primary"):
                         # Aplicar validaciones de reglas de negocio antes de guardar
                         registros_df = validar_reglas_negocio(registros_df)
 
