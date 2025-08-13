@@ -95,7 +95,7 @@ def aplicar_cambios_temporales(registros_df, indice_seleccionado, key_temp):
 
 def crear_widget_con_callback(widget_type, label, key_temp, campo, **kwargs):
     """
-    Crea un widget que actualiza automáticamente el estado temporal SIN RECARGAR la página.
+    CORREGIDO: Crea un widget que actualiza automáticamente el estado temporal SIN RECARGAR la página.
     """
     # Obtener valor actual
     valor_actual = obtener_valor_temporal(key_temp, campo, kwargs.get('value', ''))
@@ -103,11 +103,12 @@ def crear_widget_con_callback(widget_type, label, key_temp, campo, **kwargs):
     # Configurar key único para el widget
     widget_key = f"{key_temp}_{campo}_widget"
     
-    # Función callback para actualizar estado temporal SIN st.rerun()
-    def callback_sin_recarga():
-        nuevo_valor = st.session_state[widget_key]
-        actualizar_campo_temporal(key_temp, campo, nuevo_valor)
-        # ✅ ELIMINADO: st.rerun() - esa era la causa de las recargas
+    # ✅ CORREGIDO: Callback simple que NO llama st.rerun()
+    def callback_silencioso():
+        """Callback que actualiza estado temporal sin recargar la página"""
+        if widget_key in st.session_state:
+            nuevo_valor = st.session_state[widget_key]
+            actualizar_campo_temporal(key_temp, campo, nuevo_valor)
     
     # Crear widget según tipo
     if widget_type == 'selectbox':
@@ -118,7 +119,7 @@ def crear_widget_con_callback(widget_type, label, key_temp, campo, **kwargs):
             options=options,
             index=index,
             key=widget_key,
-            on_change=callback_sin_recarga,  # ✅ Sin recarga
+            on_change=callback_silencioso,  # ✅ Callback sin recarga
             **{k: v for k, v in kwargs.items() if k not in ['options', 'value']}
         )
     
@@ -127,7 +128,7 @@ def crear_widget_con_callback(widget_type, label, key_temp, campo, **kwargs):
             label,
             value=valor_actual,
             key=widget_key,
-            on_change=callback_sin_recarga,  # ✅ Sin recarga
+            on_change=callback_silencioso,  # ✅ Callback sin recarga
             **{k: v for k, v in kwargs.items() if k not in ['value']}
         )
     
@@ -136,18 +137,16 @@ def crear_widget_con_callback(widget_type, label, key_temp, campo, **kwargs):
             label,
             value=valor_actual,
             key=widget_key,
-            on_change=callback_sin_recarga,  # ✅ Sin recarga
+            on_change=callback_silencioso,  # ✅ Callback sin recarga
             **{k: v for k, v in kwargs.items() if k not in ['value']}
         )
     
-    # ❌ ELIMINAMOS date_input de aquí - usaremos función especializada
-    
     return None
+
 
 def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None):
     """
-    Selector de fecha especializado que permite borrar completamente.
-    CORREGIDO: No recarga la página automáticamente.
+    CORREGIDO: Selector de fecha especializado que permite borrar completamente SIN RECARGAS AUTOMÁTICAS.
     """
     # Obtener valor actual del estado temporal
     valor_actual = obtener_valor_temporal(key_temp, campo, "")
@@ -161,11 +160,22 @@ def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None):
         with col_check:
             # Checkbox para activar/desactivar fecha
             tiene_fecha = bool(valor_actual and valor_actual.strip())
+            
+            # ✅ CORREGIDO: Callback del checkbox SIN recarga automática
+            def callback_checkbox():
+                """Callback del checkbox que no recarga automáticamente"""
+                if f"check_{widget_key}" in st.session_state:
+                    nuevo_estado = st.session_state[f"check_{widget_key}"]
+                    if not nuevo_estado:
+                        # Si se desactiva el checkbox, limpiar la fecha
+                        actualizar_campo_temporal(key_temp, campo, "")
+            
             usar_fecha = st.checkbox(
                 "📅", 
                 value=tiene_fecha,
                 key=f"check_{widget_key}",
-                help="Marcar para usar fecha"
+                help="Marcar para usar fecha",
+                on_change=callback_checkbox  # ✅ Sin recarga automática
             )
         
         with col_fecha:
@@ -177,17 +187,21 @@ def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None):
                 if fecha_valor is None:
                     fecha_valor = datetime.now().date()
                 
+                # ✅ CORREGIDO: Callback del date_input SIN recarga automática
+                def callback_fecha():
+                    """Callback de fecha que no recarga automáticamente"""
+                    if widget_key in st.session_state:
+                        nueva_fecha = st.session_state[widget_key]
+                        fecha_str = fecha_desde_selector_a_string(nueva_fecha)
+                        actualizar_campo_temporal(key_temp, campo, fecha_str)
+                
                 nueva_fecha = st.date_input(
                     label,
                     value=fecha_valor,
                     key=widget_key,
-                    help=help_text
+                    help=help_text,
+                    on_change=callback_fecha  # ✅ Sin recarga automática
                 )
-                
-                # ✅ CORREGIDO: Actualizar estado temporal SIN st.rerun
-                fecha_str = fecha_desde_selector_a_string(nueva_fecha)
-                if fecha_str != valor_actual:
-                    actualizar_campo_temporal(key_temp, campo, fecha_str)
             else:
                 # Si no está activado, mostrar campo deshabilitado
                 st.text_input(
@@ -196,20 +210,17 @@ def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None):
                     disabled=True,
                     key=f"disabled_{widget_key}"
                 )
-                # Limpiar fecha del estado temporal si había una
-                if valor_actual:
-                    actualizar_campo_temporal(key_temp, campo, "")
         
         with col_borrar:
             if usar_fecha:
                 # ✅ CORREGIDO: Botón para limpiar fecha SIN recarga automática
                 if st.button("🗑️", key=f"clear_{widget_key}", help="Limpiar fecha"):
-                    # Limpiar fecha y desactivar checkbox
+                    # Limpiar fecha y desactivar checkbox SILENCIOSAMENTE
                     actualizar_campo_temporal(key_temp, campo, "")
-                    # ✅ MARCAR COMO MODIFICADO PARA FORZAR RECARGA SOLO DEL WIDGET
-                    st.session_state[f"check_{widget_key}"] = False
-                    # ❌ ELIMINADO: st.rerun() - NO RECARGAR AUTOMÁTICAMENTE
-                    # La página se recargará solo cuando el usuario presione "Guardar"
+                    # ✅ IMPORTANTE: Marcar que necesita actualización visual pero SIN st.rerun()
+                    st.session_state[f"fecha_limpiada_{widget_key}"] = True
+                    # Mostrar mensaje temporal
+                    st.success("Fecha limpiada (se aplicará al guardar)")
             else:
                 # Espaciador visual
                 st.write("")
