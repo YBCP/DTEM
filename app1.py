@@ -29,7 +29,132 @@ from visualization import crear_gantt, comparar_avance_metas
 from constants import REGISTROS_DATA, META_DATA
 from sheets_utils import test_connection, get_sheets_manager
 
+
+
 # ========== FUNCIONES AUXILIARES RESTAURADAS ==========
+
+def inicializar_estado_temporal(indice_seleccionado, registros_df):
+    """
+    Inicializa el estado temporal para el registro seleccionado.
+    Los cambios se almacenan en session_state hasta que se guarden.
+    """
+    key_temp = f"temp_registro_{indice_seleccionado}"
+    
+    # Si no existe estado temporal, crear uno basado en el registro original
+    if key_temp not in st.session_state:
+        registro_original = registros_df.iloc[indice_seleccionado].copy()
+        st.session_state[key_temp] = registro_original.to_dict()
+        st.session_state[f"{key_temp}_modified"] = False
+    
+    return key_temp
+
+def actualizar_campo_temporal(key_temp, campo, nuevo_valor):
+    """
+    Actualiza un campo específico en el estado temporal.
+    """
+    if key_temp in st.session_state:
+        if st.session_state[key_temp][campo] != nuevo_valor:
+            st.session_state[key_temp][campo] = nuevo_valor
+            st.session_state[f"{key_temp}_modified"] = True
+
+def obtener_valor_temporal(key_temp, campo, valor_default=""):
+    """
+    Obtiene el valor actual de un campo desde el estado temporal.
+    """
+    if key_temp in st.session_state and campo in st.session_state[key_temp]:
+        return st.session_state[key_temp][campo]
+    return valor_default
+
+def hay_cambios_pendientes(key_temp):
+    """
+    Verifica si hay cambios pendientes en el estado temporal.
+    """
+    return st.session_state.get(f"{key_temp}_modified", False)
+
+def limpiar_estado_temporal(key_temp):
+    """
+    Limpia el estado temporal después de guardar o cancelar.
+    """
+    if key_temp in st.session_state:
+        del st.session_state[key_temp]
+    if f"{key_temp}_modified" in st.session_state:
+        del st.session_state[f"{key_temp}_modified"]
+
+def aplicar_cambios_temporales(registros_df, indice_seleccionado, key_temp):
+    """
+    Aplica los cambios temporales al DataFrame principal.
+    """
+    if key_temp in st.session_state:
+        # Actualizar el DataFrame con los valores temporales
+        for campo, valor in st.session_state[key_temp].items():
+            if campo in registros_df.columns:
+                registros_df.at[registros_df.index[indice_seleccionado], campo] = valor
+    
+    return registros_df
+
+def crear_widget_con_callback(widget_type, label, key_temp, campo, **kwargs):
+    """
+    Crea un widget que actualiza automáticamente el estado temporal.
+    """
+    # Obtener valor actual
+    valor_actual = obtener_valor_temporal(key_temp, campo, kwargs.get('value', ''))
+    
+    # Configurar key único para el widget
+    widget_key = f"{key_temp}_{campo}_widget"
+    
+    # Función callback para actualizar estado temporal
+    def callback():
+        nuevo_valor = st.session_state[widget_key]
+        actualizar_campo_temporal(key_temp, campo, nuevo_valor)
+    
+    # Crear widget según tipo
+    if widget_type == 'selectbox':
+        options = kwargs.get('options', [])
+        index = options.index(valor_actual) if valor_actual in options else 0
+        return st.selectbox(
+            label,
+            options=options,
+            index=index,
+            key=widget_key,
+            on_change=callback,
+            **{k: v for k, v in kwargs.items() if k not in ['options', 'value']}
+        )
+    
+    elif widget_type == 'text_input':
+        return st.text_input(
+            label,
+            value=valor_actual,
+            key=widget_key,
+            on_change=callback,
+            **{k: v for k, v in kwargs.items() if k not in ['value']}
+        )
+    
+    elif widget_type == 'date_input':
+        fecha_valor = fecha_para_selector(valor_actual) if valor_actual else None
+        
+        def date_callback():
+            nuevo_valor = st.session_state[widget_key]
+            fecha_str = fecha_desde_selector_a_string(nuevo_valor) if nuevo_valor else ""
+            actualizar_campo_temporal(key_temp, campo, fecha_str)
+        
+        return st.date_input(
+            label,
+            value=fecha_valor,
+            key=widget_key,
+            on_change=date_callback,
+            **{k: v for k, v in kwargs.items() if k not in ['value']}
+        )
+    
+    elif widget_type == 'text_area':
+        return st.text_area(
+            label,
+            value=valor_actual,
+            key=widget_key,
+            on_change=callback,
+            **{k: v for k, v in kwargs.items() if k not in ['value']}
+        )
+    
+    return None
 
 def string_a_fecha(fecha_str):
     """Convierte un string de fecha a objeto datetime para mostrar en el selector de fecha."""
@@ -2554,8 +2679,6 @@ def main():
         load_css()
 
         # Inicializar session state
-        if 'cambios_pendientes' not in st.session_state:
-            st.session_state.cambios_pendientes = False
         if 'funcionarios' not in st.session_state:
             st.session_state.funcionarios = []
         if 'mensaje_guardado' not in st.session_state:
