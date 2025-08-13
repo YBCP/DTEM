@@ -778,7 +778,18 @@ def mostrar_edicion_registros(registros_df):
                         boton_key = f"guardar_individual_{indice_seleccionado}"
                     
                     if st.button(boton_texto, key=boton_key, type="primary"):
-                        # Aplicar validaciones de reglas de negocio antes de guardar
+    
+                        # PASO 1: Si es nuevo registro, agregarlo al DataFrame
+                        if modo_nuevo_registro:
+                            nueva_fila = pd.DataFrame([row])
+                            registros_df = pd.concat([registros_df, nueva_fila], ignore_index=True)
+                        else:
+                            # PASO 2: Si es edición, actualizar la fila existente con todos los cambios
+                            for col in row.index:
+                                if col in registros_df.columns:
+                                    registros_df.at[registros_df.index[indice_seleccionado], col] = row[col]
+                        
+                        # PASO 3: Aplicar validaciones de reglas de negocio antes de guardar
                         registros_df = validar_reglas_negocio(registros_df)
 
                         # Actualizar los plazos automáticamente
