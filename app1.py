@@ -12,6 +12,7 @@ import matplotlib
 import base64
 import os
 import re
+import time
 from fecha_utils import calcular_plazo_analisis, actualizar_plazo_analisis, calcular_plazo_cronograma, actualizar_plazo_cronograma, calcular_plazo_oficio_cierre, actualizar_plazo_oficio_cierre
 from data_utils import es_fecha_valida
 # Importar funciones de autenticación
@@ -98,27 +99,20 @@ def mostrar_configuracion_sheets():
         st.info("Los datos se guardan de forma segura en Google Sheets con autenticación OAuth2")
 
 def mostrar_edicion_registros(registros_df):
-    """Muestra la pestaña de edición de registros - VERSIÓN COMPLETA RESTAURADA CON TODAS LAS SECCIONES."""
+    """Muestra la pestaña de edición de registros - VERSIÓN REESCRITA SIN CORRUPCIÓN DE MEMORIA."""
     st.markdown('<div class="subtitle">Edición de Registros</div>', unsafe_allow_html=True)
 
     st.info(
-        "Esta sección permite editar los datos usando selectores de fecha y opciones. Los cambios se guardan automáticamente en Google Sheets.")
+        "Esta sección permite editar los datos usando selectores de fecha y opciones. Los cambios se guardan al presionar 'Guardar'.")
 
     # Explicación adicional sobre las fechas y reglas de validación
     st.warning("""
     **Importante**: 
     - Para los campos de fecha, utilice el selector de calendario que aparece.
-    - El campo "Plazo de análisis" se calcula automáticamente como 5 días hábiles después de la "Fecha de entrega de información", sin contar fines de semana ni festivos.
-    - El campo "Plazo de cronograma" se calcula automáticamente como 3 días hábiles después del "Plazo de análisis", sin contar fines de semana ni festivos.
-    - El campo "Plazo de oficio de cierre" se calcula automáticamente como 7 días hábiles después de la fecha real de "Publicación", sin contar fines de semana ni festivos.
-    - Se aplicarán automáticamente las siguientes validaciones:
-        1. Si 'Entrega acuerdo de compromiso' no está vacío, 'Acuerdo de compromiso' se actualizará a 'SI'
-        2. Si 'Análisis y cronograma' tiene fecha, 'Análisis de información' se actualizará a 'SI'
-        3. Al introducir fecha en 'Estándares', los campos que no estén 'Completo' se actualizarán automáticamente a 'No aplica'
-        4. Si introduce fecha en 'Publicación', 'Disponer datos temáticos' se actualizará automáticamente a 'SI'
-        5. Para introducir una fecha en 'Fecha de oficio de cierre', debe tener la etapa de Publicación completada (con fecha)
-        6. Al introducir una fecha en 'Fecha de oficio de cierre', el campo 'Estado' se actualizará automáticamente a 'Completado'
-        7. Si se elimina la fecha de oficio de cierre, el Estado se cambiará automáticamente a 'En proceso'
+    - El campo "Plazo de análisis" se calcula automáticamente como 5 días hábiles después de la "Fecha de entrega de información"
+    - El campo "Plazo de cronograma" se calcula automáticamente como 3 días hábiles después del "Plazo de análisis"
+    - El campo "Plazo de oficio de cierre" se calcula automáticamente como 7 días hábiles después de la fecha real de "Publicación"
+    - Se aplicarán automáticamente las validaciones al guardar
     """)
     
     # Mostrar mensaje de guardado si existe
@@ -130,32 +124,30 @@ def mostrar_edicion_registros(registros_df):
         # Limpiar mensaje después de mostrarlo
         st.session_state.mensaje_guardado = None
 
-    st.markdown("### Edición Individual de Registros")
+    st.markdown("### Selección de Registro")
     
-            
     # Verificar que hay registros para editar
     if registros_df.empty:
         st.warning("No hay registros disponibles para editar.")
         return registros_df
 
-    # Selector de registro - mostrar lista completa de registros para seleccionar
+    # Selector de registro - incluir opción para nuevo registro
     codigos_registros = registros_df['Cod'].astype(str).tolist()
     entidades_registros = registros_df['Entidad'].tolist()
     niveles_registros = registros_df['Nivel Información '].tolist()
 
-    # Crear opciones para el selector combinando información
-    # Crear opciones para el selector combinando información
+    # Crear opciones para el selector
     opciones_registros = ["➕ Agregar Nuevo Registro"] + [f"{codigos_registros[i]} - {entidades_registros[i]} - {niveles_registros[i]}"
                           for i in range(len(codigos_registros))]
     
-    # Agregar el selector de registro
+    # Selector de registro
     seleccion_registro = st.selectbox(
         "Seleccione un registro para editar:",
         options=opciones_registros,
-        key="selector_registro"
+        key="selector_registro_v2"
     )
     
-    # Verificar si se seleccionó crear nuevo registro
+    # Determinar si es nuevo registro o edición
     if seleccion_registro == "➕ Agregar Nuevo Registro":
         # Calcular siguiente código automático
         if not registros_df.empty and 'Cod' in registros_df.columns:
@@ -167,699 +159,289 @@ def mostrar_edicion_registros(registros_df):
         else:
             siguiente_codigo = 1
         
-        # Crear registro vacío con código automático
-        row = pd.Series(dtype=object)
-        row['Cod'] = siguiente_codigo
+        modo_nuevo = True
+        registro_actual = None
+        indice_seleccionado = -1
         
-        # Inicializar todos los campos vacíos
-        for col in registros_df.columns:
-            if col != 'Cod':
-                row[col] = ''
-        
-        # Marcar que es nuevo registro
-        modo_nuevo_registro = True
-        indice_seleccionado = -1  # Índice especial para nuevo registro
+        st.success(f"🆕 Creando nuevo registro con código: {siguiente_codigo}")
     else:
-        # Obtener el índice del registro seleccionado (restar 1 por la opción agregada)
+        # Obtener el registro existente
         indice_seleccionado = opciones_registros.index(seleccion_registro) - 1
-        row = registros_df.iloc[indice_seleccionado].copy()
-        modo_nuevo_registro = False
-
-    # Mostrar el registro seleccionado para edición
-    try:
-        # El registro ya se obtuvo arriba según la selección
-        if modo_nuevo_registro:
-            st.success(f"🆕 Creando nuevo registro con código: {row['Cod']}")
-        else:
-            st.info(f"✏️ Editando registro existente: {row['Cod']}")
-
-        # Flag para detectar cambios
-        edited = False
-
-       
-        # Contenedor para los datos de edición
-        with st.container():
-            st.markdown("---")
-            # Título del registro
-            st.markdown(f"### Editando Registro #{row['Cod']} - {row['Entidad']}")
-            st.markdown(f"**Nivel de Información:** {row.get('Nivel Información ', '')}")
-            st.markdown("---")
-                       
-            # ===== SECCIÓN 1: INFORMACIÓN BÁSICA =====
-            # ===== SECCIÓN 1: INFORMACIÓN BÁSICA =====
-            st.markdown("### 1. Información Básica")
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                # Campos no editables
-                st.text_input("Código", value=row['Cod'], disabled=True)
-            
-            with col2:
-                # Tipo de Dato
-                tipo_actual = row.get('TipoDato', '')
-                tipo_index = 0 if tipo_actual.upper() == "NUEVO" else 1 if tipo_actual.upper() == "ACTUALIZAR" else 0
-                nuevo_tipo = st.selectbox(
-                    "Tipo de Dato",
-                    options=["Nuevo", "Actualizar"],
-                    index=tipo_index,
-                    key=f"tipo_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                if nuevo_tipo != row.get('TipoDato', ''):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'TipoDato'] = nuevo_tipo
-                    edited = True
-
-            with col3:
-                # Mes Proyectado - NUEVA COLUMNA
-                meses = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
-                        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-                
-                mes_actual = row.get('Mes Proyectado', '') if pd.notna(row.get('Mes Proyectado', '')) else ""
-                mes_index = 0
-                if mes_actual and mes_actual in meses:
-                    mes_index = meses.index(mes_actual)
-                
-                nuevo_mes = st.selectbox(
-                    "Mes Proyectado",
-                    options=meses,
-                    index=mes_index,
-                    key=f"mes_proyectado_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                if nuevo_mes != row.get('Mes Proyectado', ''):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Mes Proyectado'] = nuevo_mes
-                    edited = True
-
-            # Frecuencia de actualización y Funcionario
-            col1, col2 = st.columns(2)
-            with col1:
-                freq_actual = row.get('Frecuencia actualizacion ', '')
-                freq_opciones = ["", "Diaria", "Semanal", "Mensual", "Trimestral", "Semestral", "Anual"]
-                freq_index = freq_opciones.index(freq_actual) if freq_actual in freq_opciones else 0
-                nueva_frecuencia = st.selectbox(
-                    "Frecuencia de actualización",
-                    options=freq_opciones,
-                    index=freq_index,
-                    key=f"frecuencia_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                if nueva_frecuencia != row.get('Frecuencia actualizacion ', ''):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Frecuencia actualizacion '] = nueva_frecuencia
-                    edited = True
-
-            # Funcionario - SISTEMA DINÁMICO RESTAURADO
-            with col2:
-                # Inicializar la lista de funcionarios si es la primera vez
-                if 'funcionarios' not in st.session_state:
-                    st.session_state.funcionarios = []
-                
-                if not st.session_state.funcionarios:
-                    # Obtener valores únicos de funcionarios que no sean NaN
-                    funcionarios_unicos = registros_df['Funcionario'].dropna().unique().tolist()
-                    st.session_state.funcionarios = [f for f in funcionarios_unicos if f]
-
-                # Crear un campo de texto para nuevo funcionario
-                nuevo_funcionario_input = st.text_input(
-                    "Nuevo funcionario (dejar vacío si selecciona existente)",
-                    key=f"nuevo_funcionario_{indice_seleccionado}"
-                )
-
-                # Si se introduce un nuevo funcionario, agregarlo a la lista
-                if nuevo_funcionario_input and nuevo_funcionario_input not in st.session_state.funcionarios:
-                    st.session_state.funcionarios.append(nuevo_funcionario_input)
-
-                # Ordenar la lista de funcionarios alfabéticamente
-                funcionarios_ordenados = sorted(st.session_state.funcionarios)
-                opciones_funcionarios = [""] + funcionarios_ordenados
-
-                # Determinar el índice del funcionario actual
-                indice_funcionario = 0
-                if pd.notna(row.get('Funcionario', '')) and row.get('Funcionario', '') in opciones_funcionarios:
-                    indice_funcionario = opciones_funcionarios.index(row.get('Funcionario', ''))
-
-                # Crear el selectbox para elegir funcionario
-                funcionario_seleccionado = st.selectbox(
-                    "Seleccionar funcionario",
-                    options=opciones_funcionarios,
-                    index=indice_funcionario,
-                    key=f"funcionario_select_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-
-                # Determinar el valor final del funcionario
-                funcionario_final = nuevo_funcionario_input if nuevo_funcionario_input else funcionario_seleccionado
-
-                # Actualizar el DataFrame si el funcionario cambia
-                if funcionario_final != row.get('Funcionario', ''):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Funcionario'] = funcionario_final
-                    edited = True
-
-            # ===== SECCIÓN 2: ACUERDOS Y COMPROMISOS =====
-            st.markdown("---")
-            st.markdown("### 2. Acuerdos y Compromisos")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Actas de acercamiento
-                nueva_acta = st.selectbox(
-                    "Actas de acercamiento y manifestación de interés",
-                    options=["", "Si", "No"],
-                    index=["", "Si", "No"].index(row.get('Actas de acercamiento y manifestación de interés', '')) 
-                          if row.get('Actas de acercamiento y manifestación de interés', '') in ["", "Si", "No"] else 0,
-                    key=f"acta_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                if nueva_acta != row.get('Actas de acercamiento y manifestación de interés', ''):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Actas de acercamiento y manifestación de interés'] = nueva_acta
-                    edited = True
-
-                # Suscripción acuerdo de compromiso - SELECTOR DE FECHA
-                fecha_suscripcion_actual = fecha_para_selector(row.get('Suscripción acuerdo de compromiso', ''))
-                nueva_fecha_suscripcion = st.date_input(
-                    "Suscripción acuerdo de compromiso",
-                    value=fecha_suscripcion_actual,
-                    key=f"suscripcion_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                fecha_suscripcion_str = fecha_desde_selector_a_string(nueva_fecha_suscripcion)
-                if fecha_suscripcion_str != formatear_fecha(row.get('Suscripción acuerdo de compromiso', '')):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Suscripción acuerdo de compromiso'] = fecha_suscripcion_str
-                    edited = True
-
-            with col2:
-                # Entrega acuerdo de compromiso - SELECTOR DE FECHA
-                fecha_entrega_actual = fecha_para_selector(row.get('Entrega acuerdo de compromiso', ''))
-                nueva_fecha_entrega = st.date_input(
-                    "Entrega acuerdo de compromiso",
-                    value=fecha_entrega_actual,
-                    key=f"entrega_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                fecha_entrega_str = fecha_desde_selector_a_string(nueva_fecha_entrega)
-                if fecha_entrega_str != formatear_fecha(row.get('Entrega acuerdo de compromiso', '')):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Entrega acuerdo de compromiso'] = fecha_entrega_str
-                    edited = True
-
-                # Acuerdo de compromiso - SELECTBOX
-                nuevo_acuerdo = st.selectbox(
-                    "Acuerdo de compromiso",
-                    options=["", "Si", "No"],
-                    index=["", "Si", "No"].index(row.get('Acuerdo de compromiso', '')) 
-                          if row.get('Acuerdo de compromiso', '') in ["", "Si", "No"] else 0,
-                    key=f"acuerdo_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                if nuevo_acuerdo != row.get('Acuerdo de compromiso', ''):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Acuerdo de compromiso'] = nuevo_acuerdo
-                    edited = True
-
-            # ===== SECCIÓN 3: GESTIÓN DE INFORMACIÓN =====
-            st.markdown("---")
-            st.markdown("### 3. Gestión de Información")
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                # Gestión acceso a datos
-                nueva_gestion = st.selectbox(
-                    "Gestión acceso a los datos y documentos requeridos",
-                    options=["", "Si", "No"],
-                    index=["", "Si", "No"].index(row.get('Gestion acceso a los datos y documentos requeridos ', '')) 
-                          if row.get('Gestion acceso a los datos y documentos requeridos ', '') in ["", "Si", "No"] else 0,
-                    key=f"gestion_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                if nueva_gestion != row.get('Gestion acceso a los datos y documentos requeridos ', ''):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Gestion acceso a los datos y documentos requeridos '] = nueva_gestion
-                    edited = True
-
-            with col2:
-                # Fecha de entrega de información - SELECTOR DE FECHA
-                fecha_entrega_info_actual = fecha_para_selector(row.get('Fecha de entrega de información', ''))
-                nueva_fecha_entrega_info = st.date_input(
-                    "Fecha de entrega de información",
-                    value=fecha_entrega_info_actual,
-                    key=f"entrega_info_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                fecha_entrega_info_str = fecha_desde_selector_a_string(nueva_fecha_entrega_info)
-                if fecha_entrega_info_str != formatear_fecha(row.get('Fecha de entrega de información', '')):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Fecha de entrega de información'] = fecha_entrega_info_str
-                    edited = True
-
-            with col3:
-                # Plazo de análisis - CALCULADO AUTOMÁTICAMENTE
-                plazo_analisis_actual = row.get('Plazo de análisis', '')
-                st.text_input(
-                    "Plazo de análisis (calculado automáticamente)",
-                    value=plazo_analisis_actual,
-                    disabled=True,
-                    key=f"plazo_analisis_{indice_seleccionado}",
-                    help="Se calcula automáticamente como 5 días hábiles después de la fecha de entrega de información"
-                )
-
-            # ===== SECCIÓN 4: ANÁLISIS Y CRONOGRAMA =====
-            st.markdown("---")
-            st.markdown("### 4. Análisis y Cronograma")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                # Análisis de información
-                nuevo_analisis_info = st.selectbox(
-                    "Análisis de información",
-                    options=["", "Si", "No"],
-                    index=["", "Si", "No"].index(row.get('Análisis de información', '')) 
-                          if row.get('Análisis de información', '') in ["", "Si", "No"] else 0,
-                    key=f"analisis_info_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                if nuevo_analisis_info != row.get('Análisis de información', ''):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Análisis de información'] = nuevo_analisis_info
-                    edited = True
-
-            with col2:
-                # Cronograma Concertado
-                nuevo_cronograma = st.selectbox(
-                    "Cronograma Concertado",
-                    options=["", "Si", "No"],
-                    index=["", "Si", "No"].index(row.get('Cronograma Concertado', '')) 
-                          if row.get('Cronograma Concertado', '') in ["", "Si", "No"] else 0,
-                    key=f"cronograma_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                if nuevo_cronograma != row.get('Cronograma Concertado', ''):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Cronograma Concertado'] = nuevo_cronograma
-                    edited = True
-
-            with col3:
-                # Plazo de cronograma - CALCULADO AUTOMÁTICAMENTE
-                plazo_cronograma_actual = row.get('Plazo de cronograma', '')
-                st.text_input(
-                    "Plazo de cronograma (calculado automáticamente)",
-                    value=plazo_cronograma_actual,
-                    disabled=True,
-                    key=f"plazo_cronograma_{indice_seleccionado}",
-                    help="Se calcula automáticamente como 3 días hábiles después del plazo de análisis"
-                )
-
-            with col4:
-                # Seguimiento a los acuerdos
-                nuevo_seguimiento = st.selectbox(
-                    "Seguimiento a los acuerdos",
-                    options=["", "Si", "No"],
-                    index=["", "Si", "No"].index(row.get('Seguimiento a los acuerdos', '')) 
-                          if row.get('Seguimiento a los acuerdos', '') in ["", "Si", "No"] else 0,
-                    key=f"seguimiento_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                if nuevo_seguimiento != row.get('Seguimiento a los acuerdos', ''):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Seguimiento a los acuerdos'] = nuevo_seguimiento
-                    edited = True
-
-            # Análisis y cronograma fecha - SELECTOR DE FECHA
-            col1, col2 = st.columns(2)
-            with col1:
-                fecha_analisis_actual = fecha_para_selector(row.get('Análisis y cronograma', ''))
-                nueva_fecha_analisis = st.date_input(
-                    "Análisis y cronograma (fecha real)",
-                    value=fecha_analisis_actual,
-                    key=f"analisis_fecha_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                fecha_analisis_str = fecha_desde_selector_a_string(nueva_fecha_analisis)
-                if fecha_analisis_str != formatear_fecha(row.get('Análisis y cronograma', '')):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Análisis y cronograma'] = fecha_analisis_str
-                    edited = True
-
-            # ===== SECCIÓN 5: ESTÁNDARES =====
-            st.markdown("---")
-            st.markdown("### 5. Estándares")
-            
-            # Los 6 campos de estándares completos
-            st.markdown("#### Completitud de Estándares")
-            col1, col2, col3 = st.columns(3)
-            
-            campos_estandares = [
-                ('Registro (completo)', 'registro'),
-                ('ET (completo)', 'et'),
-                ('CO (completo)', 'co'),
-                ('DD (completo)', 'dd'),
-                ('REC (completo)', 'rec'),
-                ('SERVICIO (completo)', 'servicio')
-            ]
-            
-            for i, (campo, key_suffix) in enumerate(campos_estandares):
-                col = [col1, col2, col3][i % 3]
-                with col:
-                    nuevo_valor = st.selectbox(
-                        campo,
-                        options=["", "Completo", "No aplica"],
-                        index=["", "Completo", "No aplica"].index(row.get(campo, '')) 
-                              if row.get(campo, '') in ["", "Completo", "No aplica"] else 0,
-                        key=f"{key_suffix}_{indice_seleccionado}",
-                        on_change=on_change_callback
-                    )
-                    if nuevo_valor != row.get(campo, ''):
-                        registros_df.at[registros_df.index[indice_seleccionado], campo] = nuevo_valor
-                        edited = True
-
-            # Fechas de estándares
-            st.markdown("#### Fechas de Estándares")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Estándares fecha programada - SELECTOR DE FECHA
-                fecha_estandares_prog_actual = fecha_para_selector(row.get('Estándares (fecha programada)', ''))
-                nueva_fecha_estandares_prog = st.date_input(
-                    "Estándares (fecha programada)",
-                    value=fecha_estandares_prog_actual,
-                    key=f"estandares_prog_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                fecha_estandares_prog_str = fecha_desde_selector_a_string(nueva_fecha_estandares_prog)
-                if fecha_estandares_prog_str != formatear_fecha(row.get('Estándares (fecha programada)', '')):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Estándares (fecha programada)'] = fecha_estandares_prog_str
-                    edited = True
-
-            with col2:
-                # Estándares fecha real - SELECTOR DE FECHA
-                fecha_estandares_actual = fecha_para_selector(row.get('Estándares', ''))
-                nueva_fecha_estandares = st.date_input(
-                    "Estándares (fecha real)",
-                    value=fecha_estandares_actual,
-                    key=f"estandares_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                fecha_estandares_str = fecha_desde_selector_a_string(nueva_fecha_estandares)
-                if fecha_estandares_str != formatear_fecha(row.get('Estándares', '')):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Estándares'] = fecha_estandares_str
-                    edited = True
-
-            # ===== SECCIÓN 6: PUBLICACIÓN =====
-            st.markdown("---")
-            st.markdown("### 6. Publicación")
-            
-            # Campos de publicación
-            st.markdown("#### Proceso de Publicación")
-            col1, col2, col3 = st.columns(3)
-            
-            campos_publicacion = [
-                ('Resultados de orientación técnica', 'resultados_ot'),
-                ('Verificación del servicio web geográfico', 'verificacion_web'),
-                ('Verificar Aprobar Resultados', 'verificar_aprobar'),
-                ('Revisar y validar los datos cargados en la base de datos', 'revisar_validar'),
-                ('Aprobación resultados obtenidos en la rientación', 'aprobacion_resultados'),
-                ('Disponer datos temáticos', 'disponer_datos'),
-                ('Catálogo de recursos geográficos', 'catalogo_recursos')
-            ]
-            
-            for i, (campo, key_suffix) in enumerate(campos_publicacion):
-                col = [col1, col2, col3][i % 3]
-                with col:
-                    nuevo_valor = st.selectbox(
-                        campo,
-                        options=["", "Si", "No"],
-                        index=["", "Si", "No"].index(row.get(campo, '')) 
-                              if row.get(campo, '') in ["", "Si", "No"] else 0,
-                        key=f"{key_suffix}_{indice_seleccionado}",
-                        on_change=on_change_callback
-                    )
-                    if nuevo_valor != row.get(campo, ''):
-                        registros_df.at[registros_df.index[indice_seleccionado], campo] = nuevo_valor
-                        edited = True
-
-            # Fechas de publicación
-            st.markdown("#### Fechas de Publicación")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Fecha de publicación programada - SELECTOR DE FECHA
-                fecha_pub_prog_actual = fecha_para_selector(row.get('Fecha de publicación programada', ''))
-                nueva_fecha_pub_prog = st.date_input(
-                    "Fecha de publicación programada",
-                    value=fecha_pub_prog_actual,
-                    key=f"pub_prog_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                fecha_pub_prog_str = fecha_desde_selector_a_string(nueva_fecha_pub_prog)
-                if fecha_pub_prog_str != formatear_fecha(row.get('Fecha de publicación programada', '')):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Fecha de publicación programada'] = fecha_pub_prog_str
-                    edited = True
-
-            with col2:
-                # Publicación fecha real - SELECTOR DE FECHA
-                fecha_pub_actual = fecha_para_selector(row.get('Publicación', ''))
-                nueva_fecha_pub = st.date_input(
-                    "Publicación (fecha real)",
-                    value=fecha_pub_actual,
-                    key=f"publicacion_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                fecha_pub_str = fecha_desde_selector_a_string(nueva_fecha_pub)
-                if fecha_pub_str != formatear_fecha(row.get('Publicación', '')):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Publicación'] = fecha_pub_str
-                    edited = True
-
-            # ===== SECCIÓN 7: CIERRE =====
-            st.markdown("---")
-            st.markdown("### 7. Cierre")
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                # Plazo de oficio de cierre - CALCULADO AUTOMÁTICAMENTE
-                plazo_oficio_actual = row.get('Plazo de oficio de cierre', '')
-                st.text_input(
-                    "Plazo de oficio de cierre (calculado automáticamente)",
-                    value=plazo_oficio_actual,
-                    disabled=True,
-                    key=f"plazo_oficio_{indice_seleccionado}",
-                    help="Se calcula automáticamente como 7 días hábiles después de la fecha de publicación"
-                )
-
-                # Oficios de cierre
-                nuevo_oficio = st.selectbox(
-                    "Oficios de cierre",
-                    options=["", "Si", "No"],
-                    index=["", "Si", "No"].index(row.get('Oficios de cierre', '')) 
-                          if row.get('Oficios de cierre', '') in ["", "Si", "No"] else 0,
-                    key=f"oficios_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                if nuevo_oficio != row.get('Oficios de cierre', ''):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Oficios de cierre'] = nuevo_oficio
-                    edited = True
-
-            with col2:
-                # Fecha de oficio de cierre - SELECTOR DE FECHA CON VALIDACIÓN
-                fecha_oficio_actual = fecha_para_selector(row.get('Fecha de oficio de cierre', ''))
-                
-                # Verificar si puede introducir fecha de cierre
-                tiene_publicacion = (row.get('Publicación', '') and 
-                                   pd.notna(row.get('Publicación', '')) and 
-                                   str(row.get('Publicación', '')).strip() != '')
-                
-                if not tiene_publicacion:
-                    st.warning("⚠️ Para introducir fecha de oficio de cierre, primero debe completar la etapa de Publicación")
-                    st.text_input(
-                        "Fecha de oficio de cierre (requiere publicación)",
-                        value=formatear_fecha(fecha_oficio_actual) if fecha_oficio_actual else "",
-                        disabled=True,
-                        key=f"oficio_disabled_{indice_seleccionado}"
-                    )
-                else:
-                    nueva_fecha_oficio = st.date_input(
-                        "Fecha de oficio de cierre",
-                        value=fecha_oficio_actual,
-                        key=f"oficio_{indice_seleccionado}",
-                        on_change=on_change_callback
-                    )
-                    fecha_oficio_str = fecha_desde_selector_a_string(nueva_fecha_oficio)
-                    if fecha_oficio_str != formatear_fecha(row.get('Fecha de oficio de cierre', '')):
-                        registros_df.at[registros_df.index[indice_seleccionado], 'Fecha de oficio de cierre'] = fecha_oficio_str
-                        edited = True
-
-            with col3:
-                # Estado
-                opciones_estado = ["", "En proceso", "En proceso oficio de cierre", "Completado", "Finalizado"]
-                estado_actual = row.get('Estado', '')
-                estado_index = opciones_estado.index(estado_actual) if estado_actual in opciones_estado else 0
-                nuevo_estado = st.selectbox(
-                    "Estado",
-                    options=opciones_estado,
-                    index=estado_index,
-                    key=f"estado_{indice_seleccionado}",
-                    on_change=on_change_callback
-                )
-                if nuevo_estado != row.get('Estado', ''):
-                    registros_df.at[registros_df.index[indice_seleccionado], 'Estado'] = nuevo_estado
-                    edited = True
-
-            # Observación - CAMPO DE TEXTO AMPLIO
-            nueva_observacion = st.text_area(
-                "Observación",
-                value=row.get('Observación', '') if pd.notna(row.get('Observación', '')) else "",
-                height=100,
-                key=f"observacion_{indice_seleccionado}",
-                on_change=on_change_callback
-            )
-            if nueva_observacion != row.get('Observación', ''):
-                registros_df.at[registros_df.index[indice_seleccionado], 'Observación'] = nueva_observacion
-                edited = True
-
-            # ===== INFORMACIÓN DE AVANCE AL FINAL =====
-            st.markdown("---")
-            st.markdown("### Información de Avance")
-            
-            # Calcular porcentaje de avance actual
-            porcentaje_actual = calcular_porcentaje_avance(registros_df.iloc[indice_seleccionado])
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric("Porcentaje de Avance", f"{porcentaje_actual}%")
-            
-            with col2:
-                # Estado basado en porcentaje
-                if porcentaje_actual == 100:
-                    estado_avance = "Completado"
-                    color_avance = "green"
-                elif porcentaje_actual >= 75:
-                    estado_avance = "Avanzado"
-                    color_avance = "blue"
-                elif porcentaje_actual >= 50:
-                    estado_avance = "En progreso"
-                    color_avance = "orange"
-                elif porcentaje_actual >= 25:
-                    estado_avance = "Inicial"
-                    color_avance = "yellow"
-                else:
-                    estado_avance = "Sin iniciar"
-                    color_avance = "red"
-                
-                st.markdown(f"""
-                <div style="padding: 10px; border-radius: 5px; background-color: {color_avance}; color: white; text-align: center;">
-                    <strong>{estado_avance}</strong>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col3:
-                # Próxima acción sugerida
-                if porcentaje_actual == 0:
-                    proxima_accion = "Iniciar acuerdo de compromiso"
-                elif porcentaje_actual == 20:
-                    proxima_accion = "Completar análisis y cronograma"
-                elif porcentaje_actual == 40:
-                    proxima_accion = "Completar estándares"
-                elif porcentaje_actual == 70:
-                    proxima_accion = "Realizar publicación"
-                elif porcentaje_actual == 95:
-                    proxima_accion = "Emitir oficio de cierre"
-                else:
-                    proxima_accion = "Continuar con el proceso"
-                
-                st.info(f"**Próxima acción:** {proxima_accion}")
-
-            # ===== BOTONES DE ACCIÓN =====
-            st.markdown("---")
-            st.markdown("### Acciones")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                # Botón para guardar cambios individuales
-                if edited or st.session_state.get('cambios_pendientes', False):
-                    if modo_nuevo_registro:
-                        boton_texto = "💾 Crear Registro"
-                        boton_key = "guardar_nuevo_registro"
-                    else:
-                        boton_texto = "💾 Guardar Cambios"
-                        boton_key = f"guardar_individual_{indice_seleccionado}"
-                    
-                    if st.button(boton_texto, key=boton_key, type="primary"):
-    
-                        # PASO 1: Si es nuevo registro, agregarlo al DataFrame
-                        if modo_nuevo_registro:
-                            nueva_fila = pd.DataFrame([row])
-                            registros_df = pd.concat([registros_df, nueva_fila], ignore_index=True)
-                        else:
-                            # PASO 2: Si es edición, actualizar la fila existente con todos los cambios
-                            for col in row.index:
-                                if col in registros_df.columns:
-                                    registros_df.at[registros_df.index[indice_seleccionado], col] = row[col]
-                        
-                        # PASO 3: Aplicar validaciones de reglas de negocio antes de guardar
-                        registros_df = validar_reglas_negocio(registros_df)
-
-                        # Actualizar los plazos automáticamente
-                        registros_df = actualizar_plazo_analisis(registros_df)
-                        registros_df = actualizar_plazo_cronograma(registros_df)
-                        registros_df = actualizar_plazo_oficio_cierre(registros_df)
-
-                        # Guardar los datos en Google Sheets
-                        with st.spinner("Guardando cambios en Google Sheets..."):
-                            exito, mensaje = guardar_datos_editados(registros_df, crear_backup=True)
-
-                        if exito:
-                            st.session_state.mensaje_guardado = ("success", mensaje)
-                            st.session_state.cambios_pendientes = False
-                            st.rerun()
-                        else:
-                            st.session_state.mensaje_guardado = ("error", mensaje)
-
-            with col2:
-                # Botón para recalcular plazos
-                if st.button("🔄 Recalcular Plazos", key=f"recalcular_{indice_seleccionado}"):
-                    with st.spinner("Recalculando plazos automáticamente..."):
-                        # Actualizar los plazos automáticamente
-                        registros_df = actualizar_plazo_analisis(registros_df)
-                        registros_df = actualizar_plazo_cronograma(registros_df)
-                        registros_df = actualizar_plazo_oficio_cierre(registros_df)
-                        
-                        # Guardar cambios
-                        exito, mensaje = guardar_datos_editados_rapido(registros_df)
-                        if exito:
-                            st.success("Plazos recalculados y guardados")
-                            st.rerun()
-                        else:
-                            st.error("Error al guardar plazos recalculados")
-
-            with col3:
-                # Botón para aplicar validaciones
-                if st.button("✅ Aplicar Validaciones", key=f"validar_{indice_seleccionado}"):
-                    with st.spinner("Aplicando reglas de validación..."):
-                        # Aplicar reglas de negocio
-                        registros_df = validar_reglas_negocio(registros_df)
-                        
-                        # Guardar cambios
-                        exito, mensaje = guardar_datos_editados_rapido(registros_df)
-                        if exito:
-                            st.success("Validaciones aplicadas y guardadas")
-                            st.rerun()
-                        else:
-                            st.error("Error al guardar validaciones")
-
-            with col4:
-                # Botón para actualizar vista
-                if st.button("🔄 Actualizar Vista", key=f"actualizar_{indice_seleccionado}"):
-                    st.rerun()
-
-    except Exception as e:
-        st.error(f"Error al editar el registro: {e}")
+        registro_actual = registros_df.iloc[indice_seleccionado].copy()
+        siguiente_codigo = registro_actual['Cod']
+        modo_nuevo = False
         
-        # Mostrar información de debug
-        with st.expander("Información de Debug"):
-            st.write(f"Índice seleccionado: {indice_seleccionado}")
-            st.write(f"Registro seleccionado: {seleccion_registro}")
-            st.write(f"Columnas disponibles: {list(registros_df.columns)}")
+        st.info(f"✏️ Editando registro existente: {siguiente_codigo}")
+
+    # ===== FORMULARIO DE EDICIÓN =====
+    with st.form(key="form_edicion_registro"):
+        st.markdown("---")
+        st.markdown(f"### {'Nuevo' if modo_nuevo else 'Editando'} Registro #{siguiente_codigo}")
+        
+        # ===== SECCIÓN 1: INFORMACIÓN BÁSICA =====
+        st.markdown("#### 1. Información Básica")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Código (no editable)
+            st.text_input("Código", value=siguiente_codigo, disabled=True, key="form_cod")
             
-            # Mostrar traceback completo
-            import traceback
-            st.code(traceback.format_exc())
+            # Entidad
+            entidad_valor = "" if modo_nuevo else registro_actual.get('Entidad', '')
+            entidad = st.text_input("Entidad *", value=entidad_valor, key="form_entidad")
+            
+        with col2:
+            # Nivel de Información
+            nivel_valor = "" if modo_nuevo else registro_actual.get('Nivel Información ', '')
+            nivel_info = st.text_input("Nivel de Información *", value=nivel_valor, key="form_nivel")
+            
+            # Tipo de Dato
+            tipo_valor = "" if modo_nuevo else registro_actual.get('TipoDato', '')
+            tipo_index = 0
+            if tipo_valor.upper() == "NUEVO":
+                tipo_index = 0
+            elif tipo_valor.upper() == "ACTUALIZAR":
+                tipo_index = 1
+            tipo_dato = st.selectbox("Tipo de Dato *", options=["Nuevo", "Actualizar"], index=tipo_index, key="form_tipo")
+            
+        with col3:
+            # Mes Proyectado
+            meses = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
+                    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+            mes_valor = "" if modo_nuevo else registro_actual.get('Mes Proyectado', '')
+            mes_index = 0
+            if mes_valor and mes_valor in meses:
+                mes_index = meses.index(mes_valor)
+            mes_proyectado = st.selectbox("Mes Proyectado", options=meses, index=mes_index, key="form_mes")
+            
+            # Frecuencia
+            freq_opciones = ["", "Diaria", "Semanal", "Mensual", "Trimestral", "Semestral", "Anual"]
+            freq_valor = "" if modo_nuevo else registro_actual.get('Frecuencia actualizacion ', '')
+            freq_index = freq_opciones.index(freq_valor) if freq_valor in freq_opciones else 0
+            frecuencia = st.selectbox("Frecuencia de actualización", options=freq_opciones, index=freq_index, key="form_freq")
+
+        # Funcionario
+        col1, col2 = st.columns(2)
+        with col1:
+            # Obtener lista de funcionarios existentes
+            funcionarios_existentes = registros_df['Funcionario'].dropna().unique().tolist()
+            funcionarios_opciones = [""] + sorted([f for f in funcionarios_existentes if f])
+            
+            func_valor = "" if modo_nuevo else registro_actual.get('Funcionario', '')
+            func_index = funcionarios_opciones.index(func_valor) if func_valor in funcionarios_opciones else 0
+            funcionario = st.selectbox("Funcionario", options=funcionarios_opciones, index=func_index, key="form_funcionario")
+            
+        with col2:
+            # Campo para nuevo funcionario
+            nuevo_funcionario = st.text_input("Nuevo funcionario (si no está en la lista)", key="form_nuevo_func")
+
+        # ===== SECCIÓN 2: FECHAS IMPORTANTES =====
+        st.markdown("#### 2. Fechas y Plazos")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Fecha de entrega de información
+            fecha_entrega_valor = None if modo_nuevo else fecha_para_selector(registro_actual.get('Fecha de entrega de información', ''))
+            fecha_entrega = st.date_input("Fecha de entrega de información", value=fecha_entrega_valor, key="form_fecha_entrega")
+            
+        with col2:
+            # Análisis y cronograma (fecha real)
+            fecha_analisis_valor = None if modo_nuevo else fecha_para_selector(registro_actual.get('Análisis y cronograma', ''))
+            fecha_analisis = st.date_input("Análisis y cronograma (fecha real)", value=fecha_analisis_valor, key="form_fecha_analisis")
+            
+        with col3:
+            # Estándares (fecha real)
+            fecha_estandares_valor = None if modo_nuevo else fecha_para_selector(registro_actual.get('Estándares', ''))
+            fecha_estandares = st.date_input("Estándares (fecha real)", value=fecha_estandares_valor, key="form_fecha_estandares")
+
+        # Segunda fila de fechas
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Publicación (fecha real)
+            fecha_pub_valor = None if modo_nuevo else fecha_para_selector(registro_actual.get('Publicación', ''))
+            fecha_publicacion = st.date_input("Publicación (fecha real)", value=fecha_pub_valor, key="form_fecha_pub")
+            
+        with col2:
+            # Fecha de oficio de cierre
+            fecha_oficio_valor = None if modo_nuevo else fecha_para_selector(registro_actual.get('Fecha de oficio de cierre', ''))
+            fecha_oficio = st.date_input("Fecha de oficio de cierre", value=fecha_oficio_valor, key="form_fecha_oficio")
+            
+        with col3:
+            # Estado
+            estados = ["", "En proceso", "En proceso oficio de cierre", "Completado", "Finalizado"]
+            estado_valor = "" if modo_nuevo else registro_actual.get('Estado', '')
+            estado_index = estados.index(estado_valor) if estado_valor in estados else 0
+            estado = st.selectbox("Estado", options=estados, index=estado_index, key="form_estado")
+
+        # ===== SECCIÓN 3: CAMPOS ADICIONALES =====
+        st.markdown("#### 3. Información Adicional")
+        
+        # Acuerdo de compromiso
+        col1, col2 = st.columns(2)
+        with col1:
+            acuerdo_valor = "" if modo_nuevo else registro_actual.get('Acuerdo de compromiso', '')
+            acuerdo_index = ["", "Si", "No"].index(acuerdo_valor) if acuerdo_valor in ["", "Si", "No"] else 0
+            acuerdo = st.selectbox("Acuerdo de compromiso", options=["", "Si", "No"], index=acuerdo_index, key="form_acuerdo")
+            
+        with col2:
+            # Observación
+            obs_valor = "" if modo_nuevo else registro_actual.get('Observación', '')
+            observacion = st.text_area("Observación", value=obs_valor, key="form_observacion")
+
+        # ===== INFORMACIÓN DE CAMPOS CALCULADOS =====
+        st.markdown("#### 4. Campos Calculados Automáticamente")
+        st.info("""
+        Los siguientes campos se calculan automáticamente al guardar:
+        - **Plazo de análisis**: 5 días hábiles después de la fecha de entrega de información
+        - **Plazo de cronograma**: 3 días hábiles después del plazo de análisis  
+        - **Plazo de oficio de cierre**: 7 días hábiles después de la fecha de publicación
+        - **Porcentaje de avance**: Basado en los hitos completados
+        """)
+
+        # ===== BOTONES DE ACCIÓN =====
+        st.markdown("---")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            guardar_clicked = st.form_submit_button("💾 Guardar", type="primary", use_container_width=True)
+            
+        with col2:
+            if not modo_nuevo:
+                recalcular_clicked = st.form_submit_button("🔄 Recalcular Plazos", use_container_width=True)
+            else:
+                recalcular_clicked = False
+                
+        with col3:
+            cancelar_clicked = st.form_submit_button("❌ Cancelar", use_container_width=True)
+
+        # ===== PROCESAMIENTO DEL FORMULARIO =====
+        if guardar_clicked:
+            # Validar campos obligatorios
+            if not entidad or not nivel_info:
+                st.error("❌ Complete los campos obligatorios: Entidad y Nivel de Información")
+            else:
+                # Determinar funcionario final
+                funcionario_final = nuevo_funcionario if nuevo_funcionario else funcionario
+                
+                # Crear diccionario con todos los datos
+                datos_registro = {
+                    'Cod': siguiente_codigo,
+                    'Entidad': entidad,
+                    'Nivel Información ': nivel_info,
+                    'TipoDato': tipo_dato,
+                    'Mes Proyectado': mes_proyectado,
+                    'Frecuencia actualizacion ': frecuencia,
+                    'Funcionario': funcionario_final,
+                    'Fecha de entrega de información': fecha_desde_selector_a_string(fecha_entrega),
+                    'Análisis y cronograma': fecha_desde_selector_a_string(fecha_analisis),
+                    'Estándares': fecha_desde_selector_a_string(fecha_estandares),
+                    'Publicación': fecha_desde_selector_a_string(fecha_publicacion),
+                    'Fecha de oficio de cierre': fecha_desde_selector_a_string(fecha_oficio),
+                    'Estado': estado,
+                    'Acuerdo de compromiso': acuerdo,
+                    'Observación': observacion
+                }
+                
+                # Inicializar campos faltantes con valores vacíos
+                for col in registros_df.columns:
+                    if col not in datos_registro:
+                        datos_registro[col] = ''
+
+                try:
+                    if modo_nuevo:
+                        # Agregar nuevo registro
+                        nueva_fila = pd.DataFrame([datos_registro])
+                        registros_df_actualizado = pd.concat([registros_df, nueva_fila], ignore_index=True)
+                        mensaje_exito = f"Nuevo registro #{siguiente_codigo} creado exitosamente"
+                    else:
+                        # Actualizar registro existente
+                        registros_df_actualizado = registros_df.copy()
+                        for col, valor in datos_registro.items():
+                            if col in registros_df_actualizado.columns:
+                                registros_df_actualizado.at[indice_seleccionado, col] = valor
+                        mensaje_exito = f"Registro #{siguiente_codigo} actualizado exitosamente"
+
+                    # Aplicar validaciones automáticas
+                    from validaciones_utils import validar_reglas_negocio
+                    from fecha_utils import actualizar_plazo_analisis, actualizar_plazo_cronograma, actualizar_plazo_oficio_cierre
+                    
+                    registros_df_actualizado = validar_reglas_negocio(registros_df_actualizado)
+                    registros_df_actualizado = actualizar_plazo_analisis(registros_df_actualizado)
+                    registros_df_actualizado = actualizar_plazo_cronograma(registros_df_actualizado)
+                    registros_df_actualizado = actualizar_plazo_oficio_cierre(registros_df_actualizado)
+
+                    # Guardar en Google Sheets
+                    with st.spinner("💾 Guardando en Google Sheets..."):
+                        from data_utils import guardar_datos_editados
+                        exito, mensaje = guardar_datos_editados(registros_df_actualizado, crear_backup=True)
+
+                    if exito:
+                        st.session_state.mensaje_guardado = ("success", mensaje_exito)
+                        st.success("✅ " + mensaje_exito)
+                        st.balloons()
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error(f"❌ Error al guardar: {mensaje}")
+
+                except Exception as e:
+                    st.error(f"❌ Error al procesar el registro: {str(e)}")
+
+        elif recalcular_clicked and not modo_nuevo:
+            # Recalcular solo los plazos
+            try:
+                from fecha_utils import actualizar_plazo_analisis, actualizar_plazo_cronograma, actualizar_plazo_oficio_cierre
+                
+                registros_df_temp = registros_df.copy()
+                registros_df_temp = actualizar_plazo_analisis(registros_df_temp)
+                registros_df_temp = actualizar_plazo_cronograma(registros_df_temp)
+                registros_df_temp = actualizar_plazo_oficio_cierre(registros_df_temp)
+                
+                with st.spinner("🔄 Recalculando plazos..."):
+                    from data_utils import guardar_datos_editados_rapido
+                    exito, mensaje = guardar_datos_editados_rapido(registros_df_temp)
+                
+                if exito:
+                    st.success("✅ Plazos recalculados exitosamente")
+                    st.rerun()
+                else:
+                    st.error(f"❌ Error al recalcular: {mensaje}")
+                    
+            except Exception as e:
+                st.error(f"❌ Error al recalcular plazos: {str(e)}")
+
+        elif cancelar_clicked:
+            st.info("Operación cancelada")
+            st.rerun()
 
     return registros_df
+
+
+# ===== FUNCIONES AUXILIARES (mantener las mismas) =====
+
+def fecha_para_selector(fecha_str):
+    """Convierte una fecha en string a un objeto datetime para el selector."""
+    if not fecha_str or pd.isna(fecha_str) or fecha_str == '':
+        return None
+    try:
+        from data_utils import procesar_fecha
+        fecha = procesar_fecha(fecha_str)
+        if fecha is not None:
+            return fecha.date() if hasattr(fecha, 'date') else fecha
+    except:
+        pass
+    return None
+
+def fecha_desde_selector_a_string(fecha):
+    """Convierte un objeto datetime del selector a string con formato DD/MM/AAAA."""
+    if fecha is None:
+        return ""
+    return fecha.strftime('%d/%m/%Y')
+
+def on_change_callback():
+    """Callback para marcar que hay cambios pendientes."""
+    st.session_state.cambios_pendientes = True
 # ========== FUNCIÓN DASHBOARD MODIFICADA ==========
 
 def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registros_df, 
