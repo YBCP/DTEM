@@ -998,7 +998,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
             
             return df_comparacion.style.format({
                 'Porcentaje': '{:.2f}%'
-            }).applymap(aplicar_color, subset=['Porcentaje'])
+            }).map(aplicar_color, subset=['Porcentaje'])
         except Exception:
             # Fallback si falla el estilo
             return df_comparacion
@@ -2008,10 +2008,10 @@ def mostrar_alertas_vencimientos(registros_df):
             # Mostrar tabla con formato
             st.dataframe(
                 df_alertas_filtrado[columnas_alertas_existentes]
-                .style.applymap(lambda _: '',
+                .style.map(lambda _: '',
                                 subset=['Cod', 'Entidad', 'Nivel Información', 'Funcionario', 'Tipo Alerta',
                                         'Fecha Programada', 'Fecha Real', 'Descripción'])
-                .applymap(highlight_estado, subset=['Estado'])
+                .map(highlight_estado, subset=['Estado'])
                 .format({'Días Rezago': '{:+d}'})  # Mostrar signo + o - en días rezago
             )
 
