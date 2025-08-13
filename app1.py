@@ -144,16 +144,14 @@ def crear_widget_con_callback(widget_type, label, key_temp, campo, **kwargs):
     
     return None
 
-def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None, section_prefix=""):
+def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None):
     """
     Selector de fecha especializado que permite borrar completamente.
-    CORREGIDO: Agrega section_prefix para evitar claves duplicadas.
+    CORREGIDO: No recarga la página automáticamente.
     """
     # Obtener valor actual del estado temporal
     valor_actual = obtener_valor_temporal(key_temp, campo, "")
-    
-    # CORREGIDO: Agregar section_prefix para hacer único el widget_key
-    widget_key = f"{key_temp}_{section_prefix}_{campo}_widget" if section_prefix else f"{key_temp}_{campo}_widget"
+    widget_key = f"{key_temp}_{campo}_widget"
     
     # Crear contenedor para la fecha
     with st.container():
@@ -166,7 +164,7 @@ def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None, sectio
             usar_fecha = st.checkbox(
                 "📅", 
                 value=tiene_fecha,
-                key=f"check_{widget_key}",  # CORREGIDO: Usar widget_key único
+                key=f"check_{widget_key}",
                 help="Marcar para usar fecha"
             )
         
@@ -182,11 +180,11 @@ def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None, sectio
                 nueva_fecha = st.date_input(
                     label,
                     value=fecha_valor,
-                    key=widget_key,  # CORREGIDO: Usar widget_key único
+                    key=widget_key,
                     help=help_text
                 )
                 
-                # Actualizar estado temporal cuando cambia (SIN st.rerun)
+                # ✅ CORREGIDO: Actualizar estado temporal SIN st.rerun
                 fecha_str = fecha_desde_selector_a_string(nueva_fecha)
                 if fecha_str != valor_actual:
                     actualizar_campo_temporal(key_temp, campo, fecha_str)
@@ -196,7 +194,7 @@ def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None, sectio
                     label,
                     value="(Sin fecha asignada)",
                     disabled=True,
-                    key=f"disabled_{widget_key}"  # CORREGIDO: Usar widget_key único
+                    key=f"disabled_{widget_key}"
                 )
                 # Limpiar fecha del estado temporal si había una
                 if valor_actual:
@@ -204,16 +202,18 @@ def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None, sectio
         
         with col_borrar:
             if usar_fecha:
-                # Botón para limpiar fecha
-                if st.button("🗑️", key=f"clear_{widget_key}", help="Limpiar fecha"):  # CORREGIDO: Usar widget_key único
+                # ✅ CORREGIDO: Botón para limpiar fecha SIN recarga automática
+                if st.button("🗑️", key=f"clear_{widget_key}", help="Limpiar fecha"):
                     # Limpiar fecha y desactivar checkbox
                     actualizar_campo_temporal(key_temp, campo, "")
+                    # ✅ MARCAR COMO MODIFICADO PARA FORZAR RECARGA SOLO DEL WIDGET
                     st.session_state[f"check_{widget_key}"] = False
-                    st.rerun()  # ✅ Solo aquí sí recargamos para limpiar el widget
+                    # ❌ ELIMINADO: st.rerun() - NO RECARGAR AUTOMÁTICAMENTE
+                    # La página se recargará solo cuando el usuario presione "Guardar"
             else:
                 # Espaciador visual
                 st.write("")
-
+                
 def string_a_fecha(fecha_str):
     """Convierte un string de fecha a objeto datetime para mostrar en el selector de fecha."""
     if not fecha_str or fecha_str == "":
