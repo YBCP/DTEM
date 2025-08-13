@@ -17,6 +17,7 @@ from data_utils import es_fecha_valida
 # Importar funciones de autenticación
 from auth_utils import mostrar_login, mostrar_estado_autenticacion, verificar_autenticacion
 
+
 # Importar las funciones corregidas
 from config import setup_page, load_css
 from data_utils import (
