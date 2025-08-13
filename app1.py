@@ -196,13 +196,13 @@ def mostrar_edicion_registros(registros_df):
         # Flag para detectar cambios
         edited = False
 
-        # Contenedor para los datos de edición
+       
         # Contenedor para los datos de edición
         with st.container():
             st.markdown("---")
             # Título del registro
-            st.markdown(f"### Editando Registro #{row['Cod']} - {nueva_entidad if 'nueva_entidad' in locals() else row['Entidad']}")
-            st.markdown(f"**Nivel de Información:** {nuevo_nivel_info if 'nuevo_nivel_info' in locals() else row.get('Nivel Información ', '')}")
+            st.markdown(f"### Editando Registro #{row['Cod']} - {row['Entidad']}")
+            st.markdown(f"**Nivel de Información:** {row.get('Nivel Información ', '')}")
             st.markdown("---")
                        
             # ===== SECCIÓN 1: INFORMACIÓN BÁSICA =====
