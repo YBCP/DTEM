@@ -295,10 +295,15 @@ class GoogleSheetsManager:
                 return True
             
             # Limpiar contenido
-            self.service.spreadsheets().values().clear(
-                spreadsheetId=self.spreadsheet_id,
-                range=nombre_hoja
-            ).execute()
+            # Limpiar contenido SOLO si es la hoja Registros
+            if nombre_hoja == "Registros":
+                self.service.spreadsheets().values().clear(
+                    spreadsheetId=self.spreadsheet_id,
+                    range=nombre_hoja
+                ).execute()
+            else:
+                # Para cualquier otra hoja, NO limpiar
+                return False
             
             return True
             
