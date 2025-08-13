@@ -617,7 +617,7 @@ def mostrar_edicion_registros(registros_df):
                 ('Verificación del servicio web geográfico', 'verificacion_web'),
                 ('Verificar Aprobar Resultados', 'verificar_aprobar'),
                 ('Revisar y validar los datos cargados en la base de datos', 'revisar_validar'),
-                ('Aprobación resultados obtenidos en la rientación', 'aprobacion_resultados'),
+                ('Aprobación resultados obtenidos en la orientación', 'aprobacion_resultados'),
                 ('Disponer datos temáticos', 'disponer_datos'),
                 ('Catálogo de recursos geográficos', 'catalogo_recursos')
             ]
