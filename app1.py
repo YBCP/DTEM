@@ -213,31 +213,7 @@ def mostrar_edicion_registros(registros_df):
             with col1:
                 # Campos no editables
                 st.text_input("Código", value=row['Cod'], disabled=True)
-                
-                # Entidad - EDITABLE
-                entidad_actual = row.get('Entidad', '')
-                nueva_entidad = st.text_input(
-                    "Entidad",
-                    value=entidad_actual,
-                    key=f"entidad_{indice_seleccionado if indice_seleccionado >= 0 else 'nuevo'}",
-                    on_change=on_change_callback
-                )
-                if nueva_entidad != row.get('Entidad', ''):
-                    row['Entidad'] = nueva_entidad
-                    edited = True
             
-            with col2:
-                # Nivel de Información - EDITABLE
-                nivel_info_actual = row.get('Nivel Información ', '')
-                nuevo_nivel_info = st.text_input(
-                    "Nivel de Información",
-                    value=nivel_info_actual,
-                    key=f"nivel_info_{indice_seleccionado if indice_seleccionado >= 0 else 'nuevo'}",
-                    on_change=on_change_callback
-                )
-                if nuevo_nivel_info != row.get('Nivel Información ', ''):
-                    row['Nivel Información '] = nuevo_nivel_info
-                    edited = True
             with col2:
                 # Tipo de Dato
                 tipo_actual = row.get('TipoDato', '')
