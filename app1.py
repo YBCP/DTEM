@@ -144,12 +144,16 @@ def crear_widget_con_callback(widget_type, label, key_temp, campo, **kwargs):
     
     return None
 
-def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None):
+def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None, section_prefix=""):
     """
     Selector de fecha especializado que permite borrar completamente.
+    CORREGIDO: Agrega section_prefix para evitar claves duplicadas.
     """
+    # Obtener valor actual del estado temporal
     valor_actual = obtener_valor_temporal(key_temp, campo, "")
-    widget_key = f"{key_temp}_{campo}_widget"
+    
+    # CORREGIDO: Agregar section_prefix para hacer único el widget_key
+    widget_key = f"{key_temp}_{section_prefix}_{campo}_widget" if section_prefix else f"{key_temp}_{campo}_widget"
     
     # Crear contenedor para la fecha
     with st.container():
@@ -162,7 +166,7 @@ def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None):
             usar_fecha = st.checkbox(
                 "📅", 
                 value=tiene_fecha,
-                key=f"check_{widget_key}",
+                key=f"check_{widget_key}",  # CORREGIDO: Usar widget_key único
                 help="Marcar para usar fecha"
             )
         
@@ -178,7 +182,7 @@ def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None):
                 nueva_fecha = st.date_input(
                     label,
                     value=fecha_valor,
-                    key=widget_key,
+                    key=widget_key,  # CORREGIDO: Usar widget_key único
                     help=help_text
                 )
                 
@@ -192,7 +196,7 @@ def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None):
                     label,
                     value="(Sin fecha asignada)",
                     disabled=True,
-                    key=f"disabled_{widget_key}"
+                    key=f"disabled_{widget_key}"  # CORREGIDO: Usar widget_key único
                 )
                 # Limpiar fecha del estado temporal si había una
                 if valor_actual:
@@ -201,7 +205,7 @@ def crear_selector_fecha_borrable(label, key_temp, campo, help_text=None):
         with col_borrar:
             if usar_fecha:
                 # Botón para limpiar fecha
-                if st.button("🗑️", key=f"clear_{widget_key}", help="Limpiar fecha"):
+                if st.button("🗑️", key=f"clear_{widget_key}", help="Limpiar fecha"):  # CORREGIDO: Usar widget_key único
                     # Limpiar fecha y desactivar checkbox
                     actualizar_campo_temporal(key_temp, campo, "")
                     st.session_state[f"check_{widget_key}"] = False
@@ -551,15 +555,7 @@ def mostrar_edicion_registros(registros_df):
                     options=["", "Si", "No"]
                 )
 
-            # Análisis y cronograma fecha - SELECTOR DE FECHA
-            col1, col2 = st.columns(2)
-            with col1:
-                crear_selector_fecha_borrable(
-                    "Análisis y cronograma (fecha real)",
-                    key_temp,
-                    'Análisis y cronograma'
-                )
-
+            
             # ===== SECCIÓN 5: ESTÁNDARES =====
             st.markdown("---")
             st.markdown("### 5. Estándares")
