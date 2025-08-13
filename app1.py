@@ -197,24 +197,24 @@ def mostrar_edicion_registros(registros_df):
         edited = False
 
         # Contenedor para los datos de edición
-        with st.container():
-            st.markdown("---")
-            # Título del registro
-            st.markdown(f"### Editando Registro #{row['Cod']} - {row['Entidad']}")
-            # Nivel de Información - EDITABLE
-            nivel_info_actual = row.get('Nivel Información ', '')
-            nuevo_nivel_info = st.text_input(
-                "Nivel de Información",
-                value=nivel_info_actual,
-                key=f"nivel_info_{indice_seleccionado}",
-                on_change=on_change_callback
-            )
-            if nuevo_nivel_info != row.get('Nivel Información ', ''):
-                row['Nivel Información '] = nuevo_nivel_info
-                edited = True
-            st.markdown(f"**Nivel de Información:** {nuevo_nivel_info}")
-            st.markdown("---")
-
+           with st.container():
+                st.markdown("---")
+                # Título del registro
+                st.markdown(f"### Editando Registro #{row['Cod']} - {row['Entidad']}")
+                # Nivel de Información - EDITABLE
+                nivel_info_actual = row.get('Nivel Información ', '')
+                key_nivel = f"nivel_info_{indice_seleccionado if indice_seleccionado >= 0 else 'nuevo'}"
+                nuevo_nivel_info = st.text_input(
+                    "Nivel de Información",
+                    value=nivel_info_actual,
+                    key=key_nivel,
+                    on_change=on_change_callback
+                )
+                if nuevo_nivel_info != row.get('Nivel Información ', ''):
+                    row['Nivel Información '] = nuevo_nivel_info
+                    edited = True
+                st.markdown(f"**Nivel de Información:** {nuevo_nivel_info}")
+                st.markdown("---")
             # ===== SECCIÓN 1: INFORMACIÓN BÁSICA =====
             st.markdown("### 1. Información Básica")
             col1, col2, col3 = st.columns(3)
