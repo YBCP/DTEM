@@ -177,8 +177,12 @@ class GoogleSheetsManager:
                 values = [df_clean.columns.tolist()] + df_clean.values.tolist()
             
             # Limpiar la hoja si se solicita
-            if limpiar_hoja:
+            # Limpiar la hoja si se solicita Y es la hoja Registros
+            if limpiar_hoja and nombre_hoja == "Registros":
                 self.limpiar_hoja(nombre_hoja)
+            elif limpiar_hoja and nombre_hoja != "Registros":
+                st.error(f"🚨 BLOQUEADO: Intento de limpiar hoja '{nombre_hoja}' - Solo se permite limpiar 'Registros'")
+                return False
             
             # Escribir datos
             body = {
