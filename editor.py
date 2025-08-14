@@ -1,11 +1,9 @@
-# editor.py - VERSIÓN FINAL MEJORADA
+# editor.py - VERSIÓN CON FUNCIONARIOS DROPDOWN Y BORRAR FECHAS SIMPLE
 """
-Editor de registros COMPLETAMENTE SIN RECARGAS + MEJORAS
-- ELIMINADO: Todos los st.rerun()
-- ELIMINADO: Todos los callbacks on_change  
-- AGREGADO: Selector de funcionarios con dropdown + opción agregar nuevo
-- AGREGADO: Botones para borrar fechas fácilmente
-- Los cambios se procesan SOLO al presionar "Guardar"
+Editor de registros MEJORADO:
+- Sin recargas automáticas
+- Funcionarios con dropdown + opción agregar nuevo
+- Borrar fechas SIMPLE: solo dejar campo vacío
 """
 
 import streamlit as st
@@ -23,133 +21,128 @@ from fecha_utils import (
 from auth_utils import verificar_autenticacion
 
 
-def crear_selector_funcionario_mejorado(registros_df, indice_seleccionado, funcionario_actual):
+def crear_selector_funcionario_dropdown(registros_df, funcionario_actual, key_suffix):
     """
-    Selector de funcionario mejorado:
-    - Lista desplegable con funcionarios existentes
-    - Opción para agregar funcionario nuevo
-    - Simple y sin recargas
+    Selector de funcionario con dropdown + opción nuevo
+    SIMPLE y EFECTIVO
     """
-    # Obtener lista de funcionarios únicos existentes
+    # Obtener funcionarios únicos existentes
     funcionarios_existentes = []
     if 'Funcionario' in registros_df.columns:
         funcionarios_unicos = registros_df['Funcionario'].dropna().unique()
-        funcionarios_existentes = [f for f in funcionarios_unicos if f and str(f).strip() and str(f).strip() not in ['nan', 'None']]
+        funcionarios_existentes = [
+            f for f in funcionarios_unicos 
+            if f and str(f).strip() and str(f).strip() not in ['nan', 'None', '']
+        ]
         funcionarios_existentes = sorted(set(funcionarios_existentes))
     
-    st.markdown("**Funcionario Asignado:**")
+    col1, col2 = st.columns([2, 1])
     
-    # Opción 1: Seleccionar de existentes
-    opciones_funcionarios = ["(Seleccionar funcionario existente)"] + funcionarios_existentes
-    
-    # Determinar índice actual
-    if funcionario_actual and funcionario_actual in funcionarios_existentes:
-        indice_funcionario = opciones_funcionarios.index(funcionario_actual)
-    else:
-        indice_funcionario = 0
-    
-    funcionario_seleccionado = st.selectbox(
-        "Funcionarios existentes:",
-        options=opciones_funcionarios,
-        index=indice_funcionario,
-        key=f"funcionario_dropdown_{indice_seleccionado}"
-    )
-    
-    # Opción 2: Agregar nuevo funcionario
-    funcionario_nuevo = st.text_input(
-        "O escribir funcionario nuevo:",
-        value="" if funcionario_seleccionado != "(Seleccionar funcionario existente)" else funcionario_actual,
-        placeholder="Escribir nombre del nuevo funcionario",
-        key=f"funcionario_nuevo_{indice_seleccionado}"
-    )
-    
-    # Determinar funcionario final
-    if funcionario_nuevo.strip():
-        funcionario_final = funcionario_nuevo.strip()
-    elif funcionario_seleccionado != "(Seleccionar funcionario existente)":
-        funcionario_final = funcionario_seleccionado
-    else:
-        funcionario_final = funcionario_actual
-    
-    # Mostrar funcionario final
-    if funcionario_final:
-        st.success(f"👤 **Funcionario asignado:** {funcionario_final}")
-    else:
-        st.info("👤 **Sin funcionario asignado**")
-    
-    return funcionario_final
-
-
-def crear_selector_fecha_con_borrar(label, fecha_actual, key_base, help_text=None):
-    """
-    Selector de fecha mejorado con botón para borrar
-    - date_input normal
-    - Botón "Borrar" para limpiar la fecha fácilmente
-    - Indicador visual del estado
-    """
-    col_label, col_fecha, col_borrar = st.columns([3, 4, 1])
-    
-    with col_label:
-        st.markdown(f"**{label}:**")
-    
-    with col_fecha:
-        # Convertir fecha actual a objeto date si es válida
-        if es_fecha_valida(fecha_actual):
-            try:
-                fecha_obj = procesar_fecha(fecha_actual)
-                fecha_valor = fecha_obj.date() if isinstance(fecha_obj, datetime) else fecha_obj
-            except:
-                fecha_valor = None
-        else:
-            fecha_valor = None
+    with col1:
+        # Opción 1: Dropdown con existentes
+        opciones = ["(Sin asignar)"] + funcionarios_existentes + [">>> AGREGAR NUEVO <<<"]
         
-        # Mostrar date_input o placeholder
-        if fecha_valor:
+        # Determinar índice actual
+        if funcionario_actual and funcionario_actual in funcionarios_existentes:
+            indice_seleccionado = opciones.index(funcionario_actual)
+        elif funcionario_actual and funcionario_actual.strip():
+            # Funcionario actual no está en la lista pero tiene valor
+            opciones.insert(-1, funcionario_actual)  # Agregar antes de "AGREGAR NUEVO"
+            indice_seleccionado = opciones.index(funcionario_actual)
+        else:
+            indice_seleccionado = 0
+        
+        funcionario_seleccionado = st.selectbox(
+            "Funcionario asignado:",
+            options=opciones,
+            index=indice_seleccionado,
+            key=f"funcionario_dropdown_{key_suffix}"
+        )
+    
+    with col2:
+        # Mostrar cantidad de funcionarios
+        st.metric("Total", len(funcionarios_existentes))
+    
+    # Opción 2: Campo para nuevo funcionario
+    if funcionario_seleccionado == ">>> AGREGAR NUEVO <<<":
+        funcionario_nuevo = st.text_input(
+            "Nombre del nuevo funcionario:",
+            value="",
+            placeholder="Escribir nombre completo",
+            key=f"funcionario_nuevo_{key_suffix}"
+        )
+        if funcionario_nuevo.strip():
+            st.success(f"✅ **Nuevo funcionario:** {funcionario_nuevo.strip()}")
+            return funcionario_nuevo.strip()
+        else:
+            st.warning("⚠️ Escriba el nombre del nuevo funcionario")
+            return funcionario_actual  # Mantener el actual si no hay nuevo
+    elif funcionario_seleccionado == "(Sin asignar)":
+        return ""
+    else:
+        return funcionario_seleccionado
+
+
+def crear_fecha_input_con_borrar_simple(label, fecha_actual, key_suffix):
+    """
+    Campo de fecha SIMPLE con opción de borrar
+    - date_input normal
+    - Checkbox "Sin fecha" para borrar
+    """
+    col1, col2 = st.columns([4, 1])
+    
+    with col2:
+        # Checkbox para borrar/sin fecha
+        sin_fecha = st.checkbox(
+            "Sin fecha", 
+            value=not es_fecha_valida(fecha_actual),
+            key=f"sin_fecha_{key_suffix}",
+            help="Marcar para dejar sin fecha"
+        )
+    
+    with col1:
+        if sin_fecha:
+            # Mostrar campo deshabilitado
+            st.date_input(
+                label,
+                value=None,
+                disabled=True,
+                key=f"fecha_disabled_{key_suffix}"
+            )
+            return None  # Retornar None para indicar sin fecha
+        else:
+            # Campo de fecha normal
+            if es_fecha_valida(fecha_actual):
+                try:
+                    fecha_obj = procesar_fecha(fecha_actual)
+                    fecha_valor = fecha_obj.date() if isinstance(fecha_obj, datetime) else fecha_obj
+                except:
+                    fecha_valor = date.today()
+            else:
+                fecha_valor = date.today()
+            
             fecha_seleccionada = st.date_input(
                 label,
                 value=fecha_valor,
-                key=f"{key_base}_fecha",
-                help=help_text,
-                label_visibility="collapsed"
+                key=f"fecha_input_{key_suffix}"
             )
-        else:
-            fecha_seleccionada = st.date_input(
-                label,
-                value=None,
-                key=f"{key_base}_fecha",
-                help=help_text,
-                label_visibility="collapsed"
-            )
-    
-    with col_borrar:
-        # Botón para borrar fecha
-        if st.button("🗑️", key=f"{key_base}_borrar", help="Borrar fecha", type="secondary"):
-            # Marcar para borrar en el siguiente submit
-            st.session_state[f"{key_base}_borrar_flag"] = True
-            st.success("Fecha marcada para borrar")
-    
-    # Verificar si se marcó para borrar
-    if st.session_state.get(f"{key_base}_borrar_flag", False):
-        return None  # Devolver None para indicar fecha borrada
-    
-    return fecha_seleccionada
+            return fecha_seleccionada
 
 
 def mostrar_edicion_registros(registros_df):
     """
-    Editor COMPLETAMENTE SIN RECARGAS + MEJORAS:
-    - Selector de funcionarios mejorado
-    - Botones para borrar fechas
-    - Sin interrupciones durante edición
+    Editor MEJORADO con:
+    - Funcionarios dropdown + agregar nuevo
+    - Borrar fechas SIMPLE con checkbox
+    - Sin recargas automáticas
     """
     
-    st.markdown('<div class="subtitle">Editor de Registros (Mejorado)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Editor de Registros (Versión Mejorada)</div>', unsafe_allow_html=True)
     
-    # Información de mejoras
     st.info("""
-    **🆕 MEJORAS EN ESTA VERSIÓN:**
-    - 👥 **Funcionarios:** Lista desplegable + opción agregar nuevo
-    - 🗑️ **Borrar fechas:** Botón "🗑️" para limpiar fechas fácilmente
+    **🎯 MEJORAS EN ESTA VERSIÓN:**
+    - 👥 **Funcionarios:** Dropdown con existentes + opción agregar nuevo
+    - 📅 **Fechas:** Checkbox "Sin fecha" para borrar fácilmente
     - ⚡ **Sin recargas:** Cambios se aplican solo al guardar
     """)
     
@@ -158,7 +151,7 @@ def mostrar_edicion_registros(registros_df):
         st.warning("No hay registros disponibles para editar.")
         return registros_df
     
-    # ===== SELECTOR DE REGISTRO (SIN CALLBACK) =====
+    # ===== SELECTOR DE REGISTRO =====
     st.markdown("### Selección de Registro")
     
     opciones_registros = [
@@ -169,7 +162,7 @@ def mostrar_edicion_registros(registros_df):
     seleccion_registro = st.selectbox(
         "Seleccione un registro para editar:",
         options=opciones_registros,
-        key="selector_registro_mejorado"
+        key="selector_registro_mejorado_v2"
     )
     
     indice_seleccionado = opciones_registros.index(seleccion_registro)
@@ -181,8 +174,8 @@ def mostrar_edicion_registros(registros_df):
     st.markdown(f"**Nivel de Información:** {row_original['Nivel Información ']}")
     st.markdown("---")
     
-    # ===== FORMULARIO MEJORADO SIN RECARGAS =====
-    with st.form(f"form_edicion_mejorado_{indice_seleccionado}", clear_on_submit=False):
+    # ===== FORMULARIO MEJORADO =====
+    with st.form(f"form_edicion_v2_{indice_seleccionado}", clear_on_submit=False):
         
         # ===== SECCIÓN 1: INFORMACIÓN BÁSICA =====
         st.markdown("### 1. Información Básica")
@@ -218,13 +211,13 @@ def mostrar_edicion_registros(registros_df):
             key=f"frecuencia_{indice_seleccionado}"
         )
         
-        # ===== FUNCIONARIO MEJORADO =====
+        # ===== FUNCIONARIO MEJORADO CON DROPDOWN =====
         st.markdown("---")
         st.markdown("### 👥 Funcionario")
-        funcionario_final = crear_selector_funcionario_mejorado(
+        funcionario_final = crear_selector_funcionario_dropdown(
             registros_df, 
-            indice_seleccionado, 
-            row_original.get('Funcionario', '')
+            row_original.get('Funcionario', ''),
+            indice_seleccionado
         )
         
         # ===== SECCIÓN 2: ACUERDOS Y COMPROMISOS =====
@@ -241,16 +234,16 @@ def mostrar_edicion_registros(registros_df):
                 key=f"actas_interes_{indice_seleccionado}"
             )
             
-            # Fecha de suscripción CON BOTÓN BORRAR
-            fecha_suscripcion = crear_selector_fecha_con_borrar(
+            # Fecha de suscripción CON BORRAR SIMPLE
+            fecha_suscripcion = crear_fecha_input_con_borrar_simple(
                 "Suscripción acuerdo de compromiso",
                 row_original.get('Suscripción acuerdo de compromiso', ''),
                 f"suscripcion_{indice_seleccionado}"
             )
         
         with col2:
-            # Fecha de entrega CON BOTÓN BORRAR
-            fecha_entrega = crear_selector_fecha_con_borrar(
+            # Fecha de entrega CON BORRAR SIMPLE
+            fecha_entrega = crear_fecha_input_con_borrar_simple(
                 "Entrega acuerdo de compromiso",
                 row_original.get('Entrega acuerdo de compromiso', ''),
                 f"entrega_{indice_seleccionado}"
@@ -278,8 +271,8 @@ def mostrar_edicion_registros(registros_df):
             )
         
         with col2:
-            # Fecha de entrega de información CON BOTÓN BORRAR
-            fecha_entrega_info = crear_selector_fecha_con_borrar(
+            # Fecha de entrega de información CON BORRAR SIMPLE
+            fecha_entrega_info = crear_fecha_input_con_borrar_simple(
                 "Fecha de entrega de información",
                 row_original.get('Fecha de entrega de información', ''),
                 f"entrega_info_{indice_seleccionado}"
@@ -289,10 +282,10 @@ def mostrar_edicion_registros(registros_df):
             # Plazo de análisis (solo lectura)
             plazo_analisis = row_original.get('Plazo de análisis', '')
             st.text_input(
-                "Plazo de análisis (calculado automáticamente)",
+                "Plazo de análisis (calculado)",
                 value=plazo_analisis,
                 disabled=True,
-                help="Se calcula automáticamente como 5 días hábiles después de la fecha de entrega"
+                help="Se calcula automáticamente"
             )
         
         # ===== SECCIÓN 4: ANÁLISIS Y CRONOGRAMA =====
@@ -302,8 +295,8 @@ def mostrar_edicion_registros(registros_df):
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            # Análisis y cronograma fecha CON BOTÓN BORRAR
-            analisis_cronograma = crear_selector_fecha_con_borrar(
+            # Análisis y cronograma fecha CON BORRAR SIMPLE
+            analisis_cronograma = crear_fecha_input_con_borrar_simple(
                 "Análisis y cronograma (fecha real)",
                 row_original.get('Análisis y cronograma', ''),
                 f"analisis_cronograma_{indice_seleccionado}"
@@ -320,10 +313,10 @@ def mostrar_edicion_registros(registros_df):
         with col3:
             plazo_cronograma = row_original.get('Plazo de cronograma', '')
             st.text_input(
-                "Plazo de cronograma (calculado automáticamente)",
+                "Plazo de cronograma (calculado)",
                 value=plazo_cronograma,
                 disabled=True,
-                help="Se calcula como 3 días hábiles después del plazo de análisis"
+                help="Se calcula automáticamente"
             )
         
         with col4:
@@ -366,16 +359,16 @@ def mostrar_edicion_registros(registros_df):
         col1, col2 = st.columns(2)
         
         with col1:
-            # Estándares fecha programada CON BOTÓN BORRAR
-            estandares_programada = crear_selector_fecha_con_borrar(
+            # Estándares fecha programada CON BORRAR SIMPLE
+            estandares_programada = crear_fecha_input_con_borrar_simple(
                 "Estándares (fecha programada)",
                 row_original.get('Estándares (fecha programada)', ''),
                 f"estandares_prog_{indice_seleccionado}"
             )
         
         with col2:
-            # Estándares fecha real CON BOTÓN BORRAR
-            estandares_real = crear_selector_fecha_con_borrar(
+            # Estándares fecha real CON BORRAR SIMPLE
+            estandares_real = crear_fecha_input_con_borrar_simple(
                 "Estándares (fecha real)",
                 row_original.get('Estándares', ''),
                 f"estandares_real_{indice_seleccionado}"
@@ -418,16 +411,16 @@ def mostrar_edicion_registros(registros_df):
         col1, col2 = st.columns(2)
         
         with col1:
-            # Fecha de publicación programada CON BOTÓN BORRAR
-            publicacion_programada = crear_selector_fecha_con_borrar(
+            # Fecha de publicación programada CON BORRAR SIMPLE
+            publicacion_programada = crear_fecha_input_con_borrar_simple(
                 "Fecha de publicación programada",
                 row_original.get('Fecha de publicación programada', ''),
                 f"pub_prog_{indice_seleccionado}"
             )
         
         with col2:
-            # Publicación fecha real CON BOTÓN BORRAR
-            publicacion_real = crear_selector_fecha_con_borrar(
+            # Publicación fecha real CON BORRAR SIMPLE
+            publicacion_real = crear_fecha_input_con_borrar_simple(
                 "Publicación (fecha real)",
                 row_original.get('Publicación', ''),
                 f"pub_real_{indice_seleccionado}"
@@ -442,10 +435,10 @@ def mostrar_edicion_registros(registros_df):
         with col1:
             plazo_oficio = row_original.get('Plazo de oficio de cierre', '')
             st.text_input(
-                "Plazo de oficio de cierre (calculado automáticamente)",
+                "Plazo de oficio de cierre (calculado)",
                 value=plazo_oficio,
                 disabled=True,
-                help="Se calcula como 7 días hábiles después de la fecha de publicación"
+                help="Se calcula automáticamente"
             )
             
             oficios_cierre = st.selectbox(
@@ -456,8 +449,8 @@ def mostrar_edicion_registros(registros_df):
             )
         
         with col2:
-            # Fecha de oficio de cierre CON BOTÓN BORRAR
-            fecha_oficio_cierre = crear_selector_fecha_con_borrar(
+            # Fecha de oficio de cierre CON BORRAR SIMPLE
+            fecha_oficio_cierre = crear_fecha_input_con_borrar_simple(
                 "Fecha de oficio de cierre",
                 row_original.get('Fecha de oficio de cierre', ''),
                 f"oficio_cierre_{indice_seleccionado}"
@@ -479,7 +472,7 @@ def mostrar_edicion_registros(registros_df):
             key=f"observacion_{indice_seleccionado}"
         )
         
-        # ===== INFORMACIÓN DE AVANCE (SOLO LECTURA) =====
+        # ===== INFORMACIÓN DE AVANCE =====
         st.markdown("---")
         st.markdown("### Información de Avance Actual")
         
@@ -488,7 +481,7 @@ def mostrar_edicion_registros(registros_df):
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.metric("Porcentaje de Avance Actual", f"{porcentaje_original}%")
+            st.metric("Porcentaje de Avance", f"{porcentaje_original}%")
         
         with col2:
             if porcentaje_original == 100:
@@ -520,20 +513,17 @@ def mostrar_edicion_registros(registros_df):
             
             st.info(f"**Próxima acción:** {proxima_accion}")
         
-        # ===== BOTÓN DE GUARDADO (ÚNICO PUNTO DE ACTUALIZACIÓN) =====
+        # ===== BOTÓN DE GUARDADO =====
         st.markdown("---")
-        st.markdown("### 💾 Guardar Cambios")
-        
         submitted = st.form_submit_button("💾 Guardar Registro", type="primary", use_container_width=True)
         
         if submitted:
-            # PROCESAR TODOS LOS CAMBIOS AQUÍ
-            with st.spinner("💾 Guardando cambios y aplicando validaciones..."):
+            with st.spinner("💾 Guardando cambios..."):
                 try:
-                    # Crear copia del DataFrame para modificar
+                    # Crear copia del DataFrame
                     registros_df_actualizado = registros_df.copy()
                     
-                    # Aplicar TODOS los cambios del formulario
+                    # Aplicar cambios básicos
                     registros_df_actualizado.at[indice_seleccionado, 'TipoDato'] = tipo_dato
                     registros_df_actualizado.at[indice_seleccionado, 'Mes Proyectado'] = mes_proyectado
                     registros_df_actualizado.at[indice_seleccionado, 'Frecuencia actualizacion '] = frecuencia
@@ -547,7 +537,7 @@ def mostrar_edicion_registros(registros_df):
                     registros_df_actualizado.at[indice_seleccionado, 'Estado'] = estado
                     registros_df_actualizado.at[indice_seleccionado, 'Observación'] = observacion
                     
-                    # Fechas (convertir a formato string o vacío si se borró)
+                    # Fechas (SIMPLE: None = campo vacío, date = formato string)
                     fechas_a_procesar = [
                         (fecha_suscripcion, 'Suscripción acuerdo de compromiso'),
                         (fecha_entrega, 'Entrega acuerdo de compromiso'),
@@ -562,10 +552,10 @@ def mostrar_edicion_registros(registros_df):
                     
                     for fecha_obj, campo in fechas_a_procesar:
                         if fecha_obj is None:
-                            # Fecha fue marcada para borrar o está vacía
+                            # Sin fecha = campo vacío
                             registros_df_actualizado.at[indice_seleccionado, campo] = ''
-                        elif fecha_obj:
-                            # Fecha válida, convertir a string
+                        else:
+                            # Fecha válida = formato string
                             registros_df_actualizado.at[indice_seleccionado, campo] = fecha_obj.strftime('%d/%m/%Y')
                     
                     # Estándares
@@ -586,15 +576,10 @@ def mostrar_edicion_registros(registros_df):
                     exito, mensaje = guardar_datos_editados(registros_df_actualizado, crear_backup=True)
                     
                     if exito:
-                        st.success(f"✅ {mensaje} Validaciones y plazos automáticos aplicados correctamente.")
+                        st.success(f"✅ {mensaje} Validaciones aplicadas correctamente.")
                         st.balloons()
                         
-                        # Limpiar flags de borrado para evitar conflictos
-                        keys_to_clear = [key for key in st.session_state.keys() if key.endswith('_borrar_flag')]
-                        for key in keys_to_clear:
-                            del st.session_state[key]
-                        
-                        # ACTUALIZAR EL DATAFRAME EN MEMORIA PARA REFLEJAR CAMBIOS
+                        # ACTUALIZAR DATAFRAME EN MEMORIA
                         for col in registros_df_actualizado.columns:
                             registros_df.at[indice_seleccionado, col] = registros_df_actualizado.at[indice_seleccionado, col]
                     else:
@@ -603,50 +588,45 @@ def mostrar_edicion_registros(registros_df):
                 except Exception as e:
                     st.error(f"❌ Error al guardar: {str(e)}")
     
-    # ===== INFORMACIÓN ADICIONAL (FUERA DEL FORMULARIO) =====
+    # ===== INFORMACIÓN ADICIONAL =====
     st.markdown("---")
-    st.markdown("### ℹ️ Información del Editor Mejorado")
+    st.markdown("### ℹ️ Guía de Uso")
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
         st.info("""
-        **✅ Sin Recargas:**
-        - Los cambios NO se aplican automáticamente
-        - Use el botón "Guardar" para confirmar
-        - Edición fluida sin interrupciones
+        **👥 Funcionarios:**
+        - Dropdown con existentes
+        - ">>> AGREGAR NUEVO <<<" para nuevo
+        - Se guarda automáticamente en la lista
         """)
     
     with col2:
         st.info("""
-        **👥 Funcionarios Mejorado:**
-        - Lista desplegable con existentes
-        - Opción para agregar nuevo
-        - Detección automática de duplicados
+        **📅 Fechas Editables:**
+        - Checkbox "Sin fecha" para borrar
+        - Dejar sin marcar para asignar fecha
+        - Simple y directo
         """)
     
     with col3:
         st.info("""
-        **🗑️ Borrar Fechas:**
-        - Botón "🗑️" junto a cada fecha
-        - Fácil limpieza de campos
-        - Confirmación visual
+        **💾 Guardado:**
+        - Sin recargas automáticas
+        - Cambios se aplican al guardar
+        - Validaciones automáticas incluidas
         """)
     
     return registros_df
 
 
 def mostrar_edicion_registros_con_autenticacion(registros_df):
-    """
-    Wrapper del editor que incluye verificación de autenticación
-    """
+    """Wrapper con autenticación"""
     if verificar_autenticacion():
-        # Usuario autenticado - mostrar editor mejorado
         return mostrar_edicion_registros(registros_df)
     else:
-        # Usuario no autenticado - mostrar mensaje
         st.markdown('<div class="subtitle">🔐 Acceso Restringido - Edición de Registros</div>', unsafe_allow_html=True)
-        
         st.warning("🔒 **Se requiere autenticación para acceder a la edición de registros**")
         
         st.info("""
@@ -654,12 +634,6 @@ def mostrar_edicion_registros_con_autenticacion(registros_df):
         1. 🔐 Use el panel "Acceso Administrativo" en la barra lateral
         2. 👤 Ingrese las credenciales de administrador
         3. ✅ Una vez autenticado, podrá editar registros
-        
-        **Funcionalidades disponibles sin autenticación:**
-        - 📊 Dashboard y métricas
-        - 📈 Seguimiento trimestral  
-        - ⚠️ Alertas de vencimientos
-        - 📋 Reportes y descargas
         """)
         
         st.markdown("""
@@ -672,15 +646,11 @@ def mostrar_edicion_registros_con_autenticacion(registros_df):
         return registros_df
 
 
-# ===== VERIFICACIÓN FINAL =====
+# ===== VERIFICACIÓN =====
 if __name__ == "__main__":
-    print("📝 Editor MEJORADO FINAL cargado correctamente")
+    print("📝 Editor con Funcionarios Dropdown y Borrar Fechas Simple")
     print("🔧 Características:")
-    print("   ✅ ELIMINADO: Todos los st.rerun()")
-    print("   ✅ ELIMINADO: Todos los callbacks on_change")
-    print("   ✅ AGREGADO: Selector de funcionarios con dropdown")
-    print("   ✅ AGREGADO: Botones para borrar fechas fácilmente")
-    print("   ✅ Los cambios se procesan SOLO al presionar 'Guardar'")
-    print("   ✅ Experiencia de usuario optimizada")
-    print("\n📝 Uso: from editor import mostrar_edicion_registros_con_autenticacion")
-    print("🔄 Reemplaza el editor.py actual")
+    print("   ✅ Funcionarios: Dropdown + agregar nuevo")
+    print("   ✅ Fechas: Checkbox 'Sin fecha' para borrar simple")
+    print("   ✅ Sin recargas automáticas")
+    print("   ✅ Guardado inteligente con validaciones")
