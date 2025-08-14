@@ -22,13 +22,13 @@ def extraer_metas_desde_google_sheets(meta_df):
         # Procesar metas para obtener estructura usable
         metas_nuevas_df, metas_actualizar_df = procesar_metas(meta_df)
         
-        # Mapeo de trimestres a fechas objetivo en las metas
-        # Buscar las fechas más cercanas a los finales de trimestre
+        # CORREGIDO: Mapeo correcto por cortes trimestrales
+        # Q1 = Marzo, Q2 = Junio, Q3 = Septiembre, Q4 = Diciembre
         fechas_objetivo = {
-            'Q1': ['31/01/2025', '15/02/2025', '28/02/2025', '15/03/2025', '31/03/2025'],  # Enero-Marzo
-            'Q2': ['30/04/2025', '15/05/2025', '31/05/2025', '15/06/2025', '30/06/2025'],  # Abril-Junio  
-            'Q3': ['31/07/2025', '15/08/2025', '31/08/2025', '15/09/2025', '30/09/2025'],  # Julio-Septiembre
-            'Q4': ['31/10/2025', '15/11/2025', '30/11/2025', '15/12/2025', '31/12/2025']   # Octubre-Diciembre
+            'Q1': ['15/03/2025', '31/03/2025', '28/02/2025', '15/02/2025', '31/01/2025'],  # Meta Q1 = MARZO
+            'Q2': ['15/06/2025', '30/06/2025', '31/05/2025', '15/05/2025', '30/04/2025'],  # Meta Q2 = JUNIO
+            'Q3': ['15/09/2025', '30/09/2025', '31/08/2025', '15/08/2025', '31/07/2025'],  # Meta Q3 = SEPTIEMBRE
+            'Q4': ['15/12/2025', '31/12/2025', '30/11/2025', '15/11/2025', '31/10/2025']   # Meta Q4 = DICIEMBRE
         }
         
         metas_trimestrales = {
@@ -177,9 +177,13 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     st.info("""
     **📊 Seguimiento Trimestral Corregido**
     
-    **DATOS UTILIZADOS:**
-    - **Metas:** Extraídas de la hoja METAS de Google Sheets (enero/marzo/septiembre/diciembre)
-    - **Avance:** Registros publicados hasta fecha límite de cada trimestre
+    **METAS POR TRIMESTRE (Google Sheets):**
+    - **Q1 Meta:** Datos de **MARZO** en hoja METAS
+    - **Q2 Meta:** Datos de **JUNIO** en hoja METAS
+    - **Q3 Meta:** Datos de **SEPTIEMBRE** en hoja METAS
+    - **Q4 Meta:** Datos de **DICIEMBRE** en hoja METAS
+    
+    **AVANCE (Publicaciones hasta fecha límite):**
     - **Q1:** Hasta 31 Marzo | **Q2:** Hasta 30 Junio | **Q3:** Hasta 30 Septiembre | **Q4:** Hasta 31 Diciembre
     """)
     
