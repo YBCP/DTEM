@@ -1,9 +1,10 @@
-# editor.py - VERSIÓN SIN RECARGAS AUTOMÁTICAS
+# editor.py - VERSIÓN FINAL MEJORADA
 """
-Editor de registros COMPLETAMENTE SIN RECARGAS
+Editor de registros COMPLETAMENTE SIN RECARGAS + MEJORAS
 - ELIMINADO: Todos los st.rerun()
-- ELIMINADO: Todos los callbacks on_change
-- ELIMINADO: Actualizaciones automáticas
+- ELIMINADO: Todos los callbacks on_change  
+- AGREGADO: Selector de funcionarios con dropdown + opción agregar nuevo
+- AGREGADO: Botones para borrar fechas fácilmente
 - Los cambios se procesan SOLO al presionar "Guardar"
 """
 
@@ -22,21 +23,135 @@ from fecha_utils import (
 from auth_utils import verificar_autenticacion
 
 
+def crear_selector_funcionario_mejorado(registros_df, indice_seleccionado, funcionario_actual):
+    """
+    Selector de funcionario mejorado:
+    - Lista desplegable con funcionarios existentes
+    - Opción para agregar funcionario nuevo
+    - Simple y sin recargas
+    """
+    # Obtener lista de funcionarios únicos existentes
+    funcionarios_existentes = []
+    if 'Funcionario' in registros_df.columns:
+        funcionarios_unicos = registros_df['Funcionario'].dropna().unique()
+        funcionarios_existentes = [f for f in funcionarios_unicos if f and str(f).strip() and str(f).strip() not in ['nan', 'None']]
+        funcionarios_existentes = sorted(set(funcionarios_existentes))
+    
+    st.markdown("**Funcionario Asignado:**")
+    
+    # Opción 1: Seleccionar de existentes
+    opciones_funcionarios = ["(Seleccionar funcionario existente)"] + funcionarios_existentes
+    
+    # Determinar índice actual
+    if funcionario_actual and funcionario_actual in funcionarios_existentes:
+        indice_funcionario = opciones_funcionarios.index(funcionario_actual)
+    else:
+        indice_funcionario = 0
+    
+    funcionario_seleccionado = st.selectbox(
+        "Funcionarios existentes:",
+        options=opciones_funcionarios,
+        index=indice_funcionario,
+        key=f"funcionario_dropdown_{indice_seleccionado}"
+    )
+    
+    # Opción 2: Agregar nuevo funcionario
+    funcionario_nuevo = st.text_input(
+        "O escribir funcionario nuevo:",
+        value="" if funcionario_seleccionado != "(Seleccionar funcionario existente)" else funcionario_actual,
+        placeholder="Escribir nombre del nuevo funcionario",
+        key=f"funcionario_nuevo_{indice_seleccionado}"
+    )
+    
+    # Determinar funcionario final
+    if funcionario_nuevo.strip():
+        funcionario_final = funcionario_nuevo.strip()
+    elif funcionario_seleccionado != "(Seleccionar funcionario existente)":
+        funcionario_final = funcionario_seleccionado
+    else:
+        funcionario_final = funcionario_actual
+    
+    # Mostrar funcionario final
+    if funcionario_final:
+        st.success(f"👤 **Funcionario asignado:** {funcionario_final}")
+    else:
+        st.info("👤 **Sin funcionario asignado**")
+    
+    return funcionario_final
+
+
+def crear_selector_fecha_con_borrar(label, fecha_actual, key_base, help_text=None):
+    """
+    Selector de fecha mejorado con botón para borrar
+    - date_input normal
+    - Botón "Borrar" para limpiar la fecha fácilmente
+    - Indicador visual del estado
+    """
+    col_label, col_fecha, col_borrar = st.columns([3, 4, 1])
+    
+    with col_label:
+        st.markdown(f"**{label}:**")
+    
+    with col_fecha:
+        # Convertir fecha actual a objeto date si es válida
+        if es_fecha_valida(fecha_actual):
+            try:
+                fecha_obj = procesar_fecha(fecha_actual)
+                fecha_valor = fecha_obj.date() if isinstance(fecha_obj, datetime) else fecha_obj
+            except:
+                fecha_valor = None
+        else:
+            fecha_valor = None
+        
+        # Mostrar date_input o placeholder
+        if fecha_valor:
+            fecha_seleccionada = st.date_input(
+                label,
+                value=fecha_valor,
+                key=f"{key_base}_fecha",
+                help=help_text,
+                label_visibility="collapsed"
+            )
+        else:
+            fecha_seleccionada = st.date_input(
+                label,
+                value=None,
+                key=f"{key_base}_fecha",
+                help=help_text,
+                label_visibility="collapsed"
+            )
+    
+    with col_borrar:
+        # Botón para borrar fecha
+        if st.button("🗑️", key=f"{key_base}_borrar", help="Borrar fecha", type="secondary"):
+            # Marcar para borrar en el siguiente submit
+            st.session_state[f"{key_base}_borrar_flag"] = True
+            st.success("Fecha marcada para borrar")
+    
+    # Verificar si se marcó para borrar
+    if st.session_state.get(f"{key_base}_borrar_flag", False):
+        return None  # Devolver None para indicar fecha borrada
+    
+    return fecha_seleccionada
+
+
 def mostrar_edicion_registros(registros_df):
     """
-    Editor COMPLETAMENTE SIN RECARGAS AUTOMÁTICAS
-    
-    ✅ CAMBIOS CRÍTICOS:
-    - NO hay st.rerun() en ninguna parte
-    - NO hay callbacks on_change
-    - NO hay actualizaciones automáticas
-    - Los cambios se aplican SOLO al presionar "Guardar"
+    Editor COMPLETAMENTE SIN RECARGAS + MEJORAS:
+    - Selector de funcionarios mejorado
+    - Botones para borrar fechas
+    - Sin interrupciones durante edición
     """
     
-    st.markdown('<div class="subtitle">Editor de Registros (Sin Recargas)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Editor de Registros (Mejorado)</div>', unsafe_allow_html=True)
     
-    # NUEVO: Advertencia clara
-    st.warning("⚠️ **MODO SIN RECARGAS:** Los cambios NO se aplican automáticamente. Presione 'Guardar Registro' para confirmar cambios.")
+    # Información de mejoras
+    st.info("""
+    **🆕 MEJORAS EN ESTA VERSIÓN:**
+    - 👥 **Funcionarios:** Lista desplegable + opción agregar nuevo
+    - 🗑️ **Borrar fechas:** Botón "🗑️" para limpiar fechas fácilmente
+    - ⚡ **Sin recargas:** Cambios se aplican solo al guardar
+    """)
     
     # Verificar que hay registros
     if registros_df.empty:
@@ -51,12 +166,10 @@ def mostrar_edicion_registros(registros_df):
         for i in range(len(registros_df))
     ]
     
-    # CRÍTICO: SIN on_change
     seleccion_registro = st.selectbox(
         "Seleccione un registro para editar:",
         options=opciones_registros,
-        key="selector_registro_sin_reload"
-        # ✅ NO HAY on_change
+        key="selector_registro_mejorado"
     )
     
     indice_seleccionado = opciones_registros.index(seleccion_registro)
@@ -68,9 +181,8 @@ def mostrar_edicion_registros(registros_df):
     st.markdown(f"**Nivel de Información:** {row_original['Nivel Información ']}")
     st.markdown("---")
     
-    # ===== CREAR FORMULARIO SIN RECARGAS =====
-    # Usar form para evitar recargas hasta que se presione submit
-    with st.form(f"form_edicion_{indice_seleccionado}", clear_on_submit=False):
+    # ===== FORMULARIO MEJORADO SIN RECARGAS =====
+    with st.form(f"form_edicion_mejorado_{indice_seleccionado}", clear_on_submit=False):
         
         # ===== SECCIÓN 1: INFORMACIÓN BÁSICA =====
         st.markdown("### 1. Información Básica")
@@ -97,26 +209,23 @@ def mostrar_edicion_registros(registros_df):
                 key=f"mes_proyectado_{indice_seleccionado}"
             )
         
-        # Frecuencia y Funcionario
-        col1, col2 = st.columns(2)
+        # Frecuencia
+        frecuencias = ["", "Diaria", "Semanal", "Mensual", "Trimestral", "Semestral", "Anual"]
+        frecuencia = st.selectbox(
+            "Frecuencia de actualización",
+            options=frecuencias,
+            index=frecuencias.index(row_original.get('Frecuencia actualizacion ', '')) if row_original.get('Frecuencia actualizacion ', '') in frecuencias else 0,
+            key=f"frecuencia_{indice_seleccionado}"
+        )
         
-        with col1:
-            frecuencias = ["", "Diaria", "Semanal", "Mensual", "Trimestral", "Semestral", "Anual"]
-            frecuencia = st.selectbox(
-                "Frecuencia de actualización",
-                options=frecuencias,
-                index=frecuencias.index(row_original.get('Frecuencia actualizacion ', '')) if row_original.get('Frecuencia actualizacion ', '') in frecuencias else 0,
-                key=f"frecuencia_{indice_seleccionado}"
-            )
-        
-        with col2:
-            # Funcionario simplificado
-            funcionario_actual = row_original.get('Funcionario', '')
-            funcionario = st.text_input(
-                "Funcionario",
-                value=funcionario_actual,
-                key=f"funcionario_{indice_seleccionado}"
-            )
+        # ===== FUNCIONARIO MEJORADO =====
+        st.markdown("---")
+        st.markdown("### 👥 Funcionario")
+        funcionario_final = crear_selector_funcionario_mejorado(
+            registros_df, 
+            indice_seleccionado, 
+            row_original.get('Funcionario', '')
+        )
         
         # ===== SECCIÓN 2: ACUERDOS Y COMPROMISOS =====
         st.markdown("---")
@@ -132,39 +241,19 @@ def mostrar_edicion_registros(registros_df):
                 key=f"actas_interes_{indice_seleccionado}"
             )
             
-            # Fecha de suscripción
-            fecha_suscripcion_str = row_original.get('Suscripción acuerdo de compromiso', '')
-            if es_fecha_valida(fecha_suscripcion_str):
-                try:
-                    fecha_suscripcion_obj = procesar_fecha(fecha_suscripcion_str)
-                    fecha_suscripcion_valor = fecha_suscripcion_obj.date() if isinstance(fecha_suscripcion_obj, datetime) else fecha_suscripcion_obj
-                except:
-                    fecha_suscripcion_valor = None
-            else:
-                fecha_suscripcion_valor = None
-            
-            fecha_suscripcion = st.date_input(
+            # Fecha de suscripción CON BOTÓN BORRAR
+            fecha_suscripcion = crear_selector_fecha_con_borrar(
                 "Suscripción acuerdo de compromiso",
-                value=fecha_suscripcion_valor,
-                key=f"fecha_suscripcion_{indice_seleccionado}"
+                row_original.get('Suscripción acuerdo de compromiso', ''),
+                f"suscripcion_{indice_seleccionado}"
             )
         
         with col2:
-            # Fecha de entrega
-            fecha_entrega_str = row_original.get('Entrega acuerdo de compromiso', '')
-            if es_fecha_valida(fecha_entrega_str):
-                try:
-                    fecha_entrega_obj = procesar_fecha(fecha_entrega_str)
-                    fecha_entrega_valor = fecha_entrega_obj.date() if isinstance(fecha_entrega_obj, datetime) else fecha_entrega_obj
-                except:
-                    fecha_entrega_valor = None
-            else:
-                fecha_entrega_valor = None
-            
-            fecha_entrega = st.date_input(
+            # Fecha de entrega CON BOTÓN BORRAR
+            fecha_entrega = crear_selector_fecha_con_borrar(
                 "Entrega acuerdo de compromiso",
-                value=fecha_entrega_valor,
-                key=f"fecha_entrega_{indice_seleccionado}"
+                row_original.get('Entrega acuerdo de compromiso', ''),
+                f"entrega_{indice_seleccionado}"
             )
             
             acuerdo_compromiso = st.selectbox(
@@ -189,21 +278,11 @@ def mostrar_edicion_registros(registros_df):
             )
         
         with col2:
-            # Fecha de entrega de información
-            fecha_entrega_info_str = row_original.get('Fecha de entrega de información', '')
-            if es_fecha_valida(fecha_entrega_info_str):
-                try:
-                    fecha_entrega_info_obj = procesar_fecha(fecha_entrega_info_str)
-                    fecha_entrega_info_valor = fecha_entrega_info_obj.date() if isinstance(fecha_entrega_info_obj, datetime) else fecha_entrega_info_obj
-                except:
-                    fecha_entrega_info_valor = None
-            else:
-                fecha_entrega_info_valor = None
-            
-            fecha_entrega_info = st.date_input(
+            # Fecha de entrega de información CON BOTÓN BORRAR
+            fecha_entrega_info = crear_selector_fecha_con_borrar(
                 "Fecha de entrega de información",
-                value=fecha_entrega_info_valor,
-                key=f"fecha_entrega_info_{indice_seleccionado}"
+                row_original.get('Fecha de entrega de información', ''),
+                f"entrega_info_{indice_seleccionado}"
             )
         
         with col3:
@@ -223,21 +302,11 @@ def mostrar_edicion_registros(registros_df):
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            # Análisis y cronograma fecha
-            analisis_cronograma_str = row_original.get('Análisis y cronograma', '')
-            if es_fecha_valida(analisis_cronograma_str):
-                try:
-                    analisis_cronograma_obj = procesar_fecha(analisis_cronograma_str)
-                    analisis_cronograma_valor = analisis_cronograma_obj.date() if isinstance(analisis_cronograma_obj, datetime) else analisis_cronograma_obj
-                except:
-                    analisis_cronograma_valor = None
-            else:
-                analisis_cronograma_valor = None
-            
-            analisis_cronograma = st.date_input(
+            # Análisis y cronograma fecha CON BOTÓN BORRAR
+            analisis_cronograma = crear_selector_fecha_con_borrar(
                 "Análisis y cronograma (fecha real)",
-                value=analisis_cronograma_valor,
-                key=f"analisis_cronograma_{indice_seleccionado}"
+                row_original.get('Análisis y cronograma', ''),
+                f"analisis_cronograma_{indice_seleccionado}"
             )
         
         with col2:
@@ -297,39 +366,19 @@ def mostrar_edicion_registros(registros_df):
         col1, col2 = st.columns(2)
         
         with col1:
-            # Estándares fecha programada
-            estandares_prog_str = row_original.get('Estándares (fecha programada)', '')
-            if es_fecha_valida(estandares_prog_str):
-                try:
-                    estandares_prog_obj = procesar_fecha(estandares_prog_str)
-                    estandares_prog_valor = estandares_prog_obj.date() if isinstance(estandares_prog_obj, datetime) else estandares_prog_obj
-                except:
-                    estandares_prog_valor = None
-            else:
-                estandares_prog_valor = None
-            
-            estandares_programada = st.date_input(
+            # Estándares fecha programada CON BOTÓN BORRAR
+            estandares_programada = crear_selector_fecha_con_borrar(
                 "Estándares (fecha programada)",
-                value=estandares_prog_valor,
-                key=f"estandares_programada_{indice_seleccionado}"
+                row_original.get('Estándares (fecha programada)', ''),
+                f"estandares_prog_{indice_seleccionado}"
             )
         
         with col2:
-            # Estándares fecha real
-            estandares_str = row_original.get('Estándares', '')
-            if es_fecha_valida(estandares_str):
-                try:
-                    estandares_obj = procesar_fecha(estandares_str)
-                    estandares_valor = estandares_obj.date() if isinstance(estandares_obj, datetime) else estandares_obj
-                except:
-                    estandares_valor = None
-            else:
-                estandares_valor = None
-            
-            estandares_real = st.date_input(
+            # Estándares fecha real CON BOTÓN BORRAR
+            estandares_real = crear_selector_fecha_con_borrar(
                 "Estándares (fecha real)",
-                value=estandares_valor,
-                key=f"estandares_real_{indice_seleccionado}"
+                row_original.get('Estándares', ''),
+                f"estandares_real_{indice_seleccionado}"
             )
         
         # ===== SECCIÓN 6: PUBLICACIÓN =====
@@ -369,39 +418,19 @@ def mostrar_edicion_registros(registros_df):
         col1, col2 = st.columns(2)
         
         with col1:
-            # Fecha de publicación programada
-            pub_prog_str = row_original.get('Fecha de publicación programada', '')
-            if es_fecha_valida(pub_prog_str):
-                try:
-                    pub_prog_obj = procesar_fecha(pub_prog_str)
-                    pub_prog_valor = pub_prog_obj.date() if isinstance(pub_prog_obj, datetime) else pub_prog_obj
-                except:
-                    pub_prog_valor = None
-            else:
-                pub_prog_valor = None
-            
-            publicacion_programada = st.date_input(
+            # Fecha de publicación programada CON BOTÓN BORRAR
+            publicacion_programada = crear_selector_fecha_con_borrar(
                 "Fecha de publicación programada",
-                value=pub_prog_valor,
-                key=f"publicacion_programada_{indice_seleccionado}"
+                row_original.get('Fecha de publicación programada', ''),
+                f"pub_prog_{indice_seleccionado}"
             )
         
         with col2:
-            # Publicación fecha real
-            publicacion_str = row_original.get('Publicación', '')
-            if es_fecha_valida(publicacion_str):
-                try:
-                    publicacion_obj = procesar_fecha(publicacion_str)
-                    publicacion_valor = publicacion_obj.date() if isinstance(publicacion_obj, datetime) else publicacion_obj
-                except:
-                    publicacion_valor = None
-            else:
-                publicacion_valor = None
-            
-            publicacion_real = st.date_input(
+            # Publicación fecha real CON BOTÓN BORRAR
+            publicacion_real = crear_selector_fecha_con_borrar(
                 "Publicación (fecha real)",
-                value=publicacion_valor,
-                key=f"publicacion_real_{indice_seleccionado}"
+                row_original.get('Publicación', ''),
+                f"pub_real_{indice_seleccionado}"
             )
         
         # ===== SECCIÓN 7: CIERRE =====
@@ -427,21 +456,11 @@ def mostrar_edicion_registros(registros_df):
             )
         
         with col2:
-            # Fecha de oficio de cierre
-            oficio_cierre_str = row_original.get('Fecha de oficio de cierre', '')
-            if es_fecha_valida(oficio_cierre_str):
-                try:
-                    oficio_cierre_obj = procesar_fecha(oficio_cierre_str)
-                    oficio_cierre_valor = oficio_cierre_obj.date() if isinstance(oficio_cierre_obj, datetime) else oficio_cierre_obj
-                except:
-                    oficio_cierre_valor = None
-            else:
-                oficio_cierre_valor = None
-            
-            fecha_oficio_cierre = st.date_input(
+            # Fecha de oficio de cierre CON BOTÓN BORRAR
+            fecha_oficio_cierre = crear_selector_fecha_con_borrar(
                 "Fecha de oficio de cierre",
-                value=oficio_cierre_valor,
-                key=f"fecha_oficio_cierre_{indice_seleccionado}"
+                row_original.get('Fecha de oficio de cierre', ''),
+                f"oficio_cierre_{indice_seleccionado}"
             )
         
         with col3:
@@ -503,9 +522,8 @@ def mostrar_edicion_registros(registros_df):
         
         # ===== BOTÓN DE GUARDADO (ÚNICO PUNTO DE ACTUALIZACIÓN) =====
         st.markdown("---")
-        st.markdown("### Guardar Cambios")
+        st.markdown("### 💾 Guardar Cambios")
         
-        # CRÍTICO: submit_button NO causa recargas
         submitted = st.form_submit_button("💾 Guardar Registro", type="primary", use_container_width=True)
         
         if submitted:
@@ -519,7 +537,7 @@ def mostrar_edicion_registros(registros_df):
                     registros_df_actualizado.at[indice_seleccionado, 'TipoDato'] = tipo_dato
                     registros_df_actualizado.at[indice_seleccionado, 'Mes Proyectado'] = mes_proyectado
                     registros_df_actualizado.at[indice_seleccionado, 'Frecuencia actualizacion '] = frecuencia
-                    registros_df_actualizado.at[indice_seleccionado, 'Funcionario'] = funcionario
+                    registros_df_actualizado.at[indice_seleccionado, 'Funcionario'] = funcionario_final
                     registros_df_actualizado.at[indice_seleccionado, 'Actas de acercamiento y manifestación de interés'] = actas_interes
                     registros_df_actualizado.at[indice_seleccionado, 'Acuerdo de compromiso'] = acuerdo_compromiso
                     registros_df_actualizado.at[indice_seleccionado, 'Gestion acceso a los datos y documentos requeridos '] = gestion_acceso
@@ -529,25 +547,26 @@ def mostrar_edicion_registros(registros_df):
                     registros_df_actualizado.at[indice_seleccionado, 'Estado'] = estado
                     registros_df_actualizado.at[indice_seleccionado, 'Observación'] = observacion
                     
-                    # Fechas (convertir a formato string)
-                    if fecha_suscripcion:
-                        registros_df_actualizado.at[indice_seleccionado, 'Suscripción acuerdo de compromiso'] = fecha_suscripcion.strftime('%d/%m/%Y')
-                    if fecha_entrega:
-                        registros_df_actualizado.at[indice_seleccionado, 'Entrega acuerdo de compromiso'] = fecha_entrega.strftime('%d/%m/%Y')
-                    if fecha_entrega_info:
-                        registros_df_actualizado.at[indice_seleccionado, 'Fecha de entrega de información'] = fecha_entrega_info.strftime('%d/%m/%Y')
-                    if analisis_cronograma:
-                        registros_df_actualizado.at[indice_seleccionado, 'Análisis y cronograma'] = analisis_cronograma.strftime('%d/%m/%Y')
-                    if estandares_programada:
-                        registros_df_actualizado.at[indice_seleccionado, 'Estándares (fecha programada)'] = estandares_programada.strftime('%d/%m/%Y')
-                    if estandares_real:
-                        registros_df_actualizado.at[indice_seleccionado, 'Estándares'] = estandares_real.strftime('%d/%m/%Y')
-                    if publicacion_programada:
-                        registros_df_actualizado.at[indice_seleccionado, 'Fecha de publicación programada'] = publicacion_programada.strftime('%d/%m/%Y')
-                    if publicacion_real:
-                        registros_df_actualizado.at[indice_seleccionado, 'Publicación'] = publicacion_real.strftime('%d/%m/%Y')
-                    if fecha_oficio_cierre:
-                        registros_df_actualizado.at[indice_seleccionado, 'Fecha de oficio de cierre'] = fecha_oficio_cierre.strftime('%d/%m/%Y')
+                    # Fechas (convertir a formato string o vacío si se borró)
+                    fechas_a_procesar = [
+                        (fecha_suscripcion, 'Suscripción acuerdo de compromiso'),
+                        (fecha_entrega, 'Entrega acuerdo de compromiso'),
+                        (fecha_entrega_info, 'Fecha de entrega de información'),
+                        (analisis_cronograma, 'Análisis y cronograma'),
+                        (estandares_programada, 'Estándares (fecha programada)'),
+                        (estandares_real, 'Estándares'),
+                        (publicacion_programada, 'Fecha de publicación programada'),
+                        (publicacion_real, 'Publicación'),
+                        (fecha_oficio_cierre, 'Fecha de oficio de cierre')
+                    ]
+                    
+                    for fecha_obj, campo in fechas_a_procesar:
+                        if fecha_obj is None:
+                            # Fecha fue marcada para borrar o está vacía
+                            registros_df_actualizado.at[indice_seleccionado, campo] = ''
+                        elif fecha_obj:
+                            # Fecha válida, convertir a string
+                            registros_df_actualizado.at[indice_seleccionado, campo] = fecha_obj.strftime('%d/%m/%Y')
                     
                     # Estándares
                     for campo, valor in estandares_values.items():
@@ -569,6 +588,12 @@ def mostrar_edicion_registros(registros_df):
                     if exito:
                         st.success(f"✅ {mensaje} Validaciones y plazos automáticos aplicados correctamente.")
                         st.balloons()
+                        
+                        # Limpiar flags de borrado para evitar conflictos
+                        keys_to_clear = [key for key in st.session_state.keys() if key.endswith('_borrar_flag')]
+                        for key in keys_to_clear:
+                            del st.session_state[key]
+                        
                         # ACTUALIZAR EL DATAFRAME EN MEMORIA PARA REFLEJAR CAMBIOS
                         for col in registros_df_actualizado.columns:
                             registros_df.at[indice_seleccionado, col] = registros_df_actualizado.at[indice_seleccionado, col]
@@ -580,32 +605,32 @@ def mostrar_edicion_registros(registros_df):
     
     # ===== INFORMACIÓN ADICIONAL (FUERA DEL FORMULARIO) =====
     st.markdown("---")
-    st.markdown("### ℹ️ Información del Editor")
+    st.markdown("### ℹ️ Información del Editor Mejorado")
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
         st.info("""
-        **✅ Modo Sin Recargas:**
+        **✅ Sin Recargas:**
         - Los cambios NO se aplican automáticamente
         - Use el botón "Guardar" para confirmar
-        - No hay interrupciones durante la edición
+        - Edición fluida sin interrupciones
         """)
     
     with col2:
         st.info("""
-        **🔄 Validaciones Automáticas:**
-        - Reglas de negocio se aplican al guardar
-        - Plazos se calculan automáticamente
-        - Fechas se validan correctamente
+        **👥 Funcionarios Mejorado:**
+        - Lista desplegable con existentes
+        - Opción para agregar nuevo
+        - Detección automática de duplicados
         """)
     
     with col3:
         st.info("""
-        **💾 Guardado Inteligente:**
-        - Backup automático antes de guardar
-        - Sincronización con Google Sheets
-        - Preservación de integridad de datos
+        **🗑️ Borrar Fechas:**
+        - Botón "🗑️" junto a cada fecha
+        - Fácil limpieza de campos
+        - Confirmación visual
         """)
     
     return registros_df
@@ -616,7 +641,7 @@ def mostrar_edicion_registros_con_autenticacion(registros_df):
     Wrapper del editor que incluye verificación de autenticación
     """
     if verificar_autenticacion():
-        # Usuario autenticado - mostrar editor sin recargas
+        # Usuario autenticado - mostrar editor mejorado
         return mostrar_edicion_registros(registros_df)
     else:
         # Usuario no autenticado - mostrar mensaje
@@ -647,14 +672,15 @@ def mostrar_edicion_registros_con_autenticacion(registros_df):
         return registros_df
 
 
-# ===== VERIFICACIÓN SIN RECARGAS =====
+# ===== VERIFICACIÓN FINAL =====
 if __name__ == "__main__":
-    print("📝 Editor SIN RECARGAS cargado correctamente")
+    print("📝 Editor MEJORADO FINAL cargado correctamente")
     print("🔧 Características:")
     print("   ✅ ELIMINADO: Todos los st.rerun()")
     print("   ✅ ELIMINADO: Todos los callbacks on_change")
-    print("   ✅ ELIMINADO: Actualizaciones automáticas")
+    print("   ✅ AGREGADO: Selector de funcionarios con dropdown")
+    print("   ✅ AGREGADO: Botones para borrar fechas fácilmente")
     print("   ✅ Los cambios se procesan SOLO al presionar 'Guardar'")
-    print("   ✅ Formulario completo sin interrupciones")
+    print("   ✅ Experiencia de usuario optimizada")
     print("\n📝 Uso: from editor import mostrar_edicion_registros_con_autenticacion")
     print("🔄 Reemplaza el editor.py actual")
