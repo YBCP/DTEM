@@ -115,12 +115,12 @@ def calcular_avance_publicaciones_corregido(registros_df, tipo_dato):
         if registros_tipo.empty:
             return avance_trimestral
         
-        # Fechas límite para cada trimestre
+        # CORREGIDO: Fechas límite EXACTAS para cada trimestre
         fechas_limite = {
-            'Q1': datetime(2025, 3, 31),   # Fin Q1
-            'Q2': datetime(2025, 6, 30),   # Fin Q2  
-            'Q3': datetime(2025, 9, 30),   # Fin Q3
-            'Q4': datetime(2025, 12, 31)   # Fin Q4
+            'Q1': datetime(2025, 3, 31),   # Q1 hasta 31 MARZO
+            'Q2': datetime(2025, 6, 30),   # Q2 hasta 30 JUNIO
+            'Q3': datetime(2025, 9, 30),   # Q3 hasta 30 SEPTIEMBRE
+            'Q4': datetime(2025, 12, 31)   # Q4 hasta 31 DICIEMBRE
         }
         
         # Obtener registros publicados con manejo seguro de fechas
@@ -175,7 +175,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     st.markdown('<div class="subtitle">Seguimiento Trimestral - Metas vs Avance Real</div>', unsafe_allow_html=True)
     
     st.info("""
-    **📊 Seguimiento Trimestral Corregido**
+    **📊 Seguimiento Trimestral - FECHAS LÍMITE EXACTAS**
     
     **METAS POR TRIMESTRE (Google Sheets):**
     - **Q1 Meta:** Datos de **MARZO** en hoja METAS
@@ -183,8 +183,11 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     - **Q3 Meta:** Datos de **SEPTIEMBRE** en hoja METAS
     - **Q4 Meta:** Datos de **DICIEMBRE** en hoja METAS
     
-    **AVANCE (Publicaciones hasta fecha límite):**
-    - **Q1:** Hasta 31 Marzo | **Q2:** Hasta 30 Junio | **Q3:** Hasta 30 Septiembre | **Q4:** Hasta 31 Diciembre
+    **FECHAS LÍMITE DE AVANCE (EXACTAS):**
+    - **Q1:** Hasta **31 de MARZO 2025**
+    - **Q2:** Hasta **30 de JUNIO 2025** 
+    - **Q3:** Hasta **30 de SEPTIEMBRE 2025**
+    - **Q4:** Hasta **31 de DICIEMBRE 2025**
     """)
     
     if registros_df.empty:
