@@ -1,4 +1,4 @@
-# app1.py - VERSIÓN FRAGMENTADA (200 líneas vs 3000+ originales)
+# app1.py - VERSIÓN FRAGMENTADA CORREGIDA (200 líneas vs 3000+ originales)
 """
 Archivo principal del sistema Ideca - Versión fragmentada y optimizada
 Todas las funcionalidades principales han sido extraídas a módulos especializados
@@ -15,7 +15,7 @@ from alertas import mostrar_alertas_vencimientos
 from reportes import mostrar_reportes
 from trimestral import mostrar_seguimiento_trimestral
 
-# ===== IMPORTS DE UTILIDADES EXISTENTES (SIN CAMBIOS) =====
+# ===== IMPORTS DE UTILIDADES EXISTENTES (CORREGIDOS) =====
 from data_utils import (
     cargar_datos, calcular_porcentaje_avance, verificar_estado_fechas,
     procesar_metas
@@ -26,51 +26,32 @@ from fecha_utils import (
     actualizar_plazo_oficio_cierre
 )
 from auth_utils import mostrar_login, mostrar_estado_autenticacion
-from config_utils import mostrar_configuracion_sheets
+from config import setup_page, load_css  # CORREGIDO: desde config, no config_utils
+from sheets_utils import test_connection, get_sheets_manager  # CORREGIDO: para configuración
 
 
-def setup_page():
-    """Configuración inicial de la página"""
-    st.set_page_config(
-        page_title="Tablero de Control - Ideca",
-        page_icon="📊",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
-
-
-def load_css():
-    """Carga los estilos CSS"""
-    st.markdown("""
-    <style>
-    .title {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1f77b4;
-        text-align: center;
-        padding: 1rem 0;
-        border-bottom: 3px solid #1f77b4;
-        margin-bottom: 2rem;
-    }
-    .subtitle {
-        font-size: 1.8rem;
-        font-weight: bold;
-        color: #2c3e50;
-        padding: 1rem 0;
-        border-left: 4px solid #3498db;
-        padding-left: 1rem;
-        margin: 1rem 0;
-    }
-    .metric-card {
-        background: white;
-        padding: 1rem;
-        border-radius: 8px;
-        border: 1px solid #e1e8ed;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin: 0.5rem 0;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+def mostrar_configuracion_sheets():
+    """Muestra la configuración y estado de Google Sheets (movido desde archivo original)"""
+    with st.sidebar.expander("⚙️ Configuración Google Sheets", expanded=False):
+        st.markdown("### Estado de Conexión")
+        
+        if st.button("Probar Conexión", help="Verifica la conexión con Google Sheets"):
+            with st.spinner("Probando conexión..."):
+                test_connection()
+        
+        try:
+            manager = get_sheets_manager()
+            hojas = manager.listar_hojas()
+            st.markdown("**Hojas disponibles:**")
+            for hoja in hojas:
+                st.markdown(f"- {hoja}")
+        except:
+            st.warning("No se pudo obtener la lista de hojas")
+        
+        st.markdown("---")
+        st.markdown("**¿Necesitas configurar Google Sheets?**")
+        st.markdown("[Ver instrucciones completas](https://github.com/tu-repo/INSTRUCCIONES_CONFIGURACION.md)")
+        st.info("Los datos se guardan de forma segura en Google Sheets con autenticación OAuth2")
 
 
 def mostrar_informacion_sistema():
@@ -192,7 +173,7 @@ def main():
         # ===== SISTEMA DE AUTENTICACIÓN (SIN CAMBIOS) =====
         mostrar_login()
         mostrar_estado_autenticacion() 
-        mostrar_configuracion_sheets()
+        mostrar_configuracion_sheets()  # CORREGIDO: función movida aquí
         mostrar_informacion_sistema()
         
         # ===== TÍTULO PRINCIPAL =====
@@ -334,6 +315,12 @@ if __name__ == "__main__":
 3. alertas.py        - 350 líneas (análisis automático + visualizaciones)
 4. reportes.py       - 400 líneas (Excel multi-hoja + insights)
 5. trimestral.py     - 380 líneas (análisis temporal + tendencias)
+
+🔧 CORRECCIONES APLICADAS:
+- ✅ Import corregido: config_utils → config
+- ✅ Función mostrar_configuracion_sheets movida a app1.py
+- ✅ Imports verificados y compatibles
+- ✅ Manejo de errores preservado
 
 ✅ BENEFICIOS OBTENIDOS:
 - Mantenimiento fácil por módulo especializado
