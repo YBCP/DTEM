@@ -58,8 +58,8 @@ class EstadoTemporal:
     
     @staticmethod
     def aplicar_cambios(indice, df):
-        """Aplica cambios temporales al DataFrame"""
-        # Recopilar valores de widgets
+        """Aplica cambios temporales al DataFrame - SOLO RECOLECTA AL GUARDAR"""
+        # Recopilar valores de widgets SOLO al momento de guardar
         cambios = {}
         for key, value in st.session_state.items():
             if key.startswith(f"widget_{indice}_"):
