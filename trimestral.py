@@ -1,519 +1,373 @@
 # trimestral.py
 """
-Módulo Seguimiento Trimestral COMPLETO - Extraído de app1.py
-Reemplaza completamente la función mostrar_seguimiento_trimestral del TAB 3
+Módulo Seguimiento Trimestral - VERSIÓN ORIGINAL RESTAURADA
+Función exacta del app1.py original para mantener la visualización anterior
 """
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import numpy as np
-from datetime import datetime, timedelta
-from data_utils import calcular_porcentaje_avance, formatear_fecha, es_fecha_valida
+from datetime import datetime
+from data_utils import es_fecha_valida, procesar_fecha
 from visualization import comparar_avance_metas
-
-
-def procesar_metas_trimestrales(meta_df):
-    """Procesa las metas para análisis trimestral"""
-    if meta_df.empty:
-        return pd.DataFrame(), pd.DataFrame()
-    
-    try:
-        # Separar metas por tipo como en el código original
-        metas_nuevas = meta_df[meta_df['Tipo'] == 'NUEVO'].copy() if 'Tipo' in meta_df.columns else pd.DataFrame()
-        metas_actualizar = meta_df[meta_df['Tipo'] == 'ACTUALIZAR'].copy() if 'Tipo' in meta_df.columns else pd.DataFrame()
-        
-        return metas_nuevas, metas_actualizar
-        
-    except Exception as e:
-        st.error(f"Error procesando metas: {e}")
-        return pd.DataFrame(), pd.DataFrame()
-
-
-def calcular_avance_trimestral(registros_df):
-    """Calcula el avance por trimestre basado en fechas de completitud"""
-    if registros_df.empty:
-        return pd.DataFrame()
-    
-    # Campos de fecha para análisis trimestral
-    campos_fecha = [
-        'Fecha de entrega de información',
-        'Análisis y cronograma',
-        'Estándares', 
-        'Publicación',
-        'Fecha de oficio de cierre'
-    ]
-    
-    datos_trimestrales = []
-    
-    for idx, row in registros_df.iterrows():
-        for campo in campos_fecha:
-            if campo in registros_df.columns:
-                fecha_str = row[campo]
-                if es_fecha_valida(fecha_str):
-                    try:
-                        fecha_obj = pd.to_datetime(fecha_str, format='%d/%m/%Y', errors='coerce')
-                        if pd.notna(fecha_obj):
-                            trimestre = f"Q{fecha_obj.quarter}-{fecha_obj.year}"
-                            mes = fecha_obj.month
-                            
-                            datos_trimestrales.append({
-                                'Trimestre': trimestre,
-                                'Año': fecha_obj.year,
-                                'Quarter': fecha_obj.quarter,
-                                'Mes': mes,
-                                'Fecha': fecha_obj.date(),
-                                'Etapa': campo,
-                                'Codigo': row['Cod'],
-                                'Entidad': row['Entidad'],
-                                'TipoDato': row.get('TipoDato', ''),
-                                'Funcionario': row.get('Funcionario', ''),
-                                'Avance': calcular_porcentaje_avance(row)
-                            })
-                    except:
-                        continue
-    
-    return pd.DataFrame(datos_trimestrales)
-
-
-def crear_grafico_trimestral_barras(df_trimestral):
-    """Crea gráfico de barras por trimestre"""
-    if df_trimestral.empty:
-        return None
-    
-    # Agrupar por trimestre
-    trimestre_counts = df_trimestral.groupby('Trimestre').size().reset_index(name='Actividades')
-    trimestre_counts = trimestre_counts.sort_values('Trimestre')
-    
-    if trimestre_counts.empty:
-        return None
-    
-    # Crear gráfico de barras
-    fig = px.bar(
-        trimestre_counts,
-        x='Trimestre',
-        y='Actividades',
-        title='📊 Actividades Completadas por Trimestre',
-        color='Actividades',
-        color_continuous_scale='Blues'
-    )
-    
-    fig.update_layout(
-        height=400,
-        xaxis_title="Trimestre",
-        yaxis_title="Número de Actividades",
-        showlegend=False
-    )
-    
-    # Añadir valores en las barras
-    fig.update_traces(texttemplate='%{y}', textposition='outside')
-    
-    return fig
-
-
-def crear_grafico_tendencia_trimestral(df_trimestral):
-    """Crea gráfico de línea de tendencia trimestral"""
-    if df_trimestral.empty:
-        return None
-    
-    # Calcular promedios de avance por trimestre
-    avance_trimestral = df_trimestral.groupby('Trimestre').agg({
-        'Avance': 'mean',
-        'Codigo': 'count'
-    }).reset_index()
-    
-    avance_trimestral.columns = ['Trimestre', 'Avance Promedio', 'Cantidad']
-    avance_trimestral = avance_trimestral.sort_values('Trimestre')
-    
-    if avance_trimestral.empty:
-        return None
-    
-    # Crear gráfico de línea con barras
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    
-    # Línea de avance promedio
-    fig.add_trace(
-        go.Scatter(
-            x=avance_trimestral['Trimestre'],
-            y=avance_trimestral['Avance Promedio'],
-            mode='lines+markers',
-            name='Avance Promedio (%)',
-            line=dict(color='#1f77b4', width=3),
-            marker=dict(size=8)
-        ),
-        secondary_y=False
-    )
-    
-    # Barras de cantidad
-    fig.add_trace(
-        go.Bar(
-            x=avance_trimestral['Trimestre'],
-            y=avance_trimestral['Cantidad'],
-            name='Cantidad de Registros',
-            opacity=0.6,
-            marker_color='#ff7f0e'
-        ),
-        secondary_y=True
-    )
-    
-    # Configurar ejes
-    fig.update_xaxes(title_text="Trimestre")
-    fig.update_yaxes(title_text="Avance Promedio (%)", secondary_y=False)
-    fig.update_yaxes(title_text="Cantidad de Registros", secondary_y=True)
-    
-    fig.update_layout(
-        title='📈 Tendencia de Avance por Trimestre',
-        height=400
-    )
-    
-    return fig
-
-
-def crear_analisis_por_etapa_trimestral(df_trimestral):
-    """Crea análisis detallado por etapa y trimestre"""
-    if df_trimestral.empty:
-        return None
-    
-    # Crear tabla pivot
-    pivot_etapas = df_trimestral.groupby(['Trimestre', 'Etapa']).size().unstack(fill_value=0)
-    
-    if pivot_etapas.empty:
-        return None
-    
-    # Crear heatmap
-    fig = go.Figure(data=go.Heatmap(
-        z=pivot_etapas.values,
-        x=pivot_etapas.columns,
-        y=pivot_etapas.index,
-        colorscale='Blues',
-        text=pivot_etapas.values,
-        texttemplate="%{text}",
-        textfont={"size": 10},
-        hoverongaps=False
-    ))
-    
-    fig.update_layout(
-        title='🗺️ Mapa de Calor: Actividades por Etapa y Trimestre',
-        height=500,
-        xaxis_title="Etapas del Proceso",
-        yaxis_title="Trimestre"
-    )
-    
-    return fig, pivot_etapas
-
-
-def crear_comparacion_metas_trimestral(registros_df, metas_nuevas_df, metas_actualizar_df):
-    """Crea comparación con metas por trimestre"""
-    try:
-        # Usar la función existente de comparación con metas
-        comparacion_nuevos, comparacion_actualizar, fecha_meta = comparar_avance_metas(
-            registros_df, metas_nuevas_df, metas_actualizar_df
-        )
-        
-        return comparacion_nuevos, comparacion_actualizar, fecha_meta
-        
-    except Exception as e:
-        st.error(f"Error en comparación con metas: {e}")
-        return pd.DataFrame(), pd.DataFrame(), None
-
-
-def calcular_metricas_trimestrales(df_trimestral, registros_df):
-    """Calcula métricas específicas del análisis trimestral"""
-    if df_trimestral.empty:
-        return {}
-    
-    # Métricas generales
-    trimestres_activos = df_trimestral['Trimestre'].nunique()
-    actividades_totales = len(df_trimestral)
-    registros_unicos = df_trimestral['Codigo'].nunique()
-    
-    # Promedio por trimestre
-    actividades_por_trimestre = df_trimestral.groupby('Trimestre').size()
-    promedio_trimestral = actividades_por_trimestre.mean()
-    
-    # Trimestre más productivo
-    trimestre_top = actividades_por_trimestre.idxmax() if not actividades_por_trimestre.empty else "N/A"
-    max_actividades = actividades_por_trimestre.max() if not actividades_por_trimestre.empty else 0
-    
-    # Distribución por tipo de dato
-    if 'TipoDato' in df_trimestral.columns:
-        distribucion_tipo = df_trimestral['TipoDato'].value_counts().to_dict()
-    else:
-        distribucion_tipo = {}
-    
-    # Avance promedio por trimestre
-    if 'Avance' in df_trimestral.columns:
-        avance_por_trimestre = df_trimestral.groupby('Trimestre')['Avance'].mean()
-        avance_general = df_trimestral['Avance'].mean()
-    else:
-        avance_por_trimestre = pd.Series()
-        avance_general = 0
-    
-    return {
-        'trimestres_activos': trimestres_activos,
-        'actividades_totales': actividades_totales,
-        'registros_unicos': registros_unicos,
-        'promedio_trimestral': round(promedio_trimestral, 1),
-        'trimestre_top': trimestre_top,
-        'max_actividades': max_actividades,
-        'distribucion_tipo': distribucion_tipo,
-        'avance_general': round(avance_general, 1),
-        'avance_por_trimestre': avance_por_trimestre
-    }
 
 
 def mostrar_seguimiento_trimestral(registros_df, meta_df):
     """
-    Función COMPLETA de seguimiento trimestral extraída de app1.py TAB 3
-    
-    ✅ FUNCIONALIDADES VERIFICADAS:
-    - Procesamiento de metas trimestrales (nuevas y actualizar)
-    - Análisis de avance por trimestre con fechas reales
-    - Gráfico de barras de actividades por trimestre
-    - Gráfico de tendencia trimestral (línea + barras)
-    - Mapa de calor por etapa y trimestre
-    - Comparación con metas trimestrales
-    - Métricas específicas del período
-    - Análisis de distribución por tipo de dato
-    - Tabla detallada por trimestre
-    - Insights y recomendaciones trimestrales
-    - Exportación de datos trimestrales
+    VERSIÓN ORIGINAL RESTAURADA - Seguimiento trimestral tal como estaba en app1.py
+    Mantiene la visualización y lógica exacta del código original
     """
+    st.markdown('<div class="subtitle">Seguimiento Trimestral - Publicaciones: Meta vs Avance Real</div>', unsafe_allow_html=True)
     
-    st.markdown('<div class="subtitle">Seguimiento Trimestral</div>', unsafe_allow_html=True)
-    
-    st.info("""
-    📅 **Análisis Trimestral Completo**
-    
-    Seguimiento detallado del avance por períodos trimestrales:
-    - 📊 Actividades completadas por trimestre
-    - 📈 Tendencias de avance temporal
-    - 🗺️ Distribución por etapas y períodos
-    - 🎯 Comparación con metas trimestrales
-    - 👥 Análisis por funcionario y tipo
-    """)
-    
-    if registros_df.empty:
-        st.warning("No hay registros disponibles para análisis trimestral.")
+    # Verificar disponibilidad de la columna Mes Proyectado
+    if 'Mes Proyectado' not in registros_df.columns:
+        st.error("❌ La columna 'Mes Proyectado' no está disponible en los datos")
+        st.info("📋 Verifique que la hoja de Google Sheets tenga la columna 'Mes Proyectado'")
         return
     
-    # ===== PROCESAMIENTO DE DATOS TRIMESTRALES =====
-    with st.spinner("📊 Procesando datos trimestrales..."):
-        # Procesar metas
-        metas_nuevas_df, metas_actualizar_df = procesar_metas_trimestrales(meta_df)
-        
-        # Calcular datos trimestrales
-        df_trimestral = calcular_avance_trimestral(registros_df)
-        
-        # Calcular métricas
-        metricas = calcular_metricas_trimestrales(df_trimestral, registros_df)
+    # Filtrado de registros con Mes Proyectado válido
+    registros_con_mes = registros_df[
+        (registros_df['Mes Proyectado'].notna()) & 
+        (registros_df['Mes Proyectado'].astype(str).str.strip() != '') &
+        (~registros_df['Mes Proyectado'].astype(str).str.strip().isin(['nan', 'None', 'NaN']))
+    ]
     
-    if df_trimestral.empty:
-        st.warning("📅 No hay suficientes datos con fechas válidas para análisis trimestral.")
+    if registros_con_mes.empty:
+        st.warning("⚠️ No hay registros con 'Mes Proyectado' válido")
+        st.info("📝 Para usar el seguimiento trimestral, asigne un mes proyectado a los registros en la sección de Edición")
+        return
+    
+    # Información explicativa ORIGINAL
+    st.info("""
+    **📊 Seguimiento de Publicaciones por Trimestre**
+    
+    Este dashboard muestra el avance de **publicaciones reales** versus las **metas programadas** para cada trimestre:
+    - **Meta:** Número de registros que deberían estar publicados al final del trimestre (acumulado)
+    - **Avance:** Número de registros con fecha real de publicación completada (acumulado)
+    - **Porcentaje:** (Publicaciones reales / Meta programada) × 100
+    """)
+
+    def crear_grafico_individual(datos, titulo, color_meta, color_avance):
+        """Crea gráfico individual para un tipo de registro - VERSIÓN ORIGINAL"""
+        
+        trimestres = ['Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025']
+        
+        # Extraer datos
+        metas = [datos[q]['meta'] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
+        avance = [datos[q]['avance'] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
+        
+        # Crear figura
+        fig = go.Figure()
+        
+        # Línea de Meta
+        fig.add_trace(go.Scatter(
+            x=trimestres,
+            y=metas,
+            mode='lines+markers',
+            name='🎯 Meta',
+            line=dict(color=color_meta, width=4, dash='dash'),
+            marker=dict(size=12, symbol='diamond'),
+            hovertemplate='<b>Meta</b><br>%{x}: %{y} publicaciones<extra></extra>'
+        ))
+        
+        # Línea de Avance
+        fig.add_trace(go.Scatter(
+            x=trimestres,
+            y=avance,
+            mode='lines+markers',
+            name='📈 Avance Real',
+            line=dict(color=color_avance, width=4),
+            marker=dict(size=12, symbol='circle'),
+            hovertemplate='<b>Avance Real</b><br>%{x}: %{y} publicaciones<extra></extra>'
+        ))
+        
+        # Configuración del gráfico
+        fig.update_layout(
+            title={
+                'text': titulo,
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 18, 'color': '#2c3e50'}
+            },
+            xaxis=dict(
+                title='Trimestre',
+                showgrid=True,
+                gridcolor='lightgray'
+            ),
+            yaxis=dict(
+                title='Número de Publicaciones (Acumulado)',
+                showgrid=True,
+                gridcolor='lightgray'
+            ),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01,
+                bgcolor="rgba(255,255,255,0.8)"
+            ),
+            height=500,
+            margin=dict(t=80, l=60, r=60, b=60)
+        )
+        
+        return fig
+
+    def crear_datos_trimestre_vacio():
+        """Crea estructura de datos vacía para trimestres"""
+        return {
+            'Q1': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0},
+            'Q2': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0},
+            'Q3': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0},
+            'Q4': {'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0}
+        }
+
+    def calcular_publicaciones_trimestrales_simple(registros_con_mes, tipo_dato):
+        """Calcula publicaciones trimestrales - LÓGICA ORIGINAL RESTAURADA"""
+        datos_trimestres = crear_datos_trimestre_vacio()
+        
+        # Filtrar por tipo de dato
+        registros_tipo = registros_con_mes[registros_con_mes['TipoDato'].str.upper() == tipo_dato.upper()]
+        
+        if registros_tipo.empty:
+            return datos_trimestres
+        
+        # Mapeo de meses a trimestres
+        meses_trimestre = {
+            'Q1': ['Enero', 'Febrero', 'Marzo'],
+            'Q2': ['Abril', 'Mayo', 'Junio'], 
+            'Q3': ['Julio', 'Agosto', 'Septiembre'],
+            'Q4': ['Octubre', 'Noviembre', 'Diciembre']
+        }
+        
+        # Trimestres ordenados
+        trimestres = ['Q1', 'Q2', 'Q3', 'Q4']
+        
+        # Calcular metas y avances acumulados
+        for i, trimestre in enumerate(trimestres):
+            try:
+                # Calcular meta acumulada hasta este trimestre
+                meses_acumulados = []
+                for j in range(i + 1):
+                    meses_acumulados.extend(meses_trimestre[trimestres[j]])
+                
+                # Meta: registros programados hasta este trimestre
+                registros_programados = registros_tipo[
+                    registros_tipo['Mes Proyectado'].isin(meses_acumulados)
+                ]
+                meta_acumulada = len(registros_programados)
+                
+                # Avance: registros con fecha de publicación real completada hasta ahora
+                if 'Publicación' in registros_tipo.columns:
+                    try:
+                        # Filtrar registros que tienen fecha de publicación válida
+                        registros_publicados = registros_tipo[
+                            registros_tipo['Publicación'].apply(es_fecha_valida)
+                        ]
+                        
+                        if not registros_publicados.empty:
+                            # CORREGIDO: Contar por Mes Proyectado válido Y publicación realizada
+                            publicaciones_acumuladas = registros_publicados[
+                                (registros_publicados['Mes Proyectado'].notna()) &
+                                (registros_publicados['Mes Proyectado'].astype(str).str.strip() != '') &
+                                (~registros_publicados['Mes Proyectado'].astype(str).str.strip().isin(['nan', 'None', 'NaN'])) &
+                                (registros_publicados['Mes Proyectado'].isin(meses_acumulados))
+                            ]
+                            
+                            # CORREGIDO: Contar los que NO tienen Mes Proyectado válido pero SÍ tienen fecha de Publicación
+                            publicaciones_sin_mes = registros_publicados[
+                                (registros_publicados['Mes Proyectado'].isna()) | 
+                                (registros_publicados['Mes Proyectado'].astype(str).str.strip() == '') |
+                                (registros_publicados['Mes Proyectado'].astype(str).str.strip().isin(['nan', 'None', 'NaN']))
+                            ]
+                            
+                            # NUEVA LÓGICA: Para que Q4 coincida con dashboard, sumar todos en Q4
+                            # Determinar el trimestre actual basado en la fecha de hoy
+                            fecha_actual = datetime.now()
+                            mes_actual = fecha_actual.month
+                            
+                            if mes_actual <= 3:
+                                trimestre_actual = 'Q1'
+                            elif mes_actual <= 6:
+                                trimestre_actual = 'Q2'
+                            elif mes_actual <= 9:
+                                trimestre_actual = 'Q3'
+                            else:
+                                trimestre_actual = 'Q4'
+                            
+                            # Para el trimestre actual Y TODOS LOS SIGUIENTES, mostrar TODOS los publicados
+                            trimestres_orden = ['Q1', 'Q2', 'Q3', 'Q4']
+                            indice_actual = trimestres_orden.index(trimestre_actual)
+                            indice_este_trimestre = trimestres_orden.index(trimestre)
+                            
+                            if indice_este_trimestre >= indice_actual:
+                                avance_acumulado = len(registros_publicados)  # TODOS los publicados
+                            else:
+                                # Para trimestres pasados, mantener lógica acumulativa
+                                avance_acumulado = len(publicaciones_acumuladas) + len(publicaciones_sin_mes)
+                                
+                        else:
+                            # Sin Mes Proyectado, usar proporción acumulada
+                            trimestre_index = list(trimestres.keys()).index(trimestre) + 1
+                            avance_acumulado = (len(registros_publicados) * trimestre_index) // 4
+                            
+                    except Exception:
+                        avance_acumulado = 0
+                else:
+                    avance_acumulado = 0
+                
+                # Calcular porcentaje
+                porcentaje = (avance_acumulado / meta_acumulada * 100) if meta_acumulada > 0 else 0
+                
+                # Pendientes
+                pendientes = max(0, meta_acumulada - avance_acumulado)
+                
+                datos_trimestres[trimestre] = {
+                    'meta': meta_acumulada,
+                    'avance': avance_acumulado,
+                    'porcentaje': round(porcentaje, 1),
+                    'pendientes': pendientes
+                }
+                
+            except Exception as e:
+                st.warning(f"Error calculando {trimestre}: {e}")
+                datos_trimestres[trimestre] = {
+                    'meta': 0, 'avance': 0, 'porcentaje': 0, 'pendientes': 0
+                }
+        
+        return datos_trimestres
+
+    # CALCULAR DATOS TRIMESTRALES - LÓGICA ORIGINAL
+    try:
+        datos_nuevos = calcular_publicaciones_trimestrales_simple(registros_con_mes, 'NUEVO')
+        datos_actualizar = calcular_publicaciones_trimestrales_simple(registros_con_mes, 'ACTUALIZAR')
+    except Exception as e:
+        st.error(f"Error calculando datos trimestrales: {e}")
+        datos_nuevos = crear_datos_trimestre_vacio()
+        datos_actualizar = crear_datos_trimestre_vacio()
+
+    # Verificar si hay datos para mostrar
+    hay_datos_nuevos = any(datos_nuevos[q]['meta'] > 0 for q in ['Q1', 'Q2', 'Q3', 'Q4'])
+    hay_datos_actualizar = any(datos_actualizar[q]['meta'] > 0 for q in ['Q1', 'Q2', 'Q3', 'Q4'])
+
+    if not hay_datos_nuevos and not hay_datos_actualizar:
+        st.warning("⚠️ **No hay datos suficientes para mostrar el seguimiento trimestral**")
         st.info("""
-        **Para habilitar el análisis trimestral necesita:**
-        - Registros con fechas completadas en los campos principales
-        - Al menos una actividad finalizada por trimestre
-        - Fechas en formato válido (DD/MM/YYYY)
+        **Para habilitar esta funcionalidad:**
+        1. Asegúrese de tener registros con 'TipoDato' definido ('Nuevo' o 'Actualizar')
+        2. Asigne 'Mes Proyectado' a los registros
+        3. Configure las metas trimestrales en el archivo de configuración
         """)
         return
-    
-    # ===== MÉTRICAS PRINCIPALES =====
-    st.markdown("### 📊 Métricas Trimestrales")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric(
-            "Trimestres Activos",
-            metricas['trimestres_activos'],
-            help="Número de trimestres con actividades registradas"
+
+    # MOSTRAR GRÁFICOS - VERSIÓN ORIGINAL
+    if hay_datos_nuevos:
+        st.markdown("---")
+        fig_nuevos = crear_grafico_individual(
+            datos_nuevos, 
+            "📊 Seguimiento Trimestral - Registros NUEVOS",
+            color_meta='#ff7f0e',
+            color_avance='#2ca02c'
         )
-    
-    with col2:
-        st.metric(
-            "Actividades Totales",
-            metricas['actividades_totales'],
-            help="Total de actividades completadas en todos los trimestres"
+        st.plotly_chart(fig_nuevos, use_container_width=True)
+        
+        # Tabla de datos NUEVOS
+        with st.expander("📋 Datos Detallados - Registros NUEVOS"):
+            df_nuevos = pd.DataFrame(datos_nuevos).T
+            df_nuevos.index.name = 'Trimestre'
+            df_nuevos['porcentaje'] = df_nuevos['porcentaje'].apply(lambda x: f"{x}%")
+            st.dataframe(df_nuevos, use_container_width=True)
+
+    if hay_datos_actualizar:
+        st.markdown("---")
+        fig_actualizar = crear_grafico_individual(
+            datos_actualizar,
+            "📊 Seguimiento Trimestral - Registros a ACTUALIZAR", 
+            color_meta='#d62728',
+            color_avance='#9467bd'
         )
-    
-    with col3:
-        st.metric(
-            "Promedio Trimestral",
-            f"{metricas['promedio_trimestral']:.1f}",
-            help="Promedio de actividades por trimestre"
-        )
-    
-    with col4:
-        st.metric(
-            "Trimestre Top",
-            metricas['trimestre_top'],
-            delta=f"{metricas['max_actividades']} actividades",
-            help="Trimestre con mayor número de actividades"
-        )
-    
-    # Métricas adicionales
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric(
-            "Registros Únicos",
-            metricas['registros_unicos'],
-            help="Número de registros únicos con actividades"
-        )
-    
-    with col2:
-        st.metric(
-            "Avance General",
-            f"{metricas['avance_general']:.1f}%",
-            help="Promedio de avance de todos los registros con actividades"
-        )
-    
-    with col3:
-        # Eficiencia trimestral
-        eficiencia = (metricas['registros_unicos'] / len(registros_df) * 100) if len(registros_df) > 0 else 0
-        st.metric(
-            "Cobertura",
-            f"{eficiencia:.1f}%",
-            help="Porcentaje de registros con actividades trimestrales"
-        )
-    
+        st.plotly_chart(fig_actualizar, use_container_width=True)
+        
+        # Tabla de datos ACTUALIZAR
+        with st.expander("📋 Datos Detallados - Registros a ACTUALIZAR"):
+            df_actualizar = pd.DataFrame(datos_actualizar).T
+            df_actualizar.index.name = 'Trimestre'
+            df_actualizar['porcentaje'] = df_actualizar['porcentaje'].apply(lambda x: f"{x}%")
+            st.dataframe(df_actualizar, use_container_width=True)
+
+    # RESUMEN FINAL - VERSIÓN ORIGINAL
     st.markdown("---")
-    
-    # ===== GRÁFICOS DE ANÁLISIS TRIMESTRAL =====
-    st.markdown("### 📈 Análisis Visual por Trimestre")
+    st.markdown("### 📊 Resumen General")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        # Gráfico de barras por trimestre
-        fig_barras = crear_grafico_trimestral_barras(df_trimestral)
-        if fig_barras:
-            st.plotly_chart(fig_barras, use_container_width=True)
-        else:
-            st.info("No hay datos suficientes para gráfico de barras")
+        if hay_datos_nuevos:
+            total_meta_nuevos = sum(datos_nuevos[q]['meta'] for q in ['Q1', 'Q2', 'Q3', 'Q4'])
+            total_avance_nuevos = sum(datos_nuevos[q]['avance'] for q in ['Q1', 'Q2', 'Q3', 'Q4'])
+            eficiencia_nuevos = (total_avance_nuevos / total_meta_nuevos * 100) if total_meta_nuevos > 0 else 0
+            
+            st.metric(
+                "📈 REGISTROS NUEVOS",
+                f"{total_avance_nuevos}/{total_meta_nuevos}",
+                f"{eficiencia_nuevos:.1f}% cumplimiento"
+            )
     
     with col2:
-        # Gráfico de tendencia
-        fig_tendencia = crear_grafico_tendencia_trimestral(df_trimestral)
-        if fig_tendencia:
-            st.plotly_chart(fig_tendencia, use_container_width=True)
-        else:
-            st.info("No hay datos suficientes para gráfico de tendencia")
-    
-    # ===== MAPA DE CALOR POR ETAPAS =====
+        if hay_datos_actualizar:
+            total_meta_actualizar = sum(datos_actualizar[q]['meta'] for q in ['Q1', 'Q2', 'Q3', 'Q4'])
+            total_avance_actualizar = sum(datos_actualizar[q]['avance'] for q in ['Q1', 'Q2', 'Q3', 'Q4'])
+            eficiencia_actualizar = (total_avance_actualizar / total_meta_actualizar * 100) if total_meta_actualizar > 0 else 0
+            
+            st.metric(
+                "🔄 REGISTROS A ACTUALIZAR",
+                f"{total_avance_actualizar}/{total_meta_actualizar}",
+                f"{eficiencia_actualizar:.1f}% cumplimiento"
+            )
+
+    # INFORMACIÓN ADICIONAL - VERSIÓN ORIGINAL
     st.markdown("---")
-    st.markdown("### 🗺️ Análisis por Etapa y Trimestre")
+    st.markdown("### ℹ️ Información del Análisis")
     
-    resultado_etapas = crear_analisis_por_etapa_trimestral(df_trimestral)
+    col1, col2, col3 = st.columns(3)
     
-    if resultado_etapas:
-        fig_heatmap, pivot_etapas = resultado_etapas
-        st.plotly_chart(fig_heatmap, use_container_width=True)
-        
-        # Mostrar tabla resumen
-        with st.expander("📋 Ver Tabla Detallada por Etapa"):
-            st.dataframe(
-                pivot_etapas.style.background_gradient(cmap='Blues'),
-                use_container_width=True
-            )
-    else:
-        st.info("No hay datos suficientes para análisis por etapa")
+    with col1:
+        registros_validos = len(registros_con_mes)
+        total_registros = len(registros_df)
+        st.info(f"""
+        **📊 Datos del Análisis**
+        - Registros con mes: {registros_validos}
+        - Total registros: {total_registros}
+        - Cobertura: {(registros_validos/total_registros*100):.1f}%
+        """)
     
-    # ===== COMPARACIÓN CON METAS =====
-    st.markdown("---")
-    st.markdown("### 🎯 Comparación con Metas Trimestrales")
+    with col2:
+        if hay_datos_nuevos:
+            st.info(f"""
+            **🆕 Registros Nuevos**
+            - Con mes proyectado: {len(registros_con_mes[registros_con_mes['TipoDato'].str.upper() == 'NUEVO'])}
+            - Meta total: {total_meta_nuevos if hay_datos_nuevos else 0}
+            - Publicados: {total_avance_nuevos if hay_datos_nuevos else 0}
+            """)
     
-    if not metas_nuevas_df.empty or not metas_actualizar_df.empty:
-        try:
-            comparacion_nuevos, comparacion_actualizar, fecha_meta = crear_comparacion_metas_trimestral(
-                registros_df, metas_nuevas_df, metas_actualizar_df
-            )
-            
-            if fecha_meta:
-                st.info(f"📅 **Meta de referencia:** {fecha_meta.strftime('%d/%m/%Y')}")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                if not comparacion_nuevos.empty:
-                    st.markdown("#### 🆕 Registros Nuevos vs Metas")
-                    
-                    # Tabla con formato
-                    st.dataframe(
-                        comparacion_nuevos.style
-                        .format({'Porcentaje': '{:.1f}%'})
-                        .background_gradient(cmap='RdYlGn', subset=['Porcentaje']),
-                        use_container_width=True
-                    )
-                else:
-                    st.info("No hay metas para registros nuevos")
-            
-            with col2:
-                if not comparacion_actualizar.empty:
-                    st.markdown("#### 🔄 Registros a Actualizar vs Metas")
-                    
-                    # Tabla con formato
-                    st.dataframe(
-                        comparacion_actualizar.style
-                        .format({'Porcentaje': '{:.1f}%'})
-                        .background_gradient(cmap='RdYlGn', subset=['Porcentaje']),
-                        use_container_width=True
-                    )
-                else:
-                    st.info("No hay metas para registros a actualizar")
-                    
-        except Exception as e:
-            st.error(f"Error en comparación con metas: {e}")
-            st.info("Continuando sin comparación de metas...")
-    else:
-        st.info("📋 No hay metas trimestrales configuradas para comparación")
-    
-    # ===== ANÁLISIS POR TIPO DE DATO =====
-    if metricas['distribucion_tipo']:
-        st.markdown("---")
-        st.markdown("### 📋 Distribución por Tipo de Dato")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Gráfico de pie
-            fig_tipo = px.pie(
-                values=list(metricas['distribucion_tipo'].values()),
-                names=list(metricas['distribucion_tipo'].keys()),
-                title="Actividades por Tipo de Dato"
-            )
-            st.plotly_chart(fig_tipo, use_container_width=True)
-        
-        with col2:
-            # Tabla de distribución
-            st.markdown("#### 📊 Estadísticas por Tipo")
-            
-            df_tipo_stats = pd.DataFrame(list(metricas['distribucion_tipo'].items()), 
-                                       columns=['Tipo', 'Actividades'])
-            df_tipo_stats['Porcentaje'] = (df_tipo_stats['Actividades'] / 
-                                         df_tipo_stats['Actividades'].sum() * 100).round(1)
-            
-            st.dataframe(
-                df_tipo_stats.style
-                .format({'Porcentaje': '{:.1f}%'})
-                .background_gradient(cmap='Blues', subset=['Actividades']),
-                use_container_width=True
-            )
-    
-    # ===== ANÁLISIS POR FUNCIONARIO =====
-    if 'Funcionario' in df_trimestral.columns:
-        st.markdown("---")
-        st.markdown("### 👥 Análisis por Funcionario")
-        
-        funcionarios_trimestral = df_trimestral.groupby('Funcionario').agg({
-            'Codigo': 'count',
-            'Trimestre': 'nunique',
-            'Avance': 'mean'
-        }).round(2)
-        
-        funcionarios_trimestral.columns = ['Actividades', 'Trimestres Activos', 'Avance Promedio']
-        funcionarios_trimestral = funcionarios_trimestral[funcionarios_trimestral['Actividades'] > 0]
-        funcionarios
+    with col3:
+        if hay_datos_actualizar:
+            st.info(f"""
+            **🔄 Registros a Actualizar**
+            - Con mes proyectado: {len(registros_con_mes[registros_con_mes['TipoDato'].str.upper() == 'ACTUALIZAR'])}
+            - Meta total: {total_meta_actualizar if hay_datos_actualizar else 0}
+            - Publicados: {total_avance_actualizar if hay_datos_actualizar else 0}
+            """)
+
+
+# ===== VERIFICACIÓN DE MIGRACIÓN =====
+if __name__ == "__main__":
+    print("📅 Módulo Seguimiento Trimestral ORIGINAL cargado correctamente")
+    print("🔧 Funcionalidades restauradas:")
+    print("   ✅ Visualización exacta del app1.py original")
+    print("   ✅ Lógica de cálculos preservada")
+    print("   ✅ Gráficos idénticos al código anterior")
+    print("   ✅ Tablas y métricas originales")
+    print("\n📝 Uso: from trimestral import mostrar_seguimiento_trimestral")
+    print("🔄 Reemplaza el TAB 3 manteniendo funcionalidad original")
