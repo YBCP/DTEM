@@ -9,7 +9,7 @@ from data_utils import procesar_fecha, verificar_completado_por_fecha, es_fecha_
 
 
 def crear_gantt(df):
-    """Crea un diagrama de Gantt con los hitos y fechas."""
+    """Crea un diagrama de Gantt con los hitos y fechas - CORREGIDO datetime."""
     import streamlit as st
     from datetime import datetime, timedelta
 
@@ -50,27 +50,54 @@ def crear_gantt(df):
             nivel_info = row['Nivel Información '] if 'Nivel Información ' in row else 'Sin nivel'
             task_id = f"{row['Cod']} - {nivel_info}"
 
+            # FUNCIÓN AUXILIAR CORREGIDA para procesar fechas de manera segura
+            def procesar_fecha_gantt(fecha_valor):
+                """Procesa fecha de manera segura para Gantt"""
+                if pd.isna(fecha_valor) or fecha_valor == "" or fecha_valor is None:
+                    return None
+                
+                try:
+                    # Si ya es datetime, retornarlo
+                    if isinstance(fecha_valor, datetime):
+                        return fecha_valor
+                    
+                    # Si es date, convertir a datetime
+                    if isinstance(fecha_valor, date):
+                        return datetime.combine(fecha_valor, datetime.min.time())
+                    
+                    # Si es string, parsear
+                    if isinstance(fecha_valor, str):
+                        fecha_str = re.sub(r'[^\d/\-]', '', str(fecha_valor).strip())
+                        formatos = ['%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y', '%m/%d/%Y']
+                        
+                        for formato in formatos:
+                            try:
+                                return pd.to_datetime(fecha_str, format=formato).to_pydatetime()
+                            except:
+                                continue
+                    
+                    return None
+                except Exception:
+                    return None
+
             # Hito 1: Acuerdo de compromiso
-            if 'Entrega acuerdo de compromiso' in row and pd.notna(row['Entrega acuerdo de compromiso']) and row[
-                'Entrega acuerdo de compromiso'] != "":
-                fecha = procesar_fecha(row['Entrega acuerdo de compromiso'])
-                if fecha and isinstance(fecha, datetime):  # Verificación adicional de tipo
-                    # Modificar la fecha para que comience 7 días antes
+            if 'Entrega acuerdo de compromiso' in row and pd.notna(row['Entrega acuerdo de compromiso']) and row['Entrega acuerdo de compromiso'] != "":
+                fecha = procesar_fecha_gantt(row['Entrega acuerdo de compromiso'])
+                if fecha and isinstance(fecha, datetime):
+                    # CORRECCIÓN: Usar timedelta correctamente
                     fecha_inicio = fecha - timedelta(days=7)
                     tareas.append({
                         'Task': task_id,
                         'Start': fecha_inicio,
-                        'Finish': fecha,  # La fecha de finalización es la fecha original
+                        'Finish': fecha,
                         'Resource': f"Acuerdo de compromiso ({porcentajes_hitos['Acuerdo de compromiso']})",
                         'Entidad': entidad
                     })
 
             # Hito 2: Análisis y cronograma
-            if 'Análisis y cronograma' in row and pd.notna(row['Análisis y cronograma']) and row[
-                'Análisis y cronograma'] != "":
-                fecha = procesar_fecha(row['Análisis y cronograma'])
-                if fecha and isinstance(fecha, datetime):  # Verificación adicional de tipo
-                    # Modificar la fecha para que comience 7 días antes
+            if 'Análisis y cronograma' in row and pd.notna(row['Análisis y cronograma']) and row['Análisis y cronograma'] != "":
+                fecha = procesar_fecha_gantt(row['Análisis y cronograma'])
+                if fecha and isinstance(fecha, datetime):
                     fecha_inicio = fecha - timedelta(days=7)
                     tareas.append({
                         'Task': task_id,
@@ -82,9 +109,8 @@ def crear_gantt(df):
 
             # Hito 3: Estándares
             if 'Estándares' in row and pd.notna(row['Estándares']) and row['Estándares'] != "":
-                fecha = procesar_fecha(row['Estándares'])
-                if fecha and isinstance(fecha, datetime):  # Verificación adicional de tipo
-                    # Modificar la fecha para que comience 7 días antes
+                fecha = procesar_fecha_gantt(row['Estándares'])
+                if fecha and isinstance(fecha, datetime):
                     fecha_inicio = fecha - timedelta(days=7)
                     tareas.append({
                         'Task': task_id,
@@ -96,9 +122,8 @@ def crear_gantt(df):
 
             # Hito 4: Publicación
             if 'Publicación' in row and pd.notna(row['Publicación']) and row['Publicación'] != "":
-                fecha = procesar_fecha(row['Publicación'])
-                if fecha and isinstance(fecha, datetime):  # Verificación adicional de tipo
-                    # Modificar la fecha para que comience 7 días antes
+                fecha = procesar_fecha_gantt(row['Publicación'])
+                if fecha and isinstance(fecha, datetime):
                     fecha_inicio = fecha - timedelta(days=7)
                     tareas.append({
                         'Task': task_id,
@@ -109,11 +134,9 @@ def crear_gantt(df):
                     })
 
             # Hito 5: Cierre (Plazo de oficio de cierre)
-            if 'Plazo de oficio de cierre' in row and pd.notna(row['Plazo de oficio de cierre']) and row[
-                'Plazo de oficio de cierre'] != "":
-                fecha = procesar_fecha(row['Plazo de oficio de cierre'])
-                if fecha and isinstance(fecha, datetime):  # Verificación adicional de tipo
-                    # Modificar la fecha para que comience 7 días antes
+            if 'Plazo de oficio de cierre' in row and pd.notna(row['Plazo de oficio de cierre']) and row['Plazo de oficio de cierre'] != "":
+                fecha = procesar_fecha_gantt(row['Plazo de oficio de cierre'])
+                if fecha and isinstance(fecha, datetime):
                     fecha_inicio = fecha - timedelta(days=7)
                     tareas.append({
                         'Task': task_id,
@@ -135,11 +158,11 @@ def crear_gantt(df):
 
     # Definir colores para cada tipo de hito
     colors = {
-        f"Acuerdo de compromiso ({porcentajes_hitos['Acuerdo de compromiso']})": '#1E40AF',  # Azul
-        f"Análisis y cronograma ({porcentajes_hitos['Análisis y cronograma']})": '#047857',  # Verde
-        f"Estándares ({porcentajes_hitos['Estándares']})": '#B45309',  # Naranja
-        f"Publicación ({porcentajes_hitos['Publicación']})": '#BE185D',  # Rosa
-        f"Cierre ({porcentajes_hitos['Cierre']})": '#7C3AED'  # Púrpura
+        f"Acuerdo de compromiso ({porcentajes_hitos['Acuerdo de compromiso']})": '#1E40AF',
+        f"Análisis y cronograma ({porcentajes_hitos['Análisis y cronograma']})": '#047857',
+        f"Estándares ({porcentajes_hitos['Estándares']})": '#B45309',
+        f"Publicación ({porcentajes_hitos['Publicación']})": '#BE185D',
+        f"Cierre ({porcentajes_hitos['Cierre']})": '#7C3AED'
     }
 
     try:
@@ -160,7 +183,7 @@ def crear_gantt(df):
             xaxis_title='Fecha',
             yaxis_title='Registro - Nivel de Información',
             legend_title='Hito',
-            height=max(400, len(df_tareas['Task'].unique()) * 40),  # Altura dinámica basada en cantidad de registros
+            height=max(400, len(df_tareas['Task'].unique()) * 40),
             xaxis=dict(
                 type='date',
                 tickformat='%d/%m/%Y'
@@ -168,8 +191,8 @@ def crear_gantt(df):
         )
 
         # Añadir línea vertical para mostrar la fecha actual (HOY)
-        # Usar solo la fecha (sin hora) para evitar problemas de tipo
-        fecha_hoy = datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)
+        # CORRECCIÓN: Usar datetime completo
+        fecha_hoy = datetime.now()
 
         # Añadir la línea vertical
         fig.add_shape(
@@ -184,7 +207,7 @@ def crear_gantt(df):
                 dash="dash",
             ),
             xref="x",
-            yref="paper"  # Usar "paper" para que vaya de 0 a 1 en el eje y
+            yref="paper"
         )
 
         # Añadir etiqueta "HOY"
@@ -207,12 +230,10 @@ def crear_gantt(df):
 
         return fig
     except Exception as e:
-        # Si falla la creación del gráfico, imprimir el error y retornar None
         print(f"Error al crear el gráfico: {e}")
         import traceback
         traceback.print_exc()
         return None
-
 
 def comparar_avance_metas(df, metas_nuevas_df, metas_actualizar_df):
     """Compara el avance actual con las metas establecidas."""
