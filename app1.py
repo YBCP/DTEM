@@ -3446,7 +3446,7 @@ def main():
                     if not key.startswith('_'):
                         del st.session_state[key]
                 st.rerun()
-# ========== AGREGAR ESTAS FUNCIONES AL FINAL DE app1.py ==========
+# ========== FUNCIONES CORREGIDAS SIN RECARGAS ==========
 
 def limpiar_estado_temporal(key_temp):
     """Limpia el estado temporal de un registro."""
@@ -3634,30 +3634,9 @@ def mostrar_edicion_registros_corregida(registros_df):
                     options=meses
                 )
 
-            # Fechas importantes
-            st.markdown("### 2. Fechas Importantes")
+            # Estados del proceso (simplificado)
+            st.markdown("### 2. Estados del Proceso")
             col1, col2 = st.columns(2)
-
-            with col1:
-                crear_selector_fecha_simple(
-                    "Fecha de entrega de información",
-                    key_temp,
-                    'Fecha de entrega de información'
-                )
-
-            with col2:
-                plazo_analisis_temp = obtener_valor_temporal(key_temp, 'Plazo de análisis', '')
-                st.text_input(
-                    "Plazo de análisis (calculado automáticamente)",
-                    value=plazo_analisis_temp,
-                    disabled=True,
-                    key=f"plazo_analisis_display_{key_temp}",
-                    help="Se calcula automáticamente"
-                )
-
-            # Estados del proceso
-            st.markdown("### 3. Estados del Proceso")
-            col1, col2, col3 = st.columns(3)
 
             with col1:
                 crear_widget_simple(
@@ -3669,55 +3648,6 @@ def mostrar_edicion_registros_corregida(registros_df):
                 )
 
             with col2:
-                crear_selector_fecha_simple(
-                    "Análisis y cronograma (fecha real)",
-                    key_temp,
-                    'Análisis y cronograma'
-                )
-
-            with col3:
-                crear_selector_fecha_simple(
-                    "Estándares (fecha real)",
-                    key_temp,
-                    'Estándares'
-                )
-
-            # Publicación
-            st.markdown("### 4. Publicación")
-            col1, col2 = st.columns(2)
-
-            with col1:
-                crear_selector_fecha_simple(
-                    "Publicación (fecha real)",
-                    key_temp,
-                    'Publicación'
-                )
-
-            with col2:
-                publicacion_temp = obtener_valor_temporal(key_temp, 'Publicación', '')
-                tiene_publicacion = publicacion_temp and pd.notna(publicacion_temp) and str(publicacion_temp).strip() != ''
-                
-                if tiene_publicacion:
-                    crear_selector_fecha_simple(
-                        "Fecha de oficio de cierre",
-                        key_temp,
-                        'Fecha de oficio de cierre'
-                    )
-                else:
-                    st.warning("⚠️ Para introducir fecha de oficio de cierre, primero debe completar la etapa de Publicación")
-                    fecha_oficio_temp = obtener_valor_temporal(key_temp, 'Fecha de oficio de cierre', '')
-                    st.text_input(
-                        "Fecha de oficio de cierre (requiere publicación)",
-                        value=fecha_oficio_temp,
-                        disabled=True,
-                        key=f"oficio_disabled_{key_temp}"
-                    )
-
-            # Información adicional
-            st.markdown("### 5. Información Adicional")
-            col1, col2 = st.columns(2)
-            
-            with col1:
                 opciones_estado = ["", "En proceso", "En proceso oficio de cierre", "Completado", "Finalizado"]
                 crear_widget_simple(
                     'selectbox',
@@ -3727,16 +3657,17 @@ def mostrar_edicion_registros_corregida(registros_df):
                     options=opciones_estado
                 )
 
-            with col2:
-                funcionarios = [""] + sorted([f for f in registros_df['Funcionario'].dropna().unique().tolist() if f])
-                crear_widget_simple(
-                    'selectbox',
-                    "Funcionario",
-                    key_temp,
-                    'Funcionario',
-                    options=funcionarios
-                )
+            # Funcionario
+            funcionarios = [""] + sorted([f for f in registros_df['Funcionario'].dropna().unique().tolist() if f])
+            crear_widget_simple(
+                'selectbox',
+                "Funcionario",
+                key_temp,
+                'Funcionario',
+                options=funcionarios
+            )
 
+            # Observación
             crear_widget_simple(
                 'text_area',
                 "Observación",
@@ -3744,9 +3675,51 @@ def mostrar_edicion_registros_corregida(registros_df):
                 'Observación',
                 height=100
             )
+
+            # Botones de acción
+            st.markdown("---")
+            st.markdown("### Acciones")
             
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if cambios_pendientes:
+                    if st.button("💾 Guardar Registro", key=f"guardar_{key_temp}", type="primary"):
+                        with st.spinner("Guardando cambios..."):
+                            try:
+                                registros_df = aplicar_cambios_temporales(registros_df, indice_seleccionado, key_temp)
+                                registros_df = validar_reglas_negocio(registros_df)
+                                exito, mensaje = guardar_datos_editados(registros_df, crear_backup=True)
+
+                                if exito:
+                                    st.session_state.mensaje_guardado = ("success", f"✅ {mensaje}")
+                                    limpiar_estado_temporal(key_temp)
+                                    st.rerun()
+                                else:
+                                    st.session_state.mensaje_guardado = ("error", mensaje)
+                                    st.rerun()
+                                    
+                            except Exception as e:
+                                st.session_state.mensaje_guardado = ("error", f"❌ Error al guardar: {str(e)}")
+                                st.rerun()
+                else:
+                    st.button("💾 Guardar Registro", disabled=True, help="No hay cambios pendientes")
+
+            with col2:
+                if cambios_pendientes:
+                    if st.button("❌ Cancelar Cambios", key=f"cancelar_{key_temp}"):
+                        limpiar_estado_temporal(key_temp)
+                        st.success("Cambios cancelados")
+                        st.rerun()
+                else:
+                    st.button("❌ Cancelar Cambios", disabled=True, help="No hay cambios pendientes")
+
+    except Exception as e:
+        st.error(f"Error al editar el registro: {e}")
+
+    return registros_df
+
 if __name__ == "__main__":
     main()
-        
 
         
