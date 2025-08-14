@@ -144,7 +144,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         # Trimestres ordenados
         trimestres = ['Q1', 'Q2', 'Q3', 'Q4']
         
-        # Calcular metas y avances acumulados
+                        # Calcular metas y avances acumulados
         for i, trimestre in enumerate(trimestres):
             try:
                 # Calcular meta acumulada hasta este trimestre
@@ -152,11 +152,20 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
                 for j in range(i + 1):
                     meses_acumulados.extend(meses_trimestre[trimestres[j]])
                 
-                # Meta: registros programados hasta este trimestre
-                registros_programados = registros_tipo[
-                    registros_tipo['Mes Proyectado'].isin(meses_acumulados)
+                # META: registros programados hasta este trimestre (NO ACUMULADA, SOLO ESTE TRIMESTRE)
+                # CORREGIDO: Metas por trimestre individual, no acumuladas
+                meses_este_trimestre = meses_trimestre[trimestre]
+                registros_programados_trimestre = registros_tipo[
+                    registros_tipo['Mes Proyectado'].isin(meses_este_trimestre)
                 ]
-                meta_acumulada = len(registros_programados)
+                meta_este_trimestre = len(registros_programados_trimestre)
+                
+                # Para mostrar acumulado en gráfico, sumar metas anteriores
+                if i == 0:  # Q1
+                    meta_acumulada = meta_este_trimestre
+                else:
+                    meta_anterior = datos_trimestres[trimestres[i-1]]['meta']
+                    meta_acumulada = meta_anterior + meta_este_trimestre
                 
                 # Avance: registros con fecha de publicación real completada hasta ahora
                 if 'Publicación' in registros_tipo.columns:
@@ -208,8 +217,8 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
                                 avance_acumulado = len(publicaciones_acumuladas) + len(publicaciones_sin_mes)
                                 
                         else:
-                            # Sin Mes Proyectado, usar proporción acumulada
-                            trimestre_index = list(trimestres.keys()).index(trimestre) + 1
+                            # Sin Mes Proyectado, usar proporción acumulada - CORREGIDO
+                            trimestre_index = i + 1  # Usar índice actual, no diccionario
                             avance_acumulado = (len(registros_publicados) * trimestre_index) // 4
                             
                     except Exception:
