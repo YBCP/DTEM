@@ -78,28 +78,70 @@ def crear_selector_funcionario_integrado(registros_df, funcionario_actual, key_s
 
 def crear_fecha_input_simple(label, fecha_actual, key_suffix, help_text=None):
     """
-    Campo de fecha SIMPLE - se puede borrar directamente
-    Si se deja None/vacío, se guarda como fecha vacía
+    Campo de fecha SIMPLE - se puede borrar directamente y SE MANTIENE BORRADA
     """
     # Procesar fecha actual
     fecha_valor = None
+    tiene_fecha_valida = False
+    
     if es_fecha_valida(fecha_actual):
         try:
             fecha_obj = procesar_fecha(fecha_actual)
             if fecha_obj:
                 fecha_valor = fecha_obj.date() if isinstance(fecha_obj, datetime) else fecha_obj
+                tiene_fecha_valida = True
         except:
             fecha_valor = None
+            tiene_fecha_valida = False
     
-    # Campo de fecha que acepta None
-    fecha_seleccionada = st.date_input(
-        label,
-        value=fecha_valor,
-        key=f"fecha_input_{key_suffix}",
-        help=help_text or "Deje vacío para borrar la fecha"
-    )
+    # CLAVE: Usar session_state para mantener el estado de "borrado"
+    key_borrado = f"fecha_borrada_{key_suffix}"
+    key_valor = f"fecha_valor_{key_suffix}"
     
-    return fecha_seleccionada
+    # Inicializar en session_state si no existe
+    if key_borrado not in st.session_state:
+        st.session_state[key_borrado] = not tiene_fecha_valida
+    
+    if key_valor not in st.session_state:
+        st.session_state[key_valor] = fecha_valor
+    
+    col1, col2 = st.columns([4, 1])
+    
+    with col2:
+        # Botón para borrar/restablecer fecha
+        if st.session_state[key_borrado]:
+            if st.button("📅 Agregar", key=f"btn_agregar_{key_suffix}"):
+                st.session_state[key_borrado] = False
+                st.session_state[key_valor] = date.today()
+                st.rerun()
+        else:
+            if st.button("🗑️ Borrar", key=f"btn_borrar_{key_suffix}"):
+                st.session_state[key_borrado] = True
+                st.session_state[key_valor] = None
+                st.rerun()
+    
+    with col1:
+        if st.session_state[key_borrado]:
+            # Mostrar campo deshabilitado cuando está borrado
+            st.date_input(
+                label,
+                value=None,
+                disabled=True,
+                key=f"fecha_disabled_{key_suffix}",
+                help="Fecha borrada - Use 'Agregar' para asignar fecha"
+            )
+            return None  # Retornar None para indicar sin fecha
+        else:
+            # Campo de fecha activo
+            fecha_seleccionada = st.date_input(
+                label,
+                value=st.session_state[key_valor] or date.today(),
+                key=f"fecha_input_{key_suffix}",
+                help=help_text or "Use 'Borrar' para eliminar la fecha"
+            )
+            # Actualizar session_state con la nueva fecha
+            st.session_state[key_valor] = fecha_seleccionada
+            return fecha_seleccionada
 
 
 def mostrar_edicion_registros(registros_df):
@@ -514,7 +556,7 @@ def mostrar_edicion_registros(registros_df):
                     registros_df_actualizado.at[indice_seleccionado, 'Estado'] = estado
                     registros_df_actualizado.at[indice_seleccionado, 'Observación'] = observacion
                     
-                    # Fechas SIMPLE: None o vacío = campo vacío, date válido = formato string
+                    # Fechas MEJORADO: Manejo correcto del estado borrado/asignado
                     fechas_a_procesar = [
                         (fecha_suscripcion, 'Suscripción acuerdo de compromiso'),
                         (fecha_entrega, 'Entrega acuerdo de compromiso'),
@@ -529,7 +571,7 @@ def mostrar_edicion_registros(registros_df):
                     
                     for fecha_obj, campo in fechas_a_procesar:
                         if fecha_obj is None:
-                            # Sin fecha = campo vacío
+                            # Sin fecha = campo vacío (se mantiene borrado)
                             registros_df_actualizado.at[indice_seleccionado, campo] = ''
                         else:
                             # Fecha válida = formato string DD/MM/YYYY
@@ -537,8 +579,9 @@ def mostrar_edicion_registros(registros_df):
                                 if isinstance(fecha_obj, date):
                                     registros_df_actualizado.at[indice_seleccionado, campo] = fecha_obj.strftime('%d/%m/%Y')
                                 else:
+                                    # Convertir a string si no es date
                                     registros_df_actualizado.at[indice_seleccionado, campo] = str(fecha_obj)
-                            except:
+                            except Exception as e:
                                 # Si hay error, dejar vacío
                                 registros_df_actualizado.at[indice_seleccionado, campo] = ''
                     
@@ -563,9 +606,14 @@ def mostrar_edicion_registros(registros_df):
                         st.success(f"✅ {mensaje} Validaciones aplicadas correctamente.")
                         st.balloons()
                         
-                        # ACTUALIZAR DATAFRAME EN MEMORIA
+                        # ACTUALIZAR DATAFRAME EN MEMORIA Y LIMPIAR SESSION_STATE
                         for col in registros_df_actualizado.columns:
                             registros_df.at[indice_seleccionado, col] = registros_df_actualizado.at[indice_seleccionado, col]
+                        
+                        # Limpiar session_state de fechas para evitar conflictos
+                        keys_to_remove = [key for key in st.session_state.keys() if f"_{indice_seleccionado}" in key and ("fecha_borrada_" in key or "fecha_valor_" in key)]
+                        for key in keys_to_remove:
+                            del st.session_state[key]
                     else:
                         st.error(mensaje)
                         
@@ -588,10 +636,10 @@ def mostrar_edicion_registros(registros_df):
     
     with col2:
         st.info("""
-        **📅 Fechas Simplificadas:**
-        - Dejar vacío para borrar
-        - Sin checkbox, más directo
-        - Se guarda automáticamente
+        **📅 Fechas Mejoradas:**
+        - Botón 🗑️ Borrar para eliminar
+        - Botón 📅 Agregar para asignar
+        - Se mantienen borradas hasta guardar
         """)
     
     with col3:
