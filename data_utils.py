@@ -441,10 +441,11 @@ def validar_campos_fecha(df, campos_fecha=['Análisis y cronograma', 'Estándare
 
     return df_validado
 
+# Extracto de data_utils.py - FUNCIÓN DE GUARDADO CORREGIDA
+
 def guardar_datos_editados(df, crear_backup=True):
     """
-    VERSIÓN ULTRA SEGURA: Guarda los datos editados con sistema de respaldo automático.
-    PROTEGE ESPECÍFICAMENTE LA TABLA METAS.
+    VERSIÓN ULTRA SEGURA Y CORREGIDA: Guarda los datos editados con verificación
     """
     try:
         # ✅ VALIDACIÓN CRÍTICA: Solo permitir datos de registros
@@ -471,15 +472,22 @@ def guardar_datos_editados(df, crear_backup=True):
                 from backup_utils import crear_respaldo_automatico
                 respaldo_exitoso = crear_respaldo_automatico(df_validado)
                 if respaldo_exitoso:
+                    import streamlit as st
                     st.info("💾 Respaldo automático creado antes de guardar")
                 else:
+                    import streamlit as st
                     st.warning("⚠️ No se pudo crear respaldo automático, pero continuando...")
             except ImportError:
+                import streamlit as st
                 st.warning("⚠️ Sistema de respaldo no disponible")
             except Exception as e:
+                import streamlit as st
                 st.warning(f"⚠️ Error en respaldo automático: {e}, pero continuando...")
         
         # ✅ GUARDAR SOLO EN REGISTROS (nunca tocar Metas)
+        import streamlit as st
+        st.info("💾 Guardando en hoja 'Registros' de Google Sheets...")
+        
         exito = sheets_manager.escribir_hoja(df_validado, "Registros", limpiar_hoja=True)
         
         # ✅ VERIFICACIÓN Y RESTAURACIÓN AUTOMÁTICA DE METAS
@@ -503,6 +511,7 @@ def guardar_datos_editados(df, crear_backup=True):
             try:
                 df_verificacion = sheets_manager.leer_hoja("Registros")
                 if not df_verificacion.empty and len(df_verificacion) >= len(df_validado) * 0.9:
+                    st.success("✅ Guardado verificado en Google Sheets - Hoja 'Registros'")
                     return True, "✅ Datos guardados y verificados exitosamente en Google Sheets."
                 else:
                     st.warning("⚠️ Los datos se guardaron pero la verificación mostró inconsistencias")
@@ -514,6 +523,7 @@ def guardar_datos_editados(df, crear_backup=True):
             return False, "❌ Error al guardar datos en Google Sheets."
             
     except Exception as e:
+        import streamlit as st
         error_msg = f"❌ Error al guardar datos: {str(e)}"
         st.error(error_msg)
         return False, error_msg
