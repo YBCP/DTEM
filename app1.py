@@ -86,6 +86,23 @@ def hay_cambios_pendientes(key_temp):
         return False
     except Exception:
         return False
+def limpiar_estado_temporal(key_temp):
+    """Limpia el estado temporal de un registro."""
+    try:
+        if key_temp in st.session_state:
+            del st.session_state[key_temp]
+        if f"{key_temp}_modified" in st.session_state:
+            del st.session_state[f"{key_temp}_modified"]
+        
+        keys_to_remove = [key for key in st.session_state.keys() if key.startswith(key_temp)]
+        for key in keys_to_remove:
+            if key != key_temp and f"{key_temp}_modified" not in key:
+                try:
+                    del st.session_state[key]
+                except:
+                    pass
+    except Exception as e:
+        pass
 
 
 def mostrar_mensaje_validacion_oficio_cierre():
@@ -910,8 +927,6 @@ def mostrar_edicion_registros(registros_df):
                 else:
                     st.button("❌ Cancelar Cambios", disabled=True, help="No hay cambios pendientes para cancelar")
 
-            # ✅ RESTO DE BOTONES SIN CAMBIOS PERO CON VALIDACIONES MEJORADAS
-            
             # MOSTRAR COMPARACIÓN DE CAMBIOS si hay modificaciones
             if cambios_pendientes:
                 st.markdown("---")
@@ -3174,7 +3189,7 @@ def main():
             
             if verificar_autenticacion():
                 # Usuario autenticado - permitir edición
-                registros_df = mostrar_edicion_registros_corregida(registros_df)
+                registros_df = mostrar_edicion_registros(registros_df)  # Esta línea debe estar así
             else:
                 # Usuario no autenticado - mostrar mensaje
                 st.markdown('<div class="subtitle">🔐 Acceso Restringido - Edición de Registros</div>', unsafe_allow_html=True)
@@ -3446,278 +3461,7 @@ def main():
                     if not key.startswith('_'):
                         del st.session_state[key]
                 st.rerun()
-# ========== FUNCIONES CORREGIDAS SIN RECARGAS ==========
 
-def limpiar_estado_temporal(key_temp):
-    """Limpia el estado temporal de un registro."""
-    try:
-        if key_temp in st.session_state:
-            del st.session_state[key_temp]
-        if f"{key_temp}_modified" in st.session_state:
-            del st.session_state[f"{key_temp}_modified"]
-        
-        keys_to_remove = [key for key in st.session_state.keys() if key.startswith(key_temp)]
-        for key in keys_to_remove:
-            if key != key_temp and f"{key_temp}_modified" not in key:
-                try:
-                    del st.session_state[key]
-                except:
-                    pass
-    except Exception as e:
-        pass
-
-def crear_widget_simple(widget_type, label, key_temp, campo, **kwargs):
-    """Crea widgets SIN callbacks para evitar recargas automáticas."""
-    valor_actual = obtener_valor_temporal(key_temp, campo, kwargs.get('value', ''))
-    widget_key = f"{key_temp}_{campo}_simple"
-    
-    if widget_type == 'selectbox':
-        options = kwargs.get('options', [])
-        index = options.index(valor_actual) if valor_actual in options else 0
-        nuevo_valor = st.selectbox(
-            label,
-            options=options,
-            index=index,
-            key=widget_key,
-            **{k: v for k, v in kwargs.items() if k not in ['options', 'value']}
-        )
-    
-    elif widget_type == 'text_input':
-        nuevo_valor = st.text_input(
-            label,
-            value=valor_actual,
-            key=widget_key,
-            **{k: v for k, v in kwargs.items() if k not in ['value']}
-        )
-    
-    elif widget_type == 'text_area':
-        nuevo_valor = st.text_area(
-            label,
-            value=valor_actual,
-            key=widget_key,
-            **{k: v for k, v in kwargs.items() if k not in ['value']}
-        )
-    else:
-        return None
-    
-    if nuevo_valor != valor_actual:
-        actualizar_campo_temporal(key_temp, campo, nuevo_valor)
-    
-    return nuevo_valor
-
-def crear_selector_fecha_simple(label, key_temp, campo, help_text=None):
-    """Selector de fecha SIN callbacks automáticos."""
-    valor_actual = obtener_valor_temporal(key_temp, campo, "")
-    
-    check_key = f"{key_temp}_{campo}_check_simple"
-    date_key = f"{key_temp}_{campo}_date_simple"
-    clear_key = f"{key_temp}_{campo}_clear_simple"
-    
-    col_check, col_fecha, col_borrar = st.columns([1, 6, 1])
-    
-    with col_check:
-        tiene_fecha = bool(valor_actual and valor_actual.strip())
-        usar_fecha = st.checkbox("📅", value=tiene_fecha, key=check_key, help="Marcar para usar fecha")
-        
-        if not usar_fecha and valor_actual:
-            actualizar_campo_temporal(key_temp, campo, "")
-    
-    with col_fecha:
-        if usar_fecha:
-            fecha_valor = fecha_para_selector(valor_actual) if valor_actual else datetime.now().date()
-            
-            nueva_fecha = st.date_input(
-                label,
-                value=fecha_valor,
-                key=date_key,
-                help=help_text
-            )
-            
-            fecha_str = fecha_desde_selector_a_string(nueva_fecha)
-            if fecha_str != valor_actual:
-                actualizar_campo_temporal(key_temp, campo, fecha_str)
-        else:
-            st.text_input(
-                label,
-                value="(Sin fecha asignada)",
-                disabled=True,
-                key=f"disabled_{date_key}"
-            )
-    
-    with col_borrar:
-        if usar_fecha:
-            if st.button("🗑️", key=clear_key, help="Limpiar fecha"):
-                actualizar_campo_temporal(key_temp, campo, "")
-                st.success("Fecha limpiada")
-                st.session_state[check_key] = False
-
-def mostrar_edicion_registros_corregida(registros_df):
-    """VERSIÓN CORREGIDA sin recargas automáticas."""
-    st.markdown('<div class="subtitle">Edición de Registros</div>', unsafe_allow_html=True)
-
-    st.info("Esta sección permite editar los datos. Los cambios se aplican al presionar 'Guardar Registro'.")
-
-    st.warning("""
-    **Importante**: 
-    - ⚠️ **Los cambios se mantienen temporalmente hasta que presione "Guardar Registro"**
-    - ✅ **El formulario NO se recarga automáticamente**
-    - Las validaciones se aplicarán automáticamente al guardar
-    """)
-    
-    if 'mensaje_guardado' in st.session_state and st.session_state.mensaje_guardado:
-        if st.session_state.mensaje_guardado[0] == "success":
-            st.success(st.session_state.mensaje_guardado[1])
-        else:
-            st.error(st.session_state.mensaje_guardado[1])
-        st.session_state.mensaje_guardado = None
-
-    st.markdown("### Edición Individual de Registros")
-
-    if registros_df.empty:
-        st.warning("No hay registros disponibles para editar.")
-        return registros_df
-
-    codigos_registros = registros_df['Cod'].astype(str).tolist()
-    entidades_registros = registros_df['Entidad'].tolist()
-    niveles_registros = registros_df['Nivel Información '].tolist()
-
-    opciones_registros = [f"{codigos_registros[i]} - {entidades_registros[i]} - {niveles_registros[i]}"
-                          for i in range(len(codigos_registros))]
-
-    seleccion_registro = st.selectbox(
-        "Seleccione un registro para editar:",
-        options=opciones_registros,
-        key="selector_registro_corregido"
-    )
-
-    indice_seleccionado = opciones_registros.index(seleccion_registro)
-    key_temp = inicializar_estado_temporal(indice_seleccionado, registros_df)
-    cambios_pendientes = hay_cambios_pendientes(key_temp)
-    
-    if cambios_pendientes:
-        st.warning("⚠️ **Hay cambios sin guardar.** Presione 'Guardar Registro' para aplicar los cambios.")
-
-    try:
-        row_original = registros_df.iloc[indice_seleccionado].copy()
-
-        with st.container():
-            st.markdown("---")
-            st.markdown(f"### Editando Registro #{row_original['Cod']} - {row_original['Entidad']}")
-            st.markdown(f"**Nivel de Información:** {row_original['Nivel Información ']}")
-            st.markdown("---")
-
-            # Información básica
-            st.markdown("### 1. Información Básica")
-            col1, col2, col3 = st.columns(3)
-
-            with col1:
-                st.text_input("Código", value=row_original['Cod'], disabled=True)
-
-            with col2:
-                crear_widget_simple(
-                    'selectbox',
-                    "Tipo de Dato",
-                    key_temp,
-                    'TipoDato',
-                    options=["", "Nuevo", "Actualizar"]
-                )
-
-            with col3:
-                meses = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
-                        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-                
-                crear_widget_simple(
-                    'selectbox',
-                    "Mes Proyectado",
-                    key_temp,
-                    'Mes Proyectado',
-                    options=meses
-                )
-
-            # Estados del proceso (simplificado)
-            st.markdown("### 2. Estados del Proceso")
-            col1, col2 = st.columns(2)
-
-            with col1:
-                crear_widget_simple(
-                    'selectbox',
-                    "Acuerdo de compromiso",
-                    key_temp,
-                    'Acuerdo de compromiso',
-                    options=["", "Si", "No"]
-                )
-
-            with col2:
-                opciones_estado = ["", "En proceso", "En proceso oficio de cierre", "Completado", "Finalizado"]
-                crear_widget_simple(
-                    'selectbox',
-                    "Estado",
-                    key_temp,
-                    'Estado',
-                    options=opciones_estado
-                )
-
-            # Funcionario
-            funcionarios = [""] + sorted([f for f in registros_df['Funcionario'].dropna().unique().tolist() if f])
-            crear_widget_simple(
-                'selectbox',
-                "Funcionario",
-                key_temp,
-                'Funcionario',
-                options=funcionarios
-            )
-
-            # Observación
-            crear_widget_simple(
-                'text_area',
-                "Observación",
-                key_temp,
-                'Observación',
-                height=100
-            )
-
-            # Botones de acción
-            st.markdown("---")
-            st.markdown("### Acciones")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                if cambios_pendientes:
-                    if st.button("💾 Guardar Registro", key=f"guardar_{key_temp}", type="primary"):
-                        with st.spinner("Guardando cambios..."):
-                            try:
-                                registros_df = aplicar_cambios_temporales(registros_df, indice_seleccionado, key_temp)
-                                registros_df = validar_reglas_negocio(registros_df)
-                                exito, mensaje = guardar_datos_editados(registros_df, crear_backup=True)
-
-                                if exito:
-                                    st.session_state.mensaje_guardado = ("success", f"✅ {mensaje}")
-                                    limpiar_estado_temporal(key_temp)
-                                    st.rerun()
-                                else:
-                                    st.session_state.mensaje_guardado = ("error", mensaje)
-                                    st.rerun()
-                                    
-                            except Exception as e:
-                                st.session_state.mensaje_guardado = ("error", f"❌ Error al guardar: {str(e)}")
-                                st.rerun()
-                else:
-                    st.button("💾 Guardar Registro", disabled=True, help="No hay cambios pendientes")
-
-            with col2:
-                if cambios_pendientes:
-                    if st.button("❌ Cancelar Cambios", key=f"cancelar_{key_temp}"):
-                        limpiar_estado_temporal(key_temp)
-                        st.success("Cambios cancelados")
-                        st.rerun()
-                else:
-                    st.button("❌ Cancelar Cambios", disabled=True, help="No hay cambios pendientes")
-
-    except Exception as e:
-        st.error(f"Error al editar el registro: {e}")
-
-    return registros_df
 
 if __name__ == "__main__":
     main()
