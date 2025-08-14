@@ -205,6 +205,10 @@ def procesar_fecha(fecha_str):
         if pd.isna(fecha_str):  # Comprobar si es NaT
             return None
         return fecha_str
+    
+    # CORRECCIÓN: Si es date, convertir a datetime
+    if isinstance(fecha_str, date):
+        return datetime.combine(fecha_str, datetime.min.time())
 
     # Si es un string, procesarlo
     try:
@@ -234,6 +238,7 @@ def es_fecha_valida(valor):
     except Exception:
         return False
 
+
 def formatear_fecha(fecha_str):
     """Formatea una fecha en formato DD/MM/YYYY manejando NaT."""
     try:
@@ -248,17 +253,21 @@ def formatear_fecha(fecha_str):
 def verificar_completado_por_fecha(fecha_programada, fecha_completado=None):
     """
     Verifica si una tarea está completada basada en fechas.
-    Si fecha_completado está presente, la tarea está completada.
-    Si no, se verifica si la fecha programada ya pasó.
+    CORREGIDO: Manejo seguro de tipos datetime
     """
     if fecha_completado is not None and pd.notna(fecha_completado):
         return True
 
-    fecha_actual = datetime.now()
+    fecha_actual = datetime.now()  # SIEMPRE datetime
     fecha_prog = procesar_fecha(fecha_programada)
 
-    if fecha_prog is not None and pd.notna(fecha_prog) and fecha_prog <= fecha_actual:
-        return True
+    if fecha_prog is not None and pd.notna(fecha_prog):
+        # CORRECCIÓN: Asegurar comparación entre datetime
+        if isinstance(fecha_prog, date) and not isinstance(fecha_prog, datetime):
+            fecha_prog = datetime.combine(fecha_prog, datetime.min.time())
+        
+        if fecha_prog <= fecha_actual:
+            return True
 
     return False
 
@@ -401,8 +410,8 @@ def procesar_metas(meta_df):
         return metas_nuevas_df, metas_actualizar_df
 
 def verificar_estado_fechas(row):
-    """Verifica si las fechas están vencidas o próximas a vencer."""
-    fecha_actual = datetime.now()
+    """Verifica si las fechas están vencidas o próximas a vencer - CORREGIDO."""
+    fecha_actual = datetime.now()  # SIEMPRE datetime, no date
     estado = "normal"  # Por defecto, estado normal
 
     # Lista de campos de fechas a verificar
@@ -416,6 +425,10 @@ def verificar_estado_fechas(row):
         if campo in row and pd.notna(row[campo]) and str(row[campo]).strip() != '':
             fecha = procesar_fecha(row[campo])
             if fecha is not None and pd.notna(fecha):
+                # CORRECCIÓN: Asegurar comparación entre datetime
+                if isinstance(fecha, date) and not isinstance(fecha, datetime):
+                    fecha = datetime.combine(fecha, datetime.min.time())
+                
                 # Si la fecha ya está vencida
                 if fecha < fecha_actual:
                     return "vencido"  # Prioridad alta, retornamos inmediatamente
@@ -583,8 +596,11 @@ def guardar_datos_editados_rapido(df, numero_fila=None):
 def contar_registros_completados_por_fecha(df, columna_fecha_programada, columna_fecha_completado):
     """
     Cuenta los registros que tienen una fecha de completado o cuya fecha programada ya pasó.
+    CORREGIDO: Manejo seguro de tipos datetime
     """
     count = 0
+    fecha_hoy = datetime.now()  # SIEMPRE datetime
+    
     for _, row in df.iterrows():
         if columna_fecha_programada in row and pd.notna(row[columna_fecha_programada]) and str(row[columna_fecha_programada]).strip() != '':
             fecha_programada = row[columna_fecha_programada]
