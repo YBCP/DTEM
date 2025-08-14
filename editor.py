@@ -532,9 +532,17 @@ def mostrar_edicion_registros(registros_df):
             
             st.info(f"**Próxima acción:** {proxima_accion}")
         
-        # ===== BOTÓN DE GUARDADO =====
+        # ===== BOTÓN DE GUARDADO - CORREGIDO =====
         st.markdown("---")
-        submitted = st.form_submit_button("💾 Guardar Registro", type="primary", use_container_width=True)
+        
+        # SOLUCIÓN: Botón submit dentro del form
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            submitted = st.form_submit_button(
+                "💾 Guardar Registro", 
+                type="primary", 
+                use_container_width=True
+            )
         
         if submitted:
             with st.spinner("💾 Guardando cambios..."):
