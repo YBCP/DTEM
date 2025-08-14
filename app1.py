@@ -3174,7 +3174,7 @@ def main():
             
             if verificar_autenticacion():
                 # Usuario autenticado - permitir edición
-                registros_df = mostrar_edicion_registros(registros_df)
+                registros_df = mostrar_edicion_registros_corregida(registros_df)
             else:
                 # Usuario no autenticado - mostrar mensaje
                 st.markdown('<div class="subtitle">🔐 Acceso Restringido - Edición de Registros</div>', unsafe_allow_html=True)
