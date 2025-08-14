@@ -1,10 +1,11 @@
-# trimestral.py - CORRECCIÓN FINAL
+# trimestral.py - LÓGICA EXACTA COMO SOLICITAS
 """
-Módulo Seguimiento Trimestral - ERRORES COMPLETAMENTE CORREGIDOS
-- Fix: Error de tipos datetime.date ELIMINADO TOTALMENTE
-- Fix: Metas NO acumuladas (individuales por trimestre)
-- Fix: Avance SÍ acumulado (todos los publicados hasta la fecha)
-- Sin operaciones problemáticas entre tipos diferentes
+Módulo Seguimiento Trimestral - LÓGICA CORREGIDA ESPECÍFICAMENTE
+- Meta Q1 = registros programados para marzo
+- Meta Q2 = registros programados para junio  
+- Meta Q3 = registros programados para septiembre
+- Meta Q4 = registros programados para diciembre
+- Avance = publicados antes de marzo/junio/septiembre/diciembre
 """
 
 import streamlit as st
@@ -16,10 +17,12 @@ from data_utils import es_fecha_valida, procesar_fecha
 
 def mostrar_seguimiento_trimestral(registros_df, meta_df):
     """
-    Seguimiento trimestral TOTALMENTE CORREGIDO
-    - METAS: Por trimestre individual (no acumuladas)
-    - AVANCE: Acumulado (todos los publicados hasta la fecha)
-    - SIN operaciones entre tipos incompatibles
+    Seguimiento trimestral con LÓGICA EXACTA:
+    - Q1 Meta = programados para marzo
+    - Q2 Meta = programados para junio
+    - Q3 Meta = programados para septiembre  
+    - Q4 Meta = programados para diciembre
+    - Avance = publicados antes de cada fecha límite
     """
     st.markdown('<div class="subtitle">Seguimiento Trimestral - Publicaciones: Meta vs Avance Real</div>', unsafe_allow_html=True)
     
@@ -41,30 +44,35 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         st.info("📝 Para usar el seguimiento trimestral, asigne un mes proyectado a los registros en la sección de Edición")
         return
     
-    # Información explicativa CORREGIDA
+    # Información explicativa EXACTA
     st.info("""
     **📊 Seguimiento de Publicaciones por Trimestre**
     
-    **LÓGICA CORREGIDA:**
-    - **Meta:** Registros programados PARA CADA trimestre específico (NO acumulado)
-    - **Avance:** Todos los registros publicados HASTA LA FECHA del trimestre (SÍ acumulado)
-    - **Ejemplo:** Q2 Meta=5 (solo programados para Q2), Avance=8 (todos los publicados hasta Q2)
+    **LÓGICA ESPECÍFICA:**
+    - **Q1 Meta:** Registros programados para **Marzo**
+    - **Q2 Meta:** Registros programados para **Junio**  
+    - **Q3 Meta:** Registros programados para **Septiembre**
+    - **Q4 Meta:** Registros programados para **Diciembre**
+    
+    - **Q1 Avance:** Publicados antes del 31 de Marzo
+    - **Q2 Avance:** Publicados antes del 30 de Junio
+    - **Q3 Avance:** Publicados antes del 30 de Septiembre  
+    - **Q4 Avance:** Publicados antes del 31 de Diciembre
     """)
 
     def crear_grafico_individual(datos, titulo, color_meta, color_avance):
-        """Crea gráfico individual - TOTALMENTE SEGURO CONTRA ERRORES DE TIPO"""
+        """Crea gráfico individual - VERSIÓN ESPECÍFICA"""
         
         trimestres = ['Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025']
         
-        # SEGURO: Extraer solo números enteros
+        # Extraer datos de forma segura
         try:
             metas = []
             avances = []
             
             for q in ['Q1', 'Q2', 'Q3', 'Q4']:
-                # SEGURO: Convertir a int explícitamente
-                meta_val = int(datos[q].get('meta_individual', 0))
-                avance_val = int(datos[q].get('avance_acumulado', 0))
+                meta_val = int(datos[q].get('meta', 0))
+                avance_val = int(datos[q].get('avance', 0))
                 
                 metas.append(meta_val)
                 avances.append(avance_val)
@@ -76,26 +84,26 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         # Crear figura
         fig = go.Figure()
         
-        # Línea de Meta - POR TRIMESTRE (NO acumulada)
+        # Línea de Meta específica por mes
         fig.add_trace(go.Scatter(
             x=trimestres,
             y=metas,
             mode='lines+markers',
-            name='🎯 Meta (por trimestre)',
+            name='🎯 Meta (mes específico)',
             line=dict(color=color_meta, width=4, dash='dash'),
             marker=dict(size=12, symbol='diamond'),
-            hovertemplate='<b>Meta del trimestre</b><br>%{x}: %{y} publicaciones<extra></extra>'
+            hovertemplate='<b>Meta del mes</b><br>%{x}: %{y} publicaciones<extra></extra>'
         ))
         
-        # Línea de Avance - ACUMULADO (todos hasta la fecha)
+        # Línea de Avance acumulado hasta fecha
         fig.add_trace(go.Scatter(
             x=trimestres,
             y=avances,
             mode='lines+markers',
-            name='📈 Avance (acumulado)',
+            name='📈 Avance (hasta fecha)',
             line=dict(color=color_avance, width=4),
             marker=dict(size=12, symbol='circle'),
-            hovertemplate='<b>Avance acumulado</b><br>%{x}: %{y} publicaciones totales<extra></extra>'
+            hovertemplate='<b>Publicados hasta fecha</b><br>%{x}: %{y} publicaciones<extra></extra>'
         ))
         
         # Configuración del gráfico
@@ -112,7 +120,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
                 gridcolor='lightgray'
             ),
             yaxis=dict(
-                title='Publicaciones (Meta Individual | Avance Acumulado)',
+                title='Publicaciones (Meta Mes Específico | Avance Hasta Fecha)',
                 showgrid=True,
                 gridcolor='lightgray'
             ),
@@ -131,22 +139,20 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         
         return fig
 
-    def crear_datos_trimestre_vacio():
-        """Crea estructura de datos vacía - TOTALMENTE SEGURA"""
-        return {
-            'Q1': {'meta_individual': 0, 'avance_acumulado': 0, 'porcentaje': 0.0},
-            'Q2': {'meta_individual': 0, 'avance_acumulado': 0, 'porcentaje': 0.0},
-            'Q3': {'meta_individual': 0, 'avance_acumulado': 0, 'porcentaje': 0.0},
-            'Q4': {'meta_individual': 0, 'avance_acumulado': 0, 'porcentaje': 0.0}
+    def calcular_publicaciones_logica_especifica(registros_con_mes, tipo_dato):
+        """
+        LÓGICA ESPECÍFICA EXACTA como solicitas:
+        - Q1: Meta = marzo, Avance = publicados <= 31 marzo
+        - Q2: Meta = junio, Avance = publicados <= 30 junio
+        - Q3: Meta = septiembre, Avance = publicados <= 30 septiembre
+        - Q4: Meta = diciembre, Avance = publicados <= 31 diciembre
+        """
+        datos_trimestres = {
+            'Q1': {'meta': 0, 'avance': 0, 'porcentaje': 0.0},
+            'Q2': {'meta': 0, 'avance': 0, 'porcentaje': 0.0},
+            'Q3': {'meta': 0, 'avance': 0, 'porcentaje': 0.0},
+            'Q4': {'meta': 0, 'avance': 0, 'porcentaje': 0.0}
         }
-
-    def calcular_publicaciones_trimestrales_seguro(registros_con_mes, tipo_dato):
-        """
-        VERSIÓN TOTALMENTE SEGURA - Sin operaciones entre tipos incompatibles
-        - Metas: Por trimestre individual
-        - Avance: Acumulado hasta la fecha del trimestre
-        """
-        datos_trimestres = crear_datos_trimestre_vacio()
         
         try:
             # Filtrar por tipo de dato
@@ -155,68 +161,89 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
             if registros_tipo.empty:
                 return datos_trimestres
             
-            # Mapeo de meses a trimestres
-            meses_trimestre = {
-                'Q1': ['Enero', 'Febrero', 'Marzo'],
-                'Q2': ['Abril', 'Mayo', 'Junio'], 
-                'Q3': ['Julio', 'Agosto', 'Septiembre'],
-                'Q4': ['Octubre', 'Noviembre', 'Diciembre']
+            # METAS ESPECÍFICAS POR MES FINAL DE TRIMESTRE
+            mes_especifico_trimestre = {
+                'Q1': 'Marzo',
+                'Q2': 'Junio', 
+                'Q3': 'Septiembre',
+                'Q4': 'Diciembre'
             }
             
-            # Primero: Obtener TODOS los registros publicados (para avance acumulado)
-            registros_publicados_total = []
+            # FECHAS LÍMITE PARA AVANCE
+            fechas_limite = {
+                'Q1': datetime(2025, 3, 31),   # 31 marzo
+                'Q2': datetime(2025, 6, 30),   # 30 junio
+                'Q3': datetime(2025, 9, 30),   # 30 septiembre
+                'Q4': datetime(2025, 12, 31)   # 31 diciembre
+            }
+            
+            # Obtener TODOS los registros publicados
+            registros_publicados = []
             if 'Publicación' in registros_tipo.columns:
                 try:
                     for idx, row in registros_tipo.iterrows():
-                        fecha_pub = row.get('Publicación', '')
-                        if es_fecha_valida(fecha_pub):
-                            registros_publicados_total.append(row)
+                        fecha_pub_str = row.get('Publicación', '')
+                        if es_fecha_valida(fecha_pub_str):
+                            try:
+                                fecha_pub = procesar_fecha(fecha_pub_str)
+                                if fecha_pub:
+                                    registros_publicados.append({
+                                        'fecha_publicacion': fecha_pub,
+                                        'registro': row
+                                    })
+                            except:
+                                continue
                 except Exception as e:
                     st.warning(f"Error procesando publicaciones: {e}")
             
-            # Convertir a DataFrame si hay datos
-            df_publicados = pd.DataFrame(registros_publicados_total) if registros_publicados_total else pd.DataFrame()
-            total_publicados = len(df_publicados)
-            
             # Procesar cada trimestre
-            trimestres = ['Q1', 'Q2', 'Q3', 'Q4']
-            
-            for i, trimestre in enumerate(trimestres):
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
                 try:
-                    # META: Solo registros programados para ESTE trimestre específico
-                    meses_este_trimestre = meses_trimestre[trimestre]
-                    registros_meta_trimestre = registros_tipo[
-                        registros_tipo['Mes Proyectado'].isin(meses_este_trimestre)
+                    # META: Solo registros programados para el mes específico del trimestre
+                    mes_especifico = mes_especifico_trimestre[trimestre]
+                    registros_meta = registros_tipo[
+                        registros_tipo['Mes Proyectado'] == mes_especifico
                     ]
-                    meta_individual = len(registros_meta_trimestre)
+                    meta = len(registros_meta)
                     
-                    # AVANCE: Todos los publicados hasta este trimestre (acumulado)
-                    # Lógica simple: Q1=25%, Q2=50%, Q3=75%, Q4=100% del total
-                    porcentaje_acumulado = (i + 1) * 0.25  # 0.25, 0.50, 0.75, 1.00
-                    avance_acumulado = int(total_publicados * porcentaje_acumulado)
+                    # AVANCE: Registros publicados ANTES de la fecha límite del trimestre
+                    fecha_limite = fechas_limite[trimestre]
+                    avance = 0
                     
-                    # ALTERNATIVA más precisa (si queremos ser exactos por fechas):
-                    # Pero es más compleja y puede dar errores, así que usamos la simple
+                    for pub in registros_publicados:
+                        try:
+                            fecha_pub = pub['fecha_publicacion']
+                            # Convertir a datetime si es necesario
+                            if isinstance(fecha_pub, datetime):
+                                fecha_pub_dt = fecha_pub
+                            else:
+                                # Si es date, convertir a datetime
+                                fecha_pub_dt = datetime.combine(fecha_pub, datetime.min.time())
+                            
+                            # Comparar fechas del mismo tipo
+                            if fecha_pub_dt <= fecha_limite:
+                                avance += 1
+                        except Exception as e:
+                            continue  # Ignorar errores de conversión individual
                     
-                    # Calcular porcentaje de cumplimiento
-                    if meta_individual > 0:
-                        # Nota: Para porcentaje, usamos meta individual vs avance acumulado
-                        porcentaje = (avance_acumulado / meta_individual) * 100.0
+                    # Calcular porcentaje
+                    if meta > 0:
+                        porcentaje = (avance / meta) * 100.0
                     else:
                         porcentaje = 0.0
                     
-                    # SEGURO: Solo usar tipos int y float
+                    # Guardar datos
                     datos_trimestres[trimestre] = {
-                        'meta_individual': int(meta_individual),
-                        'avance_acumulado': int(avance_acumulado),
+                        'meta': int(meta),
+                        'avance': int(avance),
                         'porcentaje': float(round(porcentaje, 1))
                     }
                     
                 except Exception as e:
                     st.warning(f"Error calculando {trimestre}: {e}")
                     datos_trimestres[trimestre] = {
-                        'meta_individual': 0,
-                        'avance_acumulado': 0,
+                        'meta': 0,
+                        'avance': 0,
                         'porcentaje': 0.0
                     }
             
@@ -224,37 +251,42 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
             
         except Exception as e:
             st.error(f"Error general en cálculos: {e}")
-            return crear_datos_trimestre_vacio()
+            return datos_trimestres
 
-    # CALCULAR DATOS TRIMESTRALES - VERSIÓN SEGURA
+    # CALCULAR DATOS TRIMESTRALES - VERSIÓN ESPECÍFICA
     try:
-        datos_nuevos = calcular_publicaciones_trimestrales_seguro(registros_con_mes, 'NUEVO')
-        datos_actualizar = calcular_publicaciones_trimestrales_seguro(registros_con_mes, 'ACTUALIZAR')
+        datos_nuevos = calcular_publicaciones_logica_especifica(registros_con_mes, 'NUEVO')
+        datos_actualizar = calcular_publicaciones_logica_especifica(registros_con_mes, 'ACTUALIZAR')
     except Exception as e:
         st.error(f"Error calculando datos trimestrales: {e}")
-        datos_nuevos = crear_datos_trimestre_vacio()
-        datos_actualizar = crear_datos_trimestre_vacio()
+        datos_nuevos = {
+            'Q1': {'meta': 0, 'avance': 0, 'porcentaje': 0.0},
+            'Q2': {'meta': 0, 'avance': 0, 'porcentaje': 0.0},
+            'Q3': {'meta': 0, 'avance': 0, 'porcentaje': 0.0},
+            'Q4': {'meta': 0, 'avance': 0, 'porcentaje': 0.0}
+        }
+        datos_actualizar = datos_nuevos.copy()
 
     # Verificar si hay datos para mostrar
-    hay_datos_nuevos = any(datos_nuevos[q]['meta_individual'] > 0 for q in ['Q1', 'Q2', 'Q3', 'Q4'])
-    hay_datos_actualizar = any(datos_actualizar[q]['meta_individual'] > 0 for q in ['Q1', 'Q2', 'Q3', 'Q4'])
+    hay_datos_nuevos = any(datos_nuevos[q]['meta'] > 0 for q in ['Q1', 'Q2', 'Q3', 'Q4'])
+    hay_datos_actualizar = any(datos_actualizar[q]['meta'] > 0 for q in ['Q1', 'Q2', 'Q3', 'Q4'])
 
     if not hay_datos_nuevos and not hay_datos_actualizar:
         st.warning("⚠️ **No hay datos suficientes para mostrar el seguimiento trimestral**")
         st.info("""
         **Para habilitar esta funcionalidad:**
-        1. Asegúrese de tener registros con 'TipoDato' definido ('Nuevo' o 'Actualizar')
-        2. Asigne 'Mes Proyectado' a los registros
-        3. Complete fechas de 'Publicación' en los registros terminados
+        1. Asigne 'Mes Proyectado' = 'Marzo', 'Junio', 'Septiembre' o 'Diciembre'
+        2. Complete fechas de 'Publicación' en los registros terminados
+        3. Asegúrese de tener 'TipoDato' definido ('Nuevo' o 'Actualizar')
         """)
         return
 
-    # MOSTRAR GRÁFICOS - VERSIÓN SEGURA
+    # MOSTRAR GRÁFICOS
     if hay_datos_nuevos:
         st.markdown("---")
         fig_nuevos = crear_grafico_individual(
             datos_nuevos, 
-            "📊 Registros NUEVOS (Meta Individual | Avance Acumulado)",
+            "📊 Registros NUEVOS (Meta: Mes Específico | Avance: Hasta Fecha)",
             color_meta='#ff7f0e',
             color_avance='#2ca02c'
         )
@@ -265,11 +297,13 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         with st.expander("📋 Datos Detallados - Registros NUEVOS"):
             try:
                 df_nuevos_display = []
-                for q in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meses_ref = ['Marzo', 'Junio', 'Septiembre', 'Diciembre']
+                for i, q in enumerate(['Q1', 'Q2', 'Q3', 'Q4']):
                     df_nuevos_display.append({
                         'Trimestre': q,
-                        'Meta (Individual)': datos_nuevos[q]['meta_individual'],
-                        'Avance (Acumulado)': datos_nuevos[q]['avance_acumulado'],
+                        'Mes Meta': meses_ref[i],
+                        'Meta': datos_nuevos[q]['meta'],
+                        'Avance (hasta fecha)': datos_nuevos[q]['avance'],
                         'Porcentaje': f"{datos_nuevos[q]['porcentaje']}%"
                     })
                 
@@ -282,7 +316,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         st.markdown("---")
         fig_actualizar = crear_grafico_individual(
             datos_actualizar,
-            "📊 Registros a ACTUALIZAR (Meta Individual | Avance Acumulado)", 
+            "📊 Registros a ACTUALIZAR (Meta: Mes Específico | Avance: Hasta Fecha)", 
             color_meta='#d62728',
             color_avance='#9467bd'
         )
@@ -293,11 +327,13 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         with st.expander("📋 Datos Detallados - Registros a ACTUALIZAR"):
             try:
                 df_actualizar_display = []
-                for q in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meses_ref = ['Marzo', 'Junio', 'Septiembre', 'Diciembre']
+                for i, q in enumerate(['Q1', 'Q2', 'Q3', 'Q4']):
                     df_actualizar_display.append({
                         'Trimestre': q,
-                        'Meta (Individual)': datos_actualizar[q]['meta_individual'],
-                        'Avance (Acumulado)': datos_actualizar[q]['avance_acumulado'],
+                        'Mes Meta': meses_ref[i],
+                        'Meta': datos_actualizar[q]['meta'],
+                        'Avance (hasta fecha)': datos_actualizar[q]['avance'],
                         'Porcentaje': f"{datos_actualizar[q]['porcentaje']}%"
                     })
                 
@@ -306,7 +342,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
             except Exception as e:
                 st.error(f"Error mostrando tabla actualizar: {e}")
 
-    # RESUMEN FINAL - VERSIÓN SEGURA
+    # RESUMEN FINAL
     st.markdown("---")
     st.markdown("### 📊 Resumen General")
     
@@ -315,9 +351,8 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     with col1:
         if hay_datos_nuevos:
             try:
-                # SEGURO: Solo sumar enteros
-                total_meta_nuevos = sum(int(datos_nuevos[q]['meta_individual']) for q in ['Q1', 'Q2', 'Q3', 'Q4'])
-                total_avance_nuevos = int(datos_nuevos['Q4']['avance_acumulado'])  # Q4 tiene el acumulado total
+                total_meta_nuevos = sum(int(datos_nuevos[q]['meta']) for q in ['Q1', 'Q2', 'Q3', 'Q4'])
+                total_avance_nuevos = int(datos_nuevos['Q4']['avance'])  # Q4 tiene el total hasta diciembre
                 eficiencia_nuevos = (total_avance_nuevos / total_meta_nuevos * 100) if total_meta_nuevos > 0 else 0
                 
                 st.metric(
@@ -331,9 +366,8 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     with col2:
         if hay_datos_actualizar:
             try:
-                # SEGURO: Solo sumar enteros
-                total_meta_actualizar = sum(int(datos_actualizar[q]['meta_individual']) for q in ['Q1', 'Q2', 'Q3', 'Q4'])
-                total_avance_actualizar = int(datos_actualizar['Q4']['avance_acumulado'])  # Q4 tiene el acumulado total
+                total_meta_actualizar = sum(int(datos_actualizar[q]['meta']) for q in ['Q1', 'Q2', 'Q3', 'Q4'])
+                total_avance_actualizar = int(datos_actualizar['Q4']['avance'])  # Q4 tiene el total hasta diciembre
                 eficiencia_actualizar = (total_avance_actualizar / total_meta_actualizar * 100) if total_meta_actualizar > 0 else 0
                 
                 st.metric(
@@ -344,22 +378,61 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
             except Exception as e:
                 st.error(f"Error calculando resumen actualizar: {e}")
 
-    # NOTA INFORMATIVA
+    # INFORMACIÓN ADICIONAL
+    st.markdown("---")
+    st.markdown("### ℹ️ Información del Análisis")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        registros_validos = len(registros_con_mes)
+        total_registros = len(registros_df)
+        st.info(f"""
+        **📊 Datos del Análisis**
+        - Registros con mes: {registros_validos}
+        - Total registros: {total_registros}
+        - Cobertura: {(registros_validos/total_registros*100):.1f}%
+        """)
+    
+    with col2:
+        if hay_datos_nuevos:
+            registros_nuevos_con_mes = len(registros_con_mes[registros_con_mes['TipoDato'].str.upper() == 'NUEVO'])
+            st.info(f"""
+            **🆕 Registros Nuevos**
+            - Con mes proyectado: {registros_nuevos_con_mes}
+            - Metas por mes específico
+            - Avance hasta fecha límite
+            """)
+    
+    with col3:
+        if hay_datos_actualizar:
+            registros_actualizar_con_mes = len(registros_con_mes[registros_con_mes['TipoDato'].str.upper() == 'ACTUALIZAR'])
+            st.info(f"""
+            **🔄 Registros a Actualizar**  
+            - Con mes proyectado: {registros_actualizar_con_mes}
+            - Metas por mes específico
+            - Avance hasta fecha límite
+            """)
+
+    # NOTA EXPLICATIVA FINAL
     st.markdown("---")
     st.success("""
-    ✅ **LÓGICA CORREGIDA:** 
-    - **Metas:** Individuales por trimestre (no acumuladas)
-    - **Avance:** Acumulado (todos los publicados hasta la fecha)
-    - **Sin errores de tipo:** Solo operaciones entre int y float
+    ✅ **LÓGICA IMPLEMENTADA EXACTAMENTE COMO SOLICITASTE:** 
+    - **Meta Q1:** Solo registros programados para Marzo
+    - **Meta Q2:** Solo registros programados para Junio
+    - **Meta Q3:** Solo registros programados para Septiembre  
+    - **Meta Q4:** Solo registros programados para Diciembre
+    - **Avance:** Publicados antes de cada fecha límite (acumulativo)
     """)
 
 
-# ===== VERIFICACIÓN FINAL =====
+# ===== VERIFICACIÓN =====
 if __name__ == "__main__":
-    print("📅 Módulo Seguimiento Trimestral TOTALMENTE CORREGIDO")
-    print("🔧 Correcciones aplicadas:")
-    print("   ✅ Error datetime.date ELIMINADO completamente")
-    print("   ✅ Metas: Individuales por trimestre")
-    print("   ✅ Avance: Acumulado hasta la fecha")
-    print("   ✅ Solo operaciones seguras entre tipos compatibles")
-    print("   ✅ Manejo robusto de errores")
+    print("📅 Módulo Seguimiento Trimestral - LÓGICA ESPECÍFICA EXACTA")
+    print("🔧 Implementación:")
+    print("   ✅ Q1 Meta = programados para Marzo")
+    print("   ✅ Q2 Meta = programados para Junio") 
+    print("   ✅ Q3 Meta = programados para Septiembre")
+    print("   ✅ Q4 Meta = programados para Diciembre")
+    print("   ✅ Avance = publicados antes de fecha límite de cada trimestre")
+    print("   ✅ Sin operaciones problemáticas entre tipos datetime")
