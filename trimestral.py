@@ -9,7 +9,7 @@ Módulo Seguimiento Trimestral - CORREGIDO
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from datetime import datetime
+from datetime import datetime, date
 from data_utils import es_fecha_valida, procesar_fecha, procesar_metas
 
 
