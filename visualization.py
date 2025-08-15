@@ -3,7 +3,8 @@ import numpy as np
 import plotly.express as px
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date 
+import re  
 import streamlit as st
 from data_utils import procesar_fecha, verificar_completado_por_fecha, es_fecha_valida
 
