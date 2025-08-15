@@ -4,7 +4,7 @@ import io
 import re
 import os
 import streamlit as st
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date  
 from constants import REGISTROS_DATA, META_DATA
 from sheets_utils import get_sheets_manager
 
