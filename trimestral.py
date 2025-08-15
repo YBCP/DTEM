@@ -24,8 +24,8 @@ def extraer_metas_desde_google_sheets(meta_df):
         
         # 🔧 CORRECCIÓN: Fechas EXACTAS por trimestre
         fechas_objetivo = {
-            'Q1': ['31/01/2025'],  # Q1 = 31 enero EXACTO
-            'Q2': ['31/03/2025'],  # Q2 = 31 marzo EXACTO
+            'Q1': ['31/03/2025'],  # Q1 = 31 marzo EXACTO
+            'Q2': ['30/06/2025'],  # Q2 = 30 junio EXACTO
             'Q3': ['30/09/2025'],  # Q3 = 30 septiembre EXACTO
             'Q4': ['31/12/2025']   # Q4 = 31 diciembre EXACTO
         }
