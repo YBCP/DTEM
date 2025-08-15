@@ -16,19 +16,18 @@ from data_utils import es_fecha_valida, procesar_fecha, procesar_metas
 def extraer_metas_desde_google_sheets(meta_df):
     """
     Extrae las metas trimestrales desde la hoja METAS de Google Sheets
-    Busca datos de enero, marzo, septiembre y diciembre
+    Q1 = 31 enero, Q2 = 31 marzo, Q3 = 30 septiembre, Q4 = 31 diciembre
     """
     try:
         # Procesar metas para obtener estructura usable
         metas_nuevas_df, metas_actualizar_df = procesar_metas(meta_df)
         
-        # CORREGIDO: Mapeo correcto por cortes trimestrales
-        # Q1 = Marzo, Q2 = Junio, Q3 = Septiembre, Q4 = Diciembre
+        # 🔧 CORRECCIÓN: Fechas EXACTAS por trimestre
         fechas_objetivo = {
-            'Q1': ['15/03/2025', '31/03/2025', '28/02/2025', '15/02/2025', '31/01/2025'],  # Meta Q1 = MARZO
-            'Q2': ['15/06/2025', '30/06/2025', '31/05/2025', '15/05/2025', '30/04/2025'],  # Meta Q2 = JUNIO
-            'Q3': ['15/09/2025', '30/09/2025', '31/08/2025', '15/08/2025', '31/07/2025'],  # Meta Q3 = SEPTIEMBRE
-            'Q4': ['15/12/2025', '31/12/2025', '30/11/2025', '15/11/2025', '31/10/2025']   # Meta Q4 = DICIEMBRE
+            'Q1': ['31/01/2025'],  # Q1 = 31 enero EXACTO
+            'Q2': ['31/03/2025'],  # Q2 = 31 marzo EXACTO
+            'Q3': ['30/09/2025'],  # Q3 = 30 septiembre EXACTO
+            'Q4': ['31/12/2025']   # Q4 = 31 diciembre EXACTO
         }
         
         metas_trimestrales = {
@@ -36,9 +35,8 @@ def extraer_metas_desde_google_sheets(meta_df):
             'actualizar': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
         }
         
-        # Extraer metas por trimestre
+        # Buscar metas por fecha EXACTA
         for trimestre, fechas_candidatas in fechas_objetivo.items():
-            # Buscar la mejor fecha disponible en las metas
             meta_nueva_encontrada = 0
             meta_actualizar_encontrada = 0
             
@@ -46,35 +44,26 @@ def extraer_metas_desde_google_sheets(meta_df):
                 try:
                     fecha_buscar = procesar_fecha(fecha_str)
                     if fecha_buscar is not None:
-                        # Buscar en metas nuevas
-                        if fecha_buscar in metas_nuevas_df.index:
-                            meta_nueva_encontrada = metas_nuevas_df.loc[fecha_buscar, 'Publicación']
-                            break
+                        # Buscar coincidencia EXACTA por fecha
+                        for fecha_disponible in metas_nuevas_df.index:
+                            fecha_disponible_date = fecha_disponible.date() if hasattr(fecha_disponible, 'date') else fecha_disponible
+                            fecha_buscar_date = fecha_buscar.date() if hasattr(fecha_buscar, 'date') else fecha_buscar
+                            
+                            if fecha_disponible_date == fecha_buscar_date:
+                                meta_nueva_encontrada = metas_nuevas_df.loc[fecha_disponible, 'Publicación']
+                                break
                         
-                        # Buscar fecha más cercana
-                        fechas_disponibles = metas_nuevas_df.index
-                        if len(fechas_disponibles) > 0:
-                            fecha_mas_cercana = min(fechas_disponibles, 
-                                                  key=lambda x: abs((x - fecha_buscar).days))
-                            meta_nueva_encontrada = metas_nuevas_df.loc[fecha_mas_cercana, 'Publicación']
-                            break
-                except:
-                    continue
-            
-            # Mismo proceso para actualizar
-            for fecha_str in fechas_candidatas:
-                try:
-                    fecha_buscar = procesar_fecha(fecha_str)
-                    if fecha_buscar is not None:
-                        if fecha_buscar in metas_actualizar_df.index:
-                            meta_actualizar_encontrada = metas_actualizar_df.loc[fecha_buscar, 'Publicación']
-                            break
+                        # Mismo proceso para metas_actualizar_df
+                        for fecha_disponible in metas_actualizar_df.index:
+                            fecha_disponible_date = fecha_disponible.date() if hasattr(fecha_disponible, 'date') else fecha_disponible
+                            fecha_buscar_date = fecha_buscar.date() if hasattr(fecha_buscar, 'date') else fecha_buscar
+                            
+                            if fecha_disponible_date == fecha_buscar_date:
+                                meta_actualizar_encontrada = metas_actualizar_df.loc[fecha_disponible, 'Publicación']
+                                break
                         
-                        fechas_disponibles = metas_actualizar_df.index
-                        if len(fechas_disponibles) > 0:
-                            fecha_mas_cercana = min(fechas_disponibles,
-                                                  key=lambda x: abs((x - fecha_buscar).days))
-                            meta_actualizar_encontrada = metas_actualizar_df.loc[fecha_mas_cercana, 'Publicación']
+                        # Si encontramos coincidencia exacta, parar
+                        if meta_nueva_encontrada > 0 or meta_actualizar_encontrada > 0:
                             break
                 except:
                     continue
@@ -91,12 +80,10 @@ def extraer_metas_desde_google_sheets(meta_df):
         
     except Exception as e:
         st.warning(f"Error extrayendo metas: {e}")
-        # Retornar estructura vacía por defecto
         return {
             'nuevos': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
             'actualizar': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
         }
-
 
 def calcular_avance_publicaciones_corregido(registros_df, tipo_dato):
     """
