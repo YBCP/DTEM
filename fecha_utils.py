@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import pandas as pd
 import re
 
@@ -96,18 +96,20 @@ def calcular_plazo_analisis(fecha_entrega):
     if fecha is None or pd.isna(fecha):
         return None
 
-    # CORRECCIÓN: Asegurar que trabajamos con datetime
-    if hasattr(fecha, 'date'):
-        fecha_actual = fecha  # Ya es datetime
+    # 🔧 CORRECCIÓN CRÍTICA: Asegurar que trabajamos SIEMPRE con datetime
+    if isinstance(fecha, date) and not isinstance(fecha, datetime):
+        fecha_actual = datetime.combine(fecha, datetime.min.time())
+    elif isinstance(fecha, datetime):
+        fecha_actual = fecha
     else:
-        fecha_actual = datetime.combine(fecha, datetime.min.time())  # Convertir date a datetime
+        return None
 
     # Contador de días hábiles
     dias_habiles = 0
 
     # Calcular 5 días hábiles a partir de la fecha de entrega
     while dias_habiles < 5:
-        # Avanzar un día - CORRECCIÓN: usar timedelta correctamente
+        # Avanzar un día usando timedelta
         fecha_actual = fecha_actual + timedelta(days=1)
 
         # Verificar si es día hábil (no es fin de semana ni festivo)
