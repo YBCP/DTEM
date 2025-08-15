@@ -146,9 +146,7 @@ def crear_fecha_input_simple(label, fecha_actual, key_suffix, help_text=None):
 
 def mostrar_edicion_registros(registros_df):
     """
-    Editor MEJORADO:
-    - Funcionario integrado en información básica
-    - Fechas simples que se pueden borrar directamente
+    Editor MEJORADO con botón submit DENTRO del form
     """
     
     st.markdown('<div class="subtitle">Editor de Registros</div>', unsafe_allow_html=True)
@@ -188,7 +186,7 @@ def mostrar_edicion_registros(registros_df):
     st.markdown(f"**Nivel de Información:** {row_original['Nivel Información ']}")
     st.markdown("---")
     
-    # ===== FORMULARIO MEJORADO =====
+    # ===== FORMULARIO COMPLETO CON BOTÓN SUBMIT DENTRO =====
     with st.form(f"form_edicion_v3_{indice_seleccionado}", clear_on_submit=False):
         
         # ===== SECCIÓN 1: INFORMACIÓN BÁSICA (CON FUNCIONARIO INTEGRADO) =====
@@ -532,10 +530,9 @@ def mostrar_edicion_registros(registros_df):
             
             st.info(f"**Próxima acción:** {proxima_accion}")
         
-        # ===== BOTÓN DE GUARDADO - CORREGIDO =====
+        # ===== BOTÓN DE GUARDADO - DENTRO DEL FORM =====
         st.markdown("---")
         
-        # SOLUCIÓN: Botón submit dentro del form
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             submitted = st.form_submit_button(
@@ -628,7 +625,7 @@ def mostrar_edicion_registros(registros_df):
                 except Exception as e:
                     st.error(f"❌ Error al guardar: {str(e)}")
     
-    # ===== INFORMACIÓN ADICIONAL =====
+    # ===== INFORMACIÓN ADICIONAL - FUERA DEL FORM =====
     st.markdown("---")
     st.markdown("### ℹ️ Guía de Uso del Editor")
     
