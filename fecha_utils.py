@@ -133,18 +133,20 @@ def calcular_plazo_cronograma(fecha_plazo_analisis):
     if fecha is None or pd.isna(fecha):
         return None
 
-    # CORRECCIÓN: Asegurar que trabajamos con datetime
-    if hasattr(fecha, 'date'):
-        fecha_actual = fecha  # Ya es datetime
+    # 🔧 CORRECCIÓN CRÍTICA: Asegurar que trabajamos SIEMPRE con datetime
+    if isinstance(fecha, date) and not isinstance(fecha, datetime):
+        fecha_actual = datetime.combine(fecha, datetime.min.time())
+    elif isinstance(fecha, datetime):
+        fecha_actual = fecha
     else:
-        fecha_actual = datetime.combine(fecha, datetime.min.time())  # Convertir date a datetime
+        return None
 
     # Contador de días hábiles
     dias_habiles = 0
 
     # Calcular 3 días hábiles a partir del plazo de análisis
     while dias_habiles < 3:
-        # Avanzar un día - CORRECCIÓN: usar timedelta correctamente
+        # Avanzar un día usando timedelta
         fecha_actual = fecha_actual + timedelta(days=1)
 
         # Verificar si es día hábil (no es fin de semana ni festivo)
@@ -168,18 +170,20 @@ def calcular_plazo_oficio_cierre(fecha_publicacion):
     if fecha is None or pd.isna(fecha):
         return None
 
-    # CORRECCIÓN: Asegurar que trabajamos con datetime
-    if hasattr(fecha, 'date'):
-        fecha_actual = fecha  # Ya es datetime
+    # 🔧 CORRECCIÓN CRÍTICA: Asegurar que trabajamos SIEMPRE con datetime
+    if isinstance(fecha, date) and not isinstance(fecha, datetime):
+        fecha_actual = datetime.combine(fecha, datetime.min.time())
+    elif isinstance(fecha, datetime):
+        fecha_actual = fecha
     else:
-        fecha_actual = datetime.combine(fecha, datetime.min.time())  # Convertir date a datetime
+        return None
 
     # Contador de días hábiles
     dias_habiles = 0
 
     # Calcular 7 días hábiles a partir de la fecha de publicación
     while dias_habiles < 7:
-        # Avanzar un día - CORRECCIÓN: usar timedelta correctamente
+        # Avanzar un día usando timedelta
         fecha_actual = fecha_actual + timedelta(days=1)
 
         # Verificar si es día hábil (no es fin de semana ni festivo)
@@ -191,6 +195,7 @@ def calcular_plazo_oficio_cierre(fecha_publicacion):
 
     # Retornar la fecha calculada
     return fecha_actual
+
 
 
 def actualizar_plazo_analisis(df):
