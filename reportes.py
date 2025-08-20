@@ -319,13 +319,34 @@ def mostrar_reportes_corregido(registros_df, entidad_reporte='Todas', tipo_dato_
             if campo in df_mostrar.columns:
                 df_mostrar[campo] = df_mostrar[campo].apply(formatear_fecha)
         
-        # Mostrar tabla con estilo
-        st.dataframe(
-            df_mostrar.style.format({
+        # Mostrar tabla con estilo (CORREGIDO para pandas reciente)
+        try:
+            # Intentar con estilos completos
+            styled_df = df_mostrar.style.format({
                 'Porcentaje Avance': '{:.1f}%'
-            } if 'Porcentaje Avance' in df_mostrar.columns else {}),
-            use_container_width=True
-        )
+            } if 'Porcentaje Avance' in df_mostrar.columns else {})
+            
+            # Aplicar gradiente si la columna existe
+            if 'Porcentaje Avance' in df_mostrar.columns:
+                styled_df = styled_df.background_gradient(cmap='RdYlGn', subset=['Porcentaje Avance'])
+            
+            # Aplicar highlight_null con sintaxis compatible
+            try:
+                styled_df = styled_df.highlight_null(color='#f0f0f0')
+            except TypeError:
+                # Si no funciona, usar sin parámetros
+                try:
+                    styled_df = styled_df.highlight_null()
+                except:
+                    # Si aún falla, continuar sin highlight_null
+                    pass
+            
+            st.dataframe(styled_df, use_container_width=True)
+            
+        except Exception as e:
+            # Si cualquier estilo falla, mostrar tabla simple
+            st.dataframe(df_mostrar, use_container_width=True)
+            st.caption(f"⚠️ Estilos no aplicados (pandas version): {str(e)}")
         
     except Exception as e:
         st.error(f"❌ Error mostrando tabla detallada: {str(e)}")
@@ -563,4 +584,22 @@ def validar_reportes_funcionando():
 if __name__ == "__main__":
     print("📊 MÓDULO DE REPORTES TOTALMENTE CORREGIDO")
     print("="*60)
-    print
+    print("🔧 Funcionalidades incluidas:")
+    for func in validar_reportes_funcionando():
+        print(f"   {func}")
+    
+    print("\n🧪 Ejecutando test básico...")
+    df_test = test_reportes_basico()
+    
+    print(f"\n📊 Resumen del test:")
+    print(f"   - Datos de prueba: {len(df_test)} registros")
+    print(f"   - Avance promedio: {df_test['Porcentaje Avance'].mean():.1f}%")
+    print(f"   - Registros completados: {len(df_test[df_test['Porcentaje Avance'] == 100])}")
+    
+    print("\n✅ MÓDULO LISTO PARA USAR")
+    print("📝 Instrucciones de instalación:")
+    print("   1. Guardar como reportes_corregido.py")
+    print("   2. En app1.py cambiar: from reportes import mostrar_reportes")
+    print("      por: from reportes_corregido import mostrar_reportes")
+    print("   3. Reiniciar Streamlit: streamlit run app1.py")
+    print("   4. Probar la pestaña de Reportes")
