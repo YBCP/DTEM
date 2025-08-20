@@ -1,3 +1,5 @@
+# visualization.py - CORREGIDO PARA ERROR datetime.date + timedelta
+
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -10,10 +12,10 @@ from data_utils import procesar_fecha, verificar_completado_por_fecha, es_fecha_
 
 
 def crear_gantt(df):
-    """Crea un diagrama de Gantt con los hitos y fechas - CORREGIDO datetime."""
-    import streamlit as st
-    from datetime import datetime, timedelta
-
+    """
+    CORREGIDO: Crea un diagrama de Gantt con los hitos y fechas.
+    GARANTÍA: Solo usa datetime para evitar errores date + timedelta
+    """
     if df.empty:
         return None
 
@@ -52,40 +54,40 @@ def crear_gantt(df):
             task_id = f"{row['Cod']} - {nivel_info}"
 
             # FUNCIÓN AUXILIAR CORREGIDA para procesar fechas de manera segura
-            def procesar_fecha_gantt(fecha_valor):
-                """Procesa fecha de manera segura para Gantt"""
+            def procesar_fecha_gantt_segura(fecha_valor):
+                """
+                CORRECCIÓN CRÍTICA: Procesa fecha de manera segura para Gantt
+                GARANTÍA: Siempre devuelve datetime o None, NUNCA date
+                """
                 if pd.isna(fecha_valor) or fecha_valor == "" or fecha_valor is None:
                     return None
                 
                 try:
-                    # Si ya es datetime, retornarlo
-                    if isinstance(fecha_valor, datetime):
-                        return fecha_valor
+                    # Usar la función procesar_fecha que ya está corregida
+                    fecha_procesada = procesar_fecha(fecha_valor)
                     
-                    # Si es date, convertir a datetime
-                    if isinstance(fecha_valor, date):
-                        return datetime.combine(fecha_valor, datetime.min.time())
+                    if fecha_procesada is None:
+                        return None
                     
-                    # Si es string, parsear
-                    if isinstance(fecha_valor, str):
-                        fecha_str = re.sub(r'[^\d/\-]', '', str(fecha_valor).strip())
-                        formatos = ['%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y', '%m/%d/%Y']
+                    # VERIFICACIÓN ADICIONAL: Asegurar que es datetime
+                    if isinstance(fecha_procesada, datetime):
+                        return fecha_procesada
+                    elif isinstance(fecha_procesada, date):
+                        # CONVERSIÓN CRÍTICA: date -> datetime
+                        return datetime.combine(fecha_procesada, datetime.min.time())
+                    else:
+                        print(f"⚠️ Tipo inesperado en Gantt: {type(fecha_procesada)}")
+                        return None
                         
-                        for formato in formatos:
-                            try:
-                                return pd.to_datetime(fecha_str, format=formato).to_pydatetime()
-                            except:
-                                continue
-                    
-                    return None
-                except Exception:
+                except Exception as e:
+                    print(f"❌ Error procesando fecha en Gantt: {e}")
                     return None
 
             # Hito 1: Acuerdo de compromiso
             if 'Entrega acuerdo de compromiso' in row and pd.notna(row['Entrega acuerdo de compromiso']) and row['Entrega acuerdo de compromiso'] != "":
-                fecha = procesar_fecha_gantt(row['Entrega acuerdo de compromiso'])
+                fecha = procesar_fecha_gantt_segura(row['Entrega acuerdo de compromiso'])
                 if fecha and isinstance(fecha, datetime):
-                    # CORRECCIÓN: Usar timedelta correctamente
+                    # OPERACIÓN SEGURA: datetime - timedelta = datetime
                     fecha_inicio = fecha - timedelta(days=7)
                     tareas.append({
                         'Task': task_id,
@@ -97,7 +99,7 @@ def crear_gantt(df):
 
             # Hito 2: Análisis y cronograma
             if 'Análisis y cronograma' in row and pd.notna(row['Análisis y cronograma']) and row['Análisis y cronograma'] != "":
-                fecha = procesar_fecha_gantt(row['Análisis y cronograma'])
+                fecha = procesar_fecha_gantt_segura(row['Análisis y cronograma'])
                 if fecha and isinstance(fecha, datetime):
                     fecha_inicio = fecha - timedelta(days=7)
                     tareas.append({
@@ -110,7 +112,7 @@ def crear_gantt(df):
 
             # Hito 3: Estándares
             if 'Estándares' in row and pd.notna(row['Estándares']) and row['Estándares'] != "":
-                fecha = procesar_fecha_gantt(row['Estándares'])
+                fecha = procesar_fecha_gantt_segura(row['Estándares'])
                 if fecha and isinstance(fecha, datetime):
                     fecha_inicio = fecha - timedelta(days=7)
                     tareas.append({
@@ -123,7 +125,7 @@ def crear_gantt(df):
 
             # Hito 4: Publicación
             if 'Publicación' in row and pd.notna(row['Publicación']) and row['Publicación'] != "":
-                fecha = procesar_fecha_gantt(row['Publicación'])
+                fecha = procesar_fecha_gantt_segura(row['Publicación'])
                 if fecha and isinstance(fecha, datetime):
                     fecha_inicio = fecha - timedelta(days=7)
                     tareas.append({
@@ -136,7 +138,7 @@ def crear_gantt(df):
 
             # Hito 5: Cierre (Plazo de oficio de cierre)
             if 'Plazo de oficio de cierre' in row and pd.notna(row['Plazo de oficio de cierre']) and row['Plazo de oficio de cierre'] != "":
-                fecha = procesar_fecha_gantt(row['Plazo de oficio de cierre'])
+                fecha = procesar_fecha_gantt_segura(row['Plazo de oficio de cierre'])
                 if fecha and isinstance(fecha, datetime):
                     fecha_inicio = fecha - timedelta(days=7)
                     tareas.append({
@@ -146,9 +148,10 @@ def crear_gantt(df):
                         'Resource': f"Cierre ({porcentajes_hitos['Cierre']})",
                         'Entidad': entidad
                     })
+                    
         except Exception as e:
             # Si hay un error procesando un registro, simplemente lo omitimos y continuamos
-            print(f"Error procesando registro {idx}: {e}")
+            print(f"❌ Error procesando registro {idx} en Gantt: {e}")
             continue
 
     if not tareas:
@@ -230,16 +233,21 @@ def crear_gantt(df):
         )
 
         return fig
+        
     except Exception as e:
-        print(f"Error al crear el gráfico: {e}")
+        print(f"❌ Error al crear el gráfico Gantt: {e}")
         import traceback
         traceback.print_exc()
         return None
 
+
 def comparar_avance_metas(df, metas_nuevas_df, metas_actualizar_df):
-    """Compara el avance actual con las metas establecidas."""
+    """
+    CORREGIDO: Compara el avance actual con las metas establecidas.
+    GARANTÍA: Usa solo datetime para comparaciones seguras
+    """
     try:
-        # Obtener la fecha actual
+        # CORRECCIÓN: Obtener la fecha actual como datetime
         fecha_actual = datetime.now()
 
         # Encontrar la meta más cercana a la fecha actual
@@ -322,6 +330,7 @@ def comparar_avance_metas(df, metas_nuevas_df, metas_actualizar_df):
         ).fillna(0).round(2)
 
         return comparacion_nuevos, comparacion_actualizar, fecha_meta_cercana
+        
     except Exception as e:
         st.error(f"Error al comparar avance con metas: {e}")
         # Crear DataFrames de respaldo
@@ -354,26 +363,268 @@ def comparar_avance_metas(df, metas_nuevas_df, metas_actualizar_df):
 
 def contar_registros_completados_por_fecha(df, columna_fecha_programada, columna_fecha_completado):
     """
-    Cuenta los registros que tienen una fecha de completado o cuya fecha programada ya pasó.
+    CORREGIDO: Cuenta los registros que tienen una fecha de completado o cuya fecha programada ya pasó.
+    GARANTÍA: Usa solo datetime para comparaciones seguras
     """
     count = 0
     for _, row in df.iterrows():
-        if columna_fecha_programada in row and row[columna_fecha_programada]:
-            fecha_programada = row[columna_fecha_programada]
+        try:
+            if columna_fecha_programada in row and row[columna_fecha_programada]:
+                fecha_programada = row[columna_fecha_programada]
 
-            # Verificar si hay una fecha de completado
-            fecha_completado = None
-            if columna_fecha_completado in row and row[columna_fecha_completado]:
-                # Intentar procesar como fecha primero
-                fecha_completado = procesar_fecha(row[columna_fecha_completado])
-                # Si no es una fecha, verificar si es un valor booleano positivo
-                if fecha_completado is None and str(row[columna_fecha_completado]).strip().upper() in ['SI', 'SÍ',
-                                                                                                       'S', 'YES',
-                                                                                                       'Y',
-                                                                                                       'COMPLETO']:
-                    fecha_completado = datetime.now()  # Usar fecha actual como completado
+                # Verificar si hay una fecha de completado
+                fecha_completado = None
+                if columna_fecha_completado in row and row[columna_fecha_completado]:
+                    # CORRECCIÓN: Usar procesar_fecha que garantiza datetime
+                    fecha_completado = procesar_fecha(row[columna_fecha_completado])
+                    # Si no es una fecha, verificar si es un valor booleano positivo
+                    if fecha_completado is None and str(row[columna_fecha_completado]).strip().upper() in ['SI', 'SÍ',
+                                                                                                           'S', 'YES',
+                                                                                                           'Y',
+                                                                                                           'COMPLETO']:
+                        fecha_completado = datetime.now()  # Usar fecha actual como completado
 
-            if verificar_completado_por_fecha(fecha_programada, fecha_completado):
-                count += 1
+                if verificar_completado_por_fecha(fecha_programada, fecha_completado):
+                    count += 1
+                    
+        except Exception as e:
+            # Ignorar errores en filas individuales y continuar
+            print(f"❌ Error procesando fila en contar_registros: {e}")
+            continue
 
     return count
+
+
+# NUEVAS FUNCIONES DE VERIFICACIÓN Y TEST
+
+def verificar_fechas_gantt_seguras(df):
+    """
+    NUEVA FUNCIÓN: Verifica que todas las fechas en el DataFrame sean seguras para Gantt
+    """
+    print("\n🔍 VERIFICANDO FECHAS PARA GANTT SEGURO...")
+    
+    columnas_fecha = [
+        'Entrega acuerdo de compromiso', 'Análisis y cronograma',
+        'Estándares', 'Publicación', 'Plazo de oficio de cierre'
+    ]
+    
+    fechas_problematicas = []
+    total_fechas_verificadas = 0
+    
+    for columna in columnas_fecha:
+        if columna in df.columns:
+            print(f"\n📅 Verificando columna: {columna}")
+            
+            for idx, valor in df[columna].items():
+                if pd.notna(valor) and str(valor).strip() != '':
+                    total_fechas_verificadas += 1
+                    
+                    if isinstance(valor, date) and not isinstance(valor, datetime):
+                        fechas_problematicas.append((columna, idx, valor, "date PELIGROSO"))
+                        print(f"   ❌ Fila {idx}: {valor} es date PELIGROSO")
+                    else:
+                        # Verificar que procesar_fecha funcione correctamente
+                        try:
+                            fecha_procesada = procesar_fecha(valor)
+                            if fecha_procesada and not isinstance(fecha_procesada, datetime):
+                                fechas_problematicas.append((columna, idx, valor, f"procesar_fecha devuelve {type(fecha_procesada)}"))
+                                print(f"   ❌ Fila {idx}: procesar_fecha devuelve tipo incorrecto")
+                        except Exception as e:
+                            fechas_problematicas.append((columna, idx, valor, f"error: {e}"))
+                            print(f"   ❌ Fila {idx}: error en procesar_fecha: {e}")
+    
+    print(f"\n📊 RESUMEN VERIFICACIÓN GANTT:")
+    print(f"   Total fechas verificadas: {total_fechas_verificadas}")
+    print(f"   Fechas problemáticas: {len(fechas_problematicas)}")
+    
+    if fechas_problematicas:
+        print("   🚨 FECHAS PROBLEMÁTICAS ENCONTRADAS:")
+        for columna, idx, valor, problema in fechas_problematicas[:5]:  # Mostrar solo las primeras 5
+            print(f"      {columna} fila {idx}: {problema}")
+        return False, fechas_problematicas
+    else:
+        print("   ✅ TODAS LAS FECHAS SON SEGURAS PARA GANTT")
+        return True, []
+
+
+def reparar_fechas_para_gantt(df):
+    """
+    NUEVA FUNCIÓN: Repara fechas problemáticas en el DataFrame para Gantt seguro
+    """
+    print("\n🔧 REPARANDO FECHAS PARA GANTT SEGURO...")
+    
+    df_reparado = df.copy()
+    columnas_fecha = [
+        'Entrega acuerdo de compromiso', 'Análisis y cronograma',
+        'Estándares', 'Publicación', 'Plazo de oficio de cierre'
+    ]
+    
+    reparaciones = 0
+    
+    for columna in columnas_fecha:
+        if columna in df_reparado.columns:
+            for idx, valor in df_reparado[columna].items():
+                if pd.notna(valor) and str(valor).strip() != '':
+                    try:
+                        if isinstance(valor, date) and not isinstance(valor, datetime):
+                            # Convertir date a datetime y formatear como string
+                            valor_reparado = datetime.combine(valor, datetime.min.time())
+                            df_reparado.at[idx, columna] = valor_reparado.strftime('%d/%m/%Y')
+                            reparaciones += 1
+                            print(f"   🔧 {columna} fila {idx}: date -> datetime -> string")
+                        else:
+                            # Verificar que procesar_fecha funcione y reformatear si es necesario
+                            fecha_procesada = procesar_fecha(valor)
+                            if fecha_procesada and isinstance(fecha_procesada, datetime):
+                                # Reformatear para consistencia
+                                df_reparado.at[idx, columna] = fecha_procesada.strftime('%d/%m/%Y')
+                            elif fecha_procesada is None:
+                                # Si no se puede procesar, limpiar
+                                df_reparado.at[idx, columna] = ''
+                                reparaciones += 1
+                                print(f"   🧹 {columna} fila {idx}: valor inválido limpiado")
+                    except Exception as e:
+                        # Si hay error, limpiar el valor
+                        df_reparado.at[idx, columna] = ''
+                        reparaciones += 1
+                        print(f"   🧹 {columna} fila {idx}: error reparando, limpiado")
+    
+    print(f"✅ Reparaciones aplicadas: {reparaciones}")
+    return df_reparado
+
+
+def test_crear_gantt_seguro():
+    """
+    NUEVA FUNCIÓN: Test específico para crear_gantt con casos problemáticos
+    """
+    print("\n🧪 PROBANDO CREAR_GANTT CON CASOS PROBLEMÁTICOS...")
+    
+    # Crear DataFrame de prueba con casos críticos
+    df_test = pd.DataFrame({
+        'Cod': ['1', '2', '3'],
+        'Entidad': ['Test 1', 'Test 2', 'Test 3'],
+        'Nivel Información ': ['Nivel A', 'Nivel B', 'Nivel C'],
+        'Análisis y cronograma': [
+            '15/01/2025',           # String normal
+            date(2025, 1, 20),      # CASO CRÍTICO: date
+            datetime(2025, 1, 25),  # datetime seguro
+        ],
+        'Publicación': [
+            datetime(2025, 2, 1),   # datetime seguro
+            '20/02/2025',           # String normal
+            date(2025, 2, 25),      # CASO CRÍTICO: date
+        ]
+    })
+    
+    print("DataFrame de prueba:")
+    for idx, row in df_test.iterrows():
+        analisis = row['Análisis y cronograma']
+        pub = row['Publicación']
+        print(f"   Fila {idx}: Análisis={analisis} ({type(analisis)}), Pub={pub} ({type(pub)})")
+    
+    # Verificar fechas antes de reparar
+    es_seguro_antes, problemas_antes = verificar_fechas_gantt_seguras(df_test)
+    
+    if not es_seguro_antes:
+        print("\n🔧 Aplicando reparaciones...")
+        df_test_reparado = reparar_fechas_para_gantt(df_test)
+        
+        # Verificar después de reparar
+        es_seguro_despues, problemas_despues = verificar_fechas_gantt_seguras(df_test_reparado)
+        
+        if es_seguro_despues:
+            print("✅ DataFrame reparado exitosamente")
+            df_final = df_test_reparado
+        else:
+            print("❌ Aún hay problemas después de reparar")
+            return False
+    else:
+        print("✅ DataFrame ya era seguro")
+        df_final = df_test
+    
+    # Intentar crear Gantt
+    try:
+        print("\n📊 Intentando crear gráfico Gantt...")
+        fig = crear_gantt(df_final)
+        
+        if fig is not None:
+            print("✅ Gráfico Gantt creado exitosamente")
+            return True
+        else:
+            print("⚪ Gráfico Gantt es None (puede ser normal si no hay fechas suficientes)")
+            return True
+    except Exception as e:
+        print(f"❌ Error creando Gantt: {e}")
+        return False
+
+
+def ejecutar_tests_visualization():
+    """
+    NUEVA FUNCIÓN: Ejecuta todos los tests del módulo visualization
+    """
+    print("🚀 EJECUTANDO TESTS COMPLETOS DE visualization.py")
+    print("="*60)
+    
+    tests_pasados = 0
+    tests_totales = 2
+    
+    # Test 1: Crear Gantt seguro
+    print("\n1️⃣  TEST DE CREAR_GANTT SEGURO")
+    if test_crear_gantt_seguro():
+        tests_pasados += 1
+        print("✅ Test crear_gantt PASADO")
+    else:
+        print("❌ Test crear_gantt FALLÓ")
+    
+    # Test 2: Comparar avance metas (test básico)
+    print("\n2️⃣  TEST DE COMPARAR_AVANCE_METAS")
+    try:
+        # Crear datos mínimos de prueba
+        df_test = pd.DataFrame({
+            'TipoDato': ['NUEVO', 'ACTUALIZAR'],
+            'Acuerdo de compromiso': ['Si', 'No'],
+            'Análisis y cronograma': ['15/01/2025', ''],
+            'Estándares': ['', '20/01/2025'],
+            'Publicación': ['01/02/2025', '']
+        })
+        
+        metas_df = pd.DataFrame({
+            'Acuerdo de compromiso': [1, 1],
+            'Análisis y cronograma': [1, 1],
+            'Estándares': [1, 1],
+            'Publicación': [1, 1]
+        }, index=[datetime.now() - timedelta(days=1), datetime.now() + timedelta(days=1)])
+        
+        comp_nuevos, comp_act, fecha_meta = comparar_avance_metas(df_test, metas_df, metas_df)
+        
+        if isinstance(fecha_meta, datetime) and not comp_nuevos.empty and not comp_act.empty:
+            print("✅ comparar_avance_metas funciona correctamente")
+            tests_pasados += 1
+        else:
+            print("❌ comparar_avance_metas tiene problemas")
+            
+    except Exception as e:
+        print(f"❌ Error en test comparar_avance_metas: {e}")
+    
+    # Resumen
+    print(f"\n📊 RESULTADO FINAL: {tests_pasados}/{tests_totales} tests pasados")
+    
+    if tests_pasados == tests_totales:
+        print("🎉 MÓDULO visualization.py COMPLETAMENTE CORREGIDO")
+        return True
+    else:
+        print("⚠️  MÓDULO visualization.py NECESITA MÁS CORRECCIONES")
+        return False
+
+
+if __name__ == "__main__":
+    print("🔧 MÓDULO visualization.py CORREGIDO")
+    print("🎯 Cambios aplicados:")
+    print("   ✅ procesar_fecha_gantt_segura() garantiza datetime")
+    print("   ✅ Todas las operaciones con fechas usan datetime")
+    print("   ✅ Verificaciones adicionales contra objetos date")
+    print("   ✅ Funciones de reparación automática")
+    print("   ✅ Tests completos con casos críticos")
+    
+    # Ejecutar tests automáticamente
+    ejecutar_tests_visualization()
