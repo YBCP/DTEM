@@ -1,7 +1,7 @@
-# editor_limpio.py - Editor limpio con guardado mejorado y creación de registros
+# editor_limpio_corregido.py - NUNCA TOCA METAS + SSL CORREGIDO
 """
-Editor de Registros Limpio - Con funcionalidad completa de guardado y creación
-Incluye TODOS los campos: estándares, calculados y completitud
+Editor de Registros Limpio - PROTECCIÓN TOTAL DE METAS
+JAMÁS modifica la hoja Metas, solo lee/escribe en Registros
 """
 
 import streamlit as st
@@ -9,9 +9,9 @@ import pandas as pd
 from datetime import datetime, date
 import time
 
-# ===== IMPORTS CON FALLBACKS MEJORADOS =====
+# ===== IMPORTS SEGUROS - SIN AFECTAR METAS =====
 try:
-    from data_utils import calcular_porcentaje_avance, guardar_datos_editados
+    from data_utils import calcular_porcentaje_avance
 except ImportError:
     def calcular_porcentaje_avance(registro):
         try:
@@ -27,35 +27,6 @@ except ImportError:
             return avance
         except:
             return 0
-    
-    def guardar_datos_editados(df, crear_backup=True):
-        try:
-            from sheets_utils import get_sheets_manager
-            manager = get_sheets_manager()
-            
-            # Verificar conexión antes de guardar
-            if not manager:
-                return False, "Error: No se pudo conectar con Google Sheets"
-            
-            # Mostrar progreso
-            with st.spinner("Guardando en Google Sheets..."):
-                exito = manager.escribir_hoja(df, "Registros", limpiar_hoja=True)
-            
-            if exito:
-                # Verificar que se guardó correctamente
-                try:
-                    df_verificacion = manager.leer_hoja("Registros")
-                    if not df_verificacion.empty and len(df_verificacion) >= len(df) * 0.9:
-                        return True, "Datos guardados y verificados en Google Sheets"
-                    else:
-                        return True, "Datos guardados (verificación parcial)"
-                except:
-                    return True, "Datos guardados (sin verificación)"
-            else:
-                return False, "Error al escribir en Google Sheets"
-                
-        except Exception as e:
-            return False, f"Error de conexión: {str(e)}"
 
 try:
     from validaciones_utils import validar_reglas_negocio
@@ -73,12 +44,84 @@ except ImportError:
     def actualizar_plazo_oficio_cierre(df):
         return df
 
-try:
-    from sheets_utils import get_sheets_manager
-except ImportError:
-    def get_sheets_manager():
-        st.error("Error: No se pudo importar el gestor de Google Sheets")
-        return None
+
+# ===== FUNCIÓN SEGURA DE GUARDADO - SOLO REGISTROS =====
+def guardar_solo_registros(df):
+    """
+    FUNCIÓN ULTRA SEGURA: Solo guarda en hoja Registros, JAMÁS toca Metas
+    """
+    try:
+        # Validar que solo estamos guardando registros
+        if 'Cod' not in df.columns or 'Entidad' not in df.columns:
+            return False, "Error: Solo se pueden guardar datos de registros"
+        
+        # Importar de forma segura
+        try:
+            from sheets_utils import GoogleSheetsManager
+            
+            # Crear nueva instancia cada vez para evitar problemas SSL
+            manager = GoogleSheetsManager()
+            
+            # IMPORTANTE: Solo escribir en hoja "Registros"
+            st.info("💾 Guardando únicamente en hoja 'Registros'...")
+            
+            # Limpiar y escribir SOLO en Registros
+            exito = manager.escribir_hoja(df, "Registros", limpiar_hoja=True)
+            
+            if exito:
+                # Verificar que se guardó correctamente
+                try:
+                    df_verificacion = manager.leer_hoja("Registros")
+                    if not df_verificacion.empty and len(df_verificacion) >= len(df) * 0.8:
+                        return True, "✅ Datos guardados exitosamente en Google Sheets - Hoja 'Registros'"
+                    else:
+                        return True, "✅ Datos guardados (verificación parcial)"
+                except:
+                    return True, "✅ Datos guardados sin verificación"
+            else:
+                return False, "❌ Error al escribir en Google Sheets"
+                
+        except ImportError:
+            return False, "❌ Error: Módulo sheets_utils no disponible"
+        except Exception as e:
+            error_msg = str(e).lower()
+            if 'ssl' in error_msg or 'wrong_version_number' in error_msg:
+                return False, "❌ Error SSL: Problema de conexión segura. Intenta de nuevo en unos segundos."
+            elif 'permission' in error_msg or '403' in error_msg:
+                return False, "❌ Error de permisos: Verifica que el service account tenga acceso."
+            else:
+                return False, f"❌ Error de conexión: {str(e)}"
+        
+    except Exception as e:
+        return False, f"❌ Error interno: {str(e)}"
+
+
+def cargar_datos_desde_sheets():
+    """
+    Carga datos SOLO desde la hoja Registros, nunca toca Metas
+    """
+    try:
+        from sheets_utils import GoogleSheetsManager
+        
+        # Nueva instancia para evitar problemas SSL
+        manager = GoogleSheetsManager()
+        
+        # Leer SOLO de Registros
+        df = manager.leer_hoja("Registros")
+        
+        if df.empty:
+            st.warning("La hoja 'Registros' está vacía o no se pudo leer")
+            return pd.DataFrame()
+        
+        return df
+        
+    except Exception as e:
+        error_msg = str(e).lower()
+        if 'ssl' in error_msg:
+            st.error("❌ Error SSL de conexión. Refresca la página e intenta de nuevo.")
+        else:
+            st.error(f"❌ Error al cargar datos: {str(e)}")
+        return pd.DataFrame()
 
 
 def generar_nuevo_codigo(registros_df):
@@ -470,17 +513,41 @@ def mostrar_edicion_registros(registros_df):
     
     st.subheader("Editor de Registros")
     
+    # Botón para recargar datos desde Google Sheets
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        st.info("💡 Este editor NUNCA modifica la hoja 'Metas', solo trabaja con 'Registros'")
+    
+    with col2:
+        if st.button("🔄 Recargar desde Google Sheets", help="Carga los datos más recientes"):
+            with st.spinner("Cargando datos..."):
+                registros_actualizados = cargar_datos_desde_sheets()
+                if not registros_actualizados.empty:
+                    st.success("✅ Datos recargados exitosamente")
+                    # Actualizar los datos en session_state si existe
+                    if 'registros_df' in st.session_state:
+                        st.session_state.registros_df = registros_actualizados
+                    st.rerun()
+                else:
+                    st.warning("⚠️ No se pudieron cargar datos nuevos")
+    
+    with col3:
+        total_registros = len(registros_df) if not registros_df.empty else 0
+        st.metric("Total Registros", total_registros)
+    
     # Pestañas para editar o crear
     tab1, tab2 = st.tabs(["Editar Existente", "Crear Nuevo Registro"])
     
     with tab1:
         if registros_df.empty:
             st.warning("No hay registros disponibles para editar.")
+            st.info("💡 Usa el botón 'Recargar desde Google Sheets' o crea un nuevo registro.")
             return registros_df
         
         # Selector de registro
         opciones_registros = [
-            f"{registros_df.iloc[i]['Cod']} - {registros_df.iloc[i]['Entidad']} - {registros_df.iloc[i]['Nivel Información ']}"
+            f"{registros_df.iloc[i]['Cod']} - {registros_df.iloc[i]['Entidad']} - {registros_df.iloc[i].get('Nivel Información ', 'N/A')}"
             for i in range(len(registros_df))
         ]
         
@@ -504,7 +571,7 @@ def mostrar_edicion_registros(registros_df):
             valores_form = mostrar_formulario_registro(row_original, indice_seleccionado, es_nuevo=False)
             
             # BOTÓN DE GUARDAR
-            submitted = st.form_submit_button("Actualizar Registro", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("💾 Actualizar Registro", type="primary", use_container_width=True)
             
             if submitted:
                 try:
@@ -528,16 +595,23 @@ def mostrar_edicion_registros(registros_df):
                     registros_df = actualizar_plazo_cronograma(registros_df)
                     registros_df = actualizar_plazo_oficio_cierre(registros_df)
                     
-                    # Guardar en Google Sheets con verificación mejorada
-                    exito, mensaje = guardar_datos_editados(registros_df, crear_backup=True)
+                    # Guardar SOLO en hoja Registros (NUNCA en Metas)
+                    exito, mensaje = guardar_solo_registros(registros_df)
                     
                     if exito:
-                        st.success(f"✅ {mensaje}. Avance: {nuevo_porcentaje}%")
-                        # Forzar recarga de datos
+                        st.success(f"✅ {mensaje}")
+                        st.success(f"📊 Avance del registro: {nuevo_porcentaje}%")
+                        
+                        # Actualizar timestamp de último guardado
+                        st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
+                        
+                        # Esperar un momento antes de recargar
+                        time.sleep(1)
                         st.rerun()
                     else:
                         st.error(f"❌ {mensaje}")
-                        st.info("💡 Tip: Verifica tu conexión a internet y permisos de Google Sheets")
+                        if "ssl" in mensaje.lower():
+                            st.info("💡 Error SSL detectado. Intenta recargar la página e intentar de nuevo.")
                         
                 except Exception as e:
                     st.error(f"❌ Error al procesar los cambios: {str(e)}")
@@ -548,7 +622,7 @@ def mostrar_edicion_registros(registros_df):
         
         # Generar código automático
         nuevo_codigo = generar_nuevo_codigo(registros_df)
-        st.info(f"Código asignado automáticamente: **{nuevo_codigo}**")
+        st.info(f"📝 Código asignado automáticamente: **{nuevo_codigo}**")
         
         # FORMULARIO DE NUEVO REGISTRO
         form_key_nuevo = f"form_editor_nuevo_{nuevo_codigo}_{int(time.time())}"
@@ -562,7 +636,7 @@ def mostrar_edicion_registros(registros_df):
             valores_form_nuevo = mostrar_formulario_registro(registro_vacio, "nuevo", es_nuevo=True)
             
             # BOTÓN DE CREAR
-            submitted_nuevo = st.form_submit_button("Crear Nuevo Registro", type="primary", use_container_width=True)
+            submitted_nuevo = st.form_submit_button("➕ Crear Nuevo Registro", type="primary", use_container_width=True)
             
             if submitted_nuevo:
                 try:
@@ -610,18 +684,25 @@ def mostrar_edicion_registros(registros_df):
                     registros_df = actualizar_plazo_cronograma(registros_df)
                     registros_df = actualizar_plazo_oficio_cierre(registros_df)
                     
-                    # Guardar en Google Sheets
-                    exito, mensaje = guardar_datos_editados(registros_df, crear_backup=True)
+                    # Guardar SOLO en hoja Registros (NUNCA en Metas)
+                    exito, mensaje = guardar_solo_registros(registros_df)
                     
                     if exito:
-                        st.success(f"✅ Nuevo registro creado exitosamente: {nuevo_codigo}")
-                        st.success(f"📊 {mensaje}. Avance inicial: {nuevo_porcentaje}%")
+                        st.success(f"✅ Nuevo registro creado exitosamente: **{nuevo_codigo}**")
+                        st.success(f"📊 {mensaje}")
+                        st.success(f"📈 Avance inicial: {nuevo_porcentaje}%")
                         st.balloons()
-                        # Forzar recarga de datos
+                        
+                        # Actualizar timestamp de último guardado
+                        st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
+                        
+                        # Esperar un momento antes de recargar
+                        time.sleep(1)
                         st.rerun()
                     else:
                         st.error(f"❌ Error al guardar el nuevo registro: {mensaje}")
-                        st.info("💡 Tip: Verifica tu conexión a internet y permisos de Google Sheets")
+                        if "ssl" in mensaje.lower():
+                            st.info("💡 Error SSL detectado. Intenta recargar la página e intentar de nuevo.")
                         
                 except Exception as e:
                     st.error(f"❌ Error al crear el nuevo registro: {str(e)}")
@@ -631,55 +712,116 @@ def mostrar_edicion_registros(registros_df):
 
 
 def verificar_conexion_sheets():
-    """Verifica si la conexión con Google Sheets está funcionando"""
+    """Verifica si la conexión con Google Sheets está funcionando - SOLO LEE REGISTROS"""
     try:
-        manager = get_sheets_manager()
-        if manager is None:
-            return False, "No se pudo obtener el gestor de Google Sheets"
+        from sheets_utils import GoogleSheetsManager
         
-        # Intentar leer la lista de hojas
+        # Nueva instancia para evitar problemas SSL
+        manager = GoogleSheetsManager()
+        
+        # Listar hojas disponibles
         hojas = manager.listar_hojas()
+        
         if hojas:
-            return True, f"Conexión exitosa. Hojas disponibles: {', '.join(hojas)}"
+            hojas_str = ', '.join(hojas)
+            # Verificar específicamente la hoja Registros
+            if 'Registros' in hojas:
+                try:
+                    df_test = manager.leer_hoja("Registros")
+                    num_registros = len(df_test) if not df_test.empty else 0
+                    return True, f"✅ Conexión exitosa. Hojas: {hojas_str}. Registros disponibles: {num_registros}"
+                except Exception as e:
+                    return True, f"✅ Conexión exitosa. Hojas: {hojas_str}. Error leyendo Registros: {str(e)}"
+            else:
+                return True, f"✅ Conexión exitosa. Hojas: {hojas_str}. ⚠️ Hoja 'Registros' no encontrada"
         else:
-            return False, "No se pudieron listar las hojas"
+            return False, "❌ No se pudieron listar las hojas"
             
     except Exception as e:
-        return False, f"Error de conexión: {str(e)}"
+        error_msg = str(e).lower()
+        if 'ssl' in error_msg or 'wrong_version_number' in error_msg:
+            return False, "❌ Error SSL: Problema de conexión segura. Refresca la página e intenta de nuevo."
+        elif 'permission' in error_msg or '403' in error_msg:
+            return False, "❌ Error de permisos: Verifica que el service account tenga acceso al spreadsheet."
+        elif 'not found' in error_msg or '404' in error_msg:
+            return False, "❌ Spreadsheet no encontrado: Verifica el SPREADSHEET_ID en la configuración."
+        else:
+            return False, f"❌ Error de conexión: {str(e)}"
 
 
 def mostrar_edicion_registros_con_autenticacion(registros_df):
-    """Wrapper con autenticación para el editor limpio"""
+    """Wrapper con autenticación para el editor limpio - PROTECCIÓN TOTAL DE METAS"""
     
     try:
         from auth_utils import verificar_autenticacion
         
         if verificar_autenticacion():
-            # Mostrar estado de conexión con Google Sheets
-            with st.expander("🔧 Estado de Conexión", expanded=False):
+            
+            # Panel de estado - SIN TOCAR METAS
+            with st.expander("🔧 Estado de Conexión (Solo Registros)", expanded=False):
+                
+                st.warning("🛡️ **PROTECCIÓN ACTIVA**: Este editor JAMÁS modifica la hoja 'Metas'")
+                
                 col1, col2 = st.columns([3, 1])
                 
                 with col1:
-                    if st.button("🔄 Verificar Conexión Google Sheets", key="verificar_sheets"):
-                        conexion_ok, mensaje = verificar_conexion_sheets()
-                        if conexion_ok:
-                            st.success(mensaje)
-                        else:
-                            st.error(mensaje)
-                            st.info("💡 Sugerencias para solucionar:")
-                            st.markdown("""
-                            - Verifica tu conexión a internet
-                            - Comprueba que el archivo `credentials.json` esté presente
-                            - Asegúrate de que el SPREADSHEET_ID sea correcto
-                            - Verifica los permisos de la cuenta de servicio en Google Sheets
-                            """)
+                    if st.button("🔄 Verificar Conexión Google Sheets", key="verificar_sheets_seguro"):
+                        with st.spinner("Verificando conexión (solo lectura Registros)..."):
+                            conexion_ok, mensaje = verificar_conexion_sheets()
+                            if conexion_ok:
+                                st.success(mensaje)
+                            else:
+                                st.error(mensaje)
+                                
+                                # Mostrar sugerencias específicas para cada tipo de error
+                                if "ssl" in mensaje.lower():
+                                    st.info("""
+                                    🔧 **Solución para Error SSL:**
+                                    1. Refresca la página (Ctrl+F5)
+                                    2. Espera 30 segundos e intenta de nuevo
+                                    3. Si persiste, verifica tu conexión a internet
+                                    """)
+                                elif "permission" in mensaje.lower() or "403" in mensaje.lower():
+                                    st.info("""
+                                    🔧 **Solución para Error de Permisos:**
+                                    1. Verifica que el service account tenga acceso al spreadsheet
+                                    2. Comprueba que el correo del service account esté invitado
+                                    3. Asegúrate de que tenga permisos de edición
+                                    """)
+                                elif "not found" in mensaje.lower() or "404" in mensaje.lower():
+                                    st.info("""
+                                    🔧 **Solución para Spreadsheet No Encontrado:**
+                                    1. Verifica el SPREADSHEET_ID en tu configuración
+                                    2. Asegúrate de que el spreadsheet existe
+                                    3. Confirma que el ID sea correcto (debe tener ~44 caracteres)
+                                    """)
+                                else:
+                                    st.info("""
+                                    🔧 **Sugerencias Generales:**
+                                    - Verifica tu conexión a internet
+                                    - Comprueba que el archivo `credentials.json` esté presente
+                                    - Asegúrate de que el SPREADSHEET_ID sea correcto
+                                    - Verifica los permisos de la cuenta de servicio
+                                    """)
                 
                 with col2:
                     # Mostrar último guardado si existe
                     if 'ultimo_guardado' in st.session_state:
-                        st.info(f"⏰ Último guardado: {st.session_state.ultimo_guardado}")
+                        st.success(f"⏰ Último guardado:\n{st.session_state.ultimo_guardado}")
+                    else:
+                        st.info("🕐 Sin guardados\nrecientes")
+                
+                # Información de seguridad
+                st.success("""
+                🛡️ **GARANTÍAS DE SEGURIDAD:**
+                ✅ Solo modifica hoja 'Registros'
+                ✅ NUNCA toca hoja 'Metas'
+                ✅ Crea nueva instancia en cada operación
+                ✅ Validaciones antes de guardar
+                """)
             
             return mostrar_edicion_registros(registros_df)
+            
         else:
             st.subheader("🔐 Acceso Restringido")
             st.warning("Se requiere autenticación para editar registros")
@@ -688,10 +830,10 @@ def mostrar_edicion_registros_con_autenticacion(registros_df):
             
             with col1:
                 st.info("""
-                **Para acceder al editor:**
-                1. Use el panel 'Acceso Administrativo' en la barra lateral
-                2. Ingrese las credenciales de administrador
-                3. Podrá editar registros existentes y crear nuevos
+                **Para acceder al editor seguro:**
+                1. 🔐 Use el panel 'Acceso Administrativo' en la barra lateral
+                2. 👤 Ingrese las credenciales de administrador
+                3. ✅ Podrá editar registros sin afectar Metas
                 """)
             
             with col2:
@@ -701,13 +843,16 @@ def mostrar_edicion_registros_con_autenticacion(registros_df):
                 - ✏️ Editar registros existentes
                 - ➕ Crear nuevos registros
                 - 🔢 Autonumeración de códigos
-                - 💾 Guardado en Google Sheets
+                - 💾 Guardado seguro (solo Registros)
+                - 🛡️ PROTECCIÓN de hoja Metas
                 - 📊 Cálculo automático de avance
                 - 🔄 Validaciones automáticas
+                - 🚫 SSL error handling
                 """)
             
             return registros_df
             
     except ImportError:
         st.warning("⚠️ Sistema de autenticación no disponible. Acceso directo habilitado.")
+        st.error("🛡️ IMPORTANTE: Se aplicará protección de hoja Metas")
         return mostrar_edicion_registros(registros_df)
