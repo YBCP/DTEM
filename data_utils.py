@@ -196,36 +196,41 @@ def crear_estructura_metas_inicial():
     })
 
 def procesar_fecha(fecha_str):
-    """Procesa una fecha de manera segura manejando NaT."""
+    """
+    Procesa una fecha de manera segura manejando NaT.
+    CORRECCIÓN CRÍTICA: SIEMPRE devuelve datetime, NUNCA date
+    """
     if pd.isna(fecha_str) or fecha_str == '' or fecha_str is None:
         return None
 
     # Si es un objeto datetime o Timestamp, retornarlo directamente
     if isinstance(fecha_str, (pd.Timestamp, datetime)):
-        if pd.isna(fecha_str):  # Comprobar si es NaT
+        if pd.isna(fecha_str):
             return None
+        # ASEGURAR que es datetime
+        if isinstance(fecha_str, pd.Timestamp):
+            return fecha_str.to_pydatetime()
         return fecha_str
     
-    # CORRECCIÓN: Si es date, convertir a datetime
+    # CORRECCIÓN CRÍTICA: Si es date, convertir SIEMPRE a datetime
     if isinstance(fecha_str, date):
         return datetime.combine(fecha_str, datetime.min.time())
 
     # Si es un string, procesarlo
     try:
-        # Eliminar espacios y caracteres extraños
         fecha_str = re.sub(r'[^\d/\-]', '', str(fecha_str).strip())
-
-        # Formatos a intentar
         formatos = ['%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y', '%m/%d/%Y']
 
         for formato in formatos:
             try:
                 fecha = pd.to_datetime(fecha_str, format=formato)
-                if pd.notna(fecha):  # Verificar que no sea NaT
+                if pd.notna(fecha):
+                    # CRÍTICO: Convertir a datetime puro si es Timestamp
+                    if hasattr(fecha, 'to_pydatetime'):
+                        return fecha.to_pydatetime()
                     return fecha
             except:
                 continue
-
         return None
     except Exception:
         return None
@@ -253,19 +258,16 @@ def formatear_fecha(fecha_str):
 def verificar_completado_por_fecha(fecha_programada, fecha_completado=None):
     """
     Verifica si una tarea está completada basada en fechas.
-    CORREGIDO: Manejo seguro de tipos datetime
+    CORRECCIÓN CRÍTICA: Manejo seguro de comparaciones datetime
     """
     if fecha_completado is not None and pd.notna(fecha_completado):
         return True
 
     fecha_actual = datetime.now()  # SIEMPRE datetime
-    fecha_prog = procesar_fecha(fecha_programada)
+    fecha_prog = procesar_fecha(fecha_programada)  # SIEMPRE devuelve datetime o None
 
     if fecha_prog is not None and pd.notna(fecha_prog):
-        # CORRECCIÓN: Asegurar comparación entre datetime
-        if isinstance(fecha_prog, date) and not isinstance(fecha_prog, datetime):
-            fecha_prog = datetime.combine(fecha_prog, datetime.min.time())
-        
+        # Ya no necesitamos conversión porque procesar_fecha() siempre devuelve datetime
         if fecha_prog <= fecha_actual:
             return True
 
@@ -410,11 +412,13 @@ def procesar_metas(meta_df):
         return metas_nuevas_df, metas_actualizar_df
 
 def verificar_estado_fechas(row):
-    """Verifica si las fechas están vencidas o próximas a vencer - CORREGIDO."""
-    fecha_actual = datetime.now()  # SIEMPRE datetime, no date
-    estado = "normal"  # Por defecto, estado normal
+    """
+    Verifica si las fechas están vencidas o próximas a vencer.
+    CORRECCIÓN CRÍTICA: Comparaciones datetime seguras
+    """
+    fecha_actual = datetime.now()  # SIEMPRE datetime
+    estado = "normal"
 
-    # Lista de campos de fechas a verificar
     campos_fecha = [
         'Análisis y cronograma (fecha programada)',
         'Estándares (fecha programada)',
@@ -423,19 +427,13 @@ def verificar_estado_fechas(row):
 
     for campo in campos_fecha:
         if campo in row and pd.notna(row[campo]) and str(row[campo]).strip() != '':
-            fecha = procesar_fecha(row[campo])
+            fecha = procesar_fecha(row[campo])  # SIEMPRE devuelve datetime o None
             if fecha is not None and pd.notna(fecha):
-                # CORRECCIÓN: Asegurar comparación entre datetime
-                if isinstance(fecha, date) and not isinstance(fecha, datetime):
-                    fecha = datetime.combine(fecha, datetime.min.time())
-                
-                # Si la fecha ya está vencida
+                # Ya no necesitamos conversión manual
                 if fecha < fecha_actual:
-                    return "vencido"  # Prioridad alta, retornamos inmediatamente
-
-                # Si la fecha está próxima a vencer en los próximos 30 días
+                    return "vencido"
                 if fecha <= fecha_actual + timedelta(days=30):
-                    estado = "proximo"  # Marcamos como próximo, pero seguimos verificando otras fechas
+                    estado = "proximo"
 
     return estado
 
@@ -596,24 +594,26 @@ def guardar_datos_editados_rapido(df, numero_fila=None):
 def contar_registros_completados_por_fecha(df, columna_fecha_programada, columna_fecha_completado):
     """
     Cuenta los registros que tienen una fecha de completado o cuya fecha programada ya pasó.
-    CORREGIDO: Manejo seguro de tipos datetime
+    CORRECCIÓN CRÍTICA: Uso correcto de procesar_fecha()
     """
     count = 0
-    fecha_hoy = datetime.now()  # SIEMPRE datetime
     
     for _, row in df.iterrows():
-        if columna_fecha_programada in row and pd.notna(row[columna_fecha_programada]) and str(row[columna_fecha_programada]).strip() != '':
-            fecha_programada = row[columna_fecha_programada]
+        try:
+            if columna_fecha_programada in row and pd.notna(row[columna_fecha_programada]) and str(row[columna_fecha_programada]).strip() != '':
+                fecha_programada = row[columna_fecha_programada]
 
-            # Verificar si hay una fecha de completado VÁLIDA
-            fecha_completado = None
-            if columna_fecha_completado in row:
-                # Usar es_fecha_valida para verificar si realmente es una fecha
-                if es_fecha_valida(row[columna_fecha_completado]):
-                    fecha_completado = procesar_fecha(row[columna_fecha_completado])
+                # Verificar si hay una fecha de completado VÁLIDA
+                fecha_completado = None
+                if columna_fecha_completado in row:
+                    if es_fecha_valida(row[columna_fecha_completado]):
+                        fecha_completado = procesar_fecha(row[columna_fecha_completado])  # datetime o None
 
-            if verificar_completado_por_fecha(fecha_programada, fecha_completado):
-                count += 1
+                if verificar_completado_por_fecha(fecha_programada, fecha_completado):
+                    count += 1
+        except Exception as e:
+            # Ignorar errores en filas individuales y continuar
+            continue
 
     return count
 
@@ -884,3 +884,103 @@ def reparar_sistema_automatico():
         
     except Exception as e:
         return False, [f"❌ Error en reparación automática: {str(e)}"]
+
+# NUEVAS FUNCIONES DE DIAGNÓSTICO
+def diagnosticar_errores_datetime(df):
+    """
+    Función de diagnóstico para identificar problemas de datetime en el DataFrame
+    """
+    print("\n🔍 DIAGNÓSTICO DE ERRORES DATETIME")
+    print("="*50)
+    
+    campos_fecha = [
+        'Fecha de entrega de información',
+        'Plazo de análisis', 
+        'Plazo de cronograma',
+        'Análisis y cronograma',
+        'Estándares (fecha programada)',
+        'Estándares',
+        'Fecha de publicación programada', 
+        'Publicación',
+        'Plazo de oficio de cierre',
+        'Fecha de oficio de cierre'
+    ]
+    
+    problemas_encontrados = []
+    
+    for campo in campos_fecha:
+        if campo in df.columns:
+            print(f"\n📅 Analizando campo: {campo}")
+            
+            valores_problematicos = []
+            tipos_encontrados = []
+            
+            for idx, valor in df[campo].items():
+                if pd.notna(valor) and str(valor).strip() != '':
+                    try:
+                        # Probar procesar_fecha
+                        fecha_procesada = procesar_fecha(valor)
+                        if fecha_procesada is None:
+                            valores_problematicos.append((idx, valor, type(valor).__name__))
+                        else:
+                            tipos_encontrados.append(type(fecha_procesada).__name__)
+                    except Exception as e:
+                        valores_problematicos.append((idx, valor, f"Error: {e}"))
+            
+            if valores_problematicos:
+                print(f"   ❌ {len(valores_problematicos)} valores problemáticos encontrados")
+                for idx, valor, tipo_error in valores_problematicos[:3]:  # Mostrar solo los primeros 3
+                    print(f"      Fila {idx}: {valor} ({tipo_error})")
+                problemas_encontrados.append(campo)
+            else:
+                tipos_unicos = list(set(tipos_encontrados))
+                print(f"   ✅ Campo correcto. Tipos después de procesar: {tipos_unicos}")
+    
+    if problemas_encontrados:
+        print(f"\n⚠️  CAMPOS CON PROBLEMAS: {problemas_encontrados}")
+        print("🔧 APLICAR CORRECCIÓN EN fecha_utils.py y data_utils.py")
+    else:
+        print("\n✅ TODOS LOS CAMPOS DE FECHA ESTÁN CORRECTOS")
+    
+    return problemas_encontrados
+
+def reparar_fechas_automaticamente(df):
+    """
+    Repara automáticamente los problemas de fechas más comunes
+    """
+    print("\n🔧 REPARANDO FECHAS AUTOMÁTICAMENTE...")
+    
+    df_reparado = df.copy()
+    reparaciones = 0
+    
+    campos_fecha = [
+        'Fecha de entrega de información',
+        'Análisis y cronograma',
+        'Estándares (fecha programada)',
+        'Estándares',
+        'Fecha de publicación programada', 
+        'Publicación',
+        'Fecha de oficio de cierre'
+    ]
+    
+    for campo in campos_fecha:
+        if campo in df_reparado.columns:
+            for idx, valor in df_reparado[campo].items():
+                if pd.notna(valor) and str(valor).strip() != '':
+                    try:
+                        # Intentar procesar la fecha
+                        fecha_procesada = procesar_fecha(valor)
+                        if fecha_procesada is None:
+                            # Si no se puede procesar, limpiar el valor
+                            df_reparado.at[idx, campo] = ''
+                            reparaciones += 1
+                        else:
+                            # Si se puede procesar, formatear correctamente
+                            df_reparado.at[idx, campo] = formatear_fecha(fecha_procesada)
+                    except Exception:
+                        # Si hay error, limpiar el valor
+                        df_reparado.at[idx, campo] = ''
+                        reparaciones += 1
+    
+    print(f"✅ Reparaciones aplicadas: {reparaciones}")
+    return df_reparado
