@@ -10,7 +10,7 @@ from datetime import datetime
 
 # ===== IMPORTS DE MÓDULOS FRAGMENTADOS (CORREGIDOS) =====
 from dashboard import mostrar_dashboard
-from editor import mostrar_edicion_registros_con_autenticacion  
+from editor import mostrar_edicion_registros_con_autenticacion
 from alertas import mostrar_alertas_vencimientos
 
 # ===== IMPORT CORREGIDO PARA REPORTES =====
