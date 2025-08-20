@@ -1,858 +1,705 @@
-# editor_limpio_corregido.py - NUNCA TOCA METAS + SSL CORREGIDO
+# editor_final.py - EDITOR LIMPIO Y FUNCIONAL
 """
-Editor de Registros Limpio - PROTECCIÓN TOTAL DE METAS
-JAMÁS modifica la hoja Metas, solo lee/escribe en Registros
+Editor limpio que funciona con Google Sheets
+Mapeo correcto de columnas del archivo real
 """
 
 import streamlit as st
 import pandas as pd
-from datetime import datetime, date
+from datetime import datetime
 import time
 
-# ===== IMPORTS SEGUROS - SIN AFECTAR METAS =====
+# MAPEO EXACTO DE COLUMNAS DEL ARCHIVO REAL
+COLUMNAS_REALES = {
+    'Cod': 'Cod',
+    'Funcionario': 'Funcionario', 
+    'Entidad': 'Entidad',
+    'Nivel Información ': 'Nivel Información ',
+    'Frecuencia actualizacion ': 'Frecuencia actualizacion ',
+    'TipoDato': 'TipoDato',
+    'Actas de acercamiento y manifestación de interés': 'Actas de acercamiento y manifestación de interés',
+    'Suscripción acuerdo de compromiso': 'Suscripción acuerdo de compromiso',
+    'Entrega acuerdo de compromiso': 'Entrega acuerdo de compromiso',
+    'Acuerdo de compromiso': 'Acuerdo de compromiso',
+    'Gestion acceso a los datos y documentos requeridos ': 'Gestion acceso a los datos y documentos requeridos ',
+    ' Análisis de información': ' Análisis de información',
+    'Cronograma Concertado': 'Cronograma Concertado',
+    'Análisis y cronograma (fecha programada)': 'Análisis y cronograma (fecha programada)',
+    'Fecha de entrega de información': 'Fecha de entrega de información',
+    'Análisis de información': 'Análisis de información',
+    'Plazo de cronograma': 'Plazo de cronograma',
+    'Análisis y cronograma': 'Análisis y cronograma',
+    'Seguimiento a los acuerdos': 'Seguimiento a los acuerdos',
+    'Registro (completo)': 'Registro (completo)',
+    'ET (completo)': 'ET (completo)',
+    'CO (completo)': 'CO (completo)',
+    'DD (completo)': 'DD (completo)',
+    'REC (completo)': 'REC (completo)',
+    'SERVICIO (completo)': 'SERVICIO (completo)',
+    'Estándares': 'Estándares',
+    'Resultados de orientación técnica': 'Resultados de orientación técnica',
+    'Verificación del servicio web geográfico': 'Verificación del servicio web geográfico',
+    'Verificar Aprobar Resultados': 'Verificar Aprobar Resultados',
+    'Revisar y validar los datos cargados en la base de datos': 'Revisar y validar los datos cargados en la base de datos',
+    'Aprobación resultados obtenidos en la orientación': 'Aprobación resultados obtenidos en la orientación',
+    'Disponer datos temáticos': 'Disponer datos temáticos',
+    'Fecha de publicación programada': 'Fecha de publicación programada',
+    'Publicación': 'Publicación',
+    'Catálogo de recursos geográficos': 'Catálogo de recursos geográficos',
+    'Plazo de oficio de cierre': 'Plazo de oficio de cierre',
+    'Oficios de cierre': 'Oficios de cierre',
+    'Fecha de oficio de cierre': 'Fecha de oficio de cierre',
+    'Estado': 'Estado',
+    'Observación': 'Observación',
+    'Porcentaje Avance': 'Porcentaje Avance',
+    'Mes Proyectado': 'Mes Proyectado',
+    'Plazo de análisis': 'Plazo de análisis',
+    'Registro': 'Registro',
+    'ET': 'ET',
+    'CO': 'CO',
+    'DD': 'DD',
+    'REC': 'REC',
+    'SERVICIO': 'SERVICIO',
+    'Estándares (fecha programada)': 'Estándares (fecha programada)'
+}
+
+# IMPORTS SEGUROS
 try:
-    from data_utils import calcular_porcentaje_avance
+    from sheets_utils import GoogleSheetsManager
 except ImportError:
-    def calcular_porcentaje_avance(registro):
-        try:
-            avance = 0
-            if str(registro.get('Acuerdo de compromiso', '')).strip().upper() in ['SI', 'SÍ']:
-                avance += 25
-            if registro.get('Análisis y cronograma', '') and str(registro.get('Análisis y cronograma', '')).strip():
-                avance += 25
-            if registro.get('Estándares', '') and str(registro.get('Estándares', '')).strip():
-                avance += 25
-            if registro.get('Publicación', '') and str(registro.get('Publicación', '')).strip():
-                avance += 25
-            return avance
-        except:
-            return 0
+    st.error("Error: No se puede importar GoogleSheetsManager")
+    GoogleSheetsManager = None
 
-try:
-    from validaciones_utils import validar_reglas_negocio
-except ImportError:
-    def validar_reglas_negocio(df):
-        return df
-
-try:
-    from fecha_utils import actualizar_plazo_analisis, actualizar_plazo_cronograma, actualizar_plazo_oficio_cierre
-except ImportError:
-    def actualizar_plazo_analisis(df):
-        return df
-    def actualizar_plazo_cronograma(df):
-        return df
-    def actualizar_plazo_oficio_cierre(df):
-        return df
-
-
-# ===== FUNCIÓN SEGURA DE GUARDADO - SOLO REGISTROS =====
-def guardar_solo_registros(df):
-    """
-    FUNCIÓN ULTRA SEGURA: Solo guarda en hoja Registros, JAMÁS toca Metas
-    """
+def get_safe_value(row, column_name, default=''):
+    """Obtiene un valor de forma segura del DataFrame"""
     try:
-        # Validar que solo estamos guardando registros
-        if 'Cod' not in df.columns or 'Entidad' not in df.columns:
-            return False, "Error: Solo se pueden guardar datos de registros"
-        
-        # Importar de forma segura
-        try:
-            from sheets_utils import GoogleSheetsManager
-            
-            # Crear nueva instancia cada vez para evitar problemas SSL
-            manager = GoogleSheetsManager()
-            
-            # IMPORTANTE: Solo escribir en hoja "Registros"
-            st.info("💾 Guardando únicamente en hoja 'Registros'...")
-            
-            # Limpiar y escribir SOLO en Registros
-            exito = manager.escribir_hoja(df, "Registros", limpiar_hoja=True)
-            
-            if exito:
-                # Verificar que se guardó correctamente
-                try:
-                    df_verificacion = manager.leer_hoja("Registros")
-                    if not df_verificacion.empty and len(df_verificacion) >= len(df) * 0.8:
-                        return True, "✅ Datos guardados exitosamente en Google Sheets - Hoja 'Registros'"
-                    else:
-                        return True, "✅ Datos guardados (verificación parcial)"
-                except:
-                    return True, "✅ Datos guardados sin verificación"
-            else:
-                return False, "❌ Error al escribir en Google Sheets"
-                
-        except ImportError:
-            return False, "❌ Error: Módulo sheets_utils no disponible"
-        except Exception as e:
-            error_msg = str(e).lower()
-            if 'ssl' in error_msg or 'wrong_version_number' in error_msg:
-                return False, "❌ Error SSL: Problema de conexión segura. Intenta de nuevo en unos segundos."
-            elif 'permission' in error_msg or '403' in error_msg:
-                return False, "❌ Error de permisos: Verifica que el service account tenga acceso."
-            else:
-                return False, f"❌ Error de conexión: {str(e)}"
-        
+        if column_name in row.index:
+            value = row[column_name]
+            if pd.isna(value) or value is None:
+                return default
+            return str(value)
+        return default
+    except:
+        return default
+
+def safe_set_value(df, index, column_name, value):
+    """Establece un valor de forma segura en el DataFrame"""
+    try:
+        if column_name in df.columns:
+            df.iloc[index, df.columns.get_loc(column_name)] = value
+        else:
+            st.warning(f"Columna no encontrada: {column_name}")
     except Exception as e:
-        return False, f"❌ Error interno: {str(e)}"
+        st.error(f"Error al establecer valor en {column_name}: {e}")
 
-
-def cargar_datos_desde_sheets():
-    """
-    Carga datos SOLO desde la hoja Registros, nunca toca Metas
-    """
+def cargar_desde_sheets():
+    """Carga datos desde Google Sheets"""
+    if GoogleSheetsManager is None:
+        st.error("GoogleSheetsManager no disponible")
+        return pd.DataFrame()
+    
     try:
-        from sheets_utils import GoogleSheetsManager
-        
-        # Nueva instancia para evitar problemas SSL
         manager = GoogleSheetsManager()
-        
-        # Leer SOLO de Registros
         df = manager.leer_hoja("Registros")
         
         if df.empty:
-            st.warning("La hoja 'Registros' está vacía o no se pudo leer")
+            st.warning("La hoja Registros está vacía")
             return pd.DataFrame()
         
+        st.success(f"Datos cargados: {len(df)} registros")
         return df
         
     except Exception as e:
-        error_msg = str(e).lower()
-        if 'ssl' in error_msg:
-            st.error("❌ Error SSL de conexión. Refresca la página e intenta de nuevo.")
-        else:
-            st.error(f"❌ Error al cargar datos: {str(e)}")
+        st.error(f"Error cargando datos: {str(e)}")
         return pd.DataFrame()
 
-
-def generar_nuevo_codigo(registros_df):
-    """Genera un nuevo código autonumérico"""
+def guardar_en_sheets(df):
+    """Guarda datos en Google Sheets - SOLO hoja Registros"""
+    if GoogleSheetsManager is None:
+        return False, "GoogleSheetsManager no disponible"
+    
     try:
-        if registros_df.empty:
+        manager = GoogleSheetsManager()
+        
+        # SOLO escribir en Registros
+        exito = manager.escribir_hoja(df, "Registros", limpiar_hoja=True)
+        
+        if exito:
+            return True, "Datos guardados en Google Sheets"
+        else:
+            return False, "Error al escribir en Google Sheets"
+            
+    except Exception as e:
+        error_msg = str(e).lower()
+        if 'ssl' in error_msg:
+            return False, "Error SSL - Refresca la página e intenta de nuevo"
+        elif 'permission' in error_msg or '403' in error_msg:
+            return False, "Error de permisos - Verifica acceso al spreadsheet"
+        else:
+            return False, f"Error: {str(e)}"
+
+def calcular_avance(row):
+    """Calcula el porcentaje de avance basado en campos clave"""
+    try:
+        avance = 0
+        total_campos = 4
+        
+        # Acuerdo de compromiso
+        if get_safe_value(row, 'Acuerdo de compromiso', '').lower() in ['si', 'sí']:
+            avance += 25
+            
+        # Análisis y cronograma
+        if get_safe_value(row, 'Análisis y cronograma', '').strip():
+            avance += 25
+            
+        # Estándares
+        if get_safe_value(row, 'Estándares', '').strip():
+            avance += 25
+            
+        # Publicación
+        if get_safe_value(row, 'Publicación', '').strip():
+            avance += 25
+        
+        return min(avance, 100)
+    except:
+        return 0
+
+def generar_codigo(df):
+    """Genera nuevo código autonumérico"""
+    try:
+        if df.empty:
             return "001"
         
-        # Extraer números de códigos existentes
-        codigos_numericos = []
-        for codigo in registros_df['Cod']:
+        max_codigo = 0
+        for _, row in df.iterrows():
             try:
-                # Intentar extraer números del código
-                num_str = ''.join(filter(str.isdigit, str(codigo)))
-                if num_str:
-                    codigos_numericos.append(int(num_str))
+                codigo_str = str(get_safe_value(row, 'Cod', '0'))
+                numero = int(''.join(filter(str.isdigit, codigo_str)))
+                if numero > max_codigo:
+                    max_codigo = numero
             except:
                 continue
         
-        if codigos_numericos:
-            nuevo_numero = max(codigos_numericos) + 1
-        else:
-            nuevo_numero = 1
-            
-        return f"{nuevo_numero:03d}"  # Formato con 3 dígitos: 001, 002, etc.
-        
-    except Exception as e:
-        st.error(f"Error generando código: {e}")
+        return f"{max_codigo + 1:03d}"
+    except:
         return "001"
 
-
-def obtener_columnas_completas():
-    """Devuelve todas las columnas necesarias para un registro completo"""
-    return [
-        'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
-        'Funcionario de enlace', 'Frecuencia', 'Actas de interés', 'Suscripción',
-        'Entrega', 'Acuerdo de compromiso', 'Acceso a datos', 'Análisis de información',
-        'Fecha de entrega de información', 'Cronograma concertado',
-        'Análisis de información (fecha programada)', 'Análisis y cronograma',
-        'Seguimiento de acuerdos', 'Registro', 'ET', 'CO', 'DD', 'REC', 'SERVICIO',
-        'Estándares (fecha programada)', 'Estándares', 'Resultados de orientación técnica',
-        'Verificación del servicio web geográfico', 'Verificar Aprobar', 'Revisar validar',
-        'Aprobación de resultados', 'Fecha de publicación programada', 'Publicación',
-        'Disponer de los datos temáticos', 'Catálogo de recursos geográficos',
-        'Oficios de cierre', 'Fecha de oficio de cierre', 'Estado', 'Observaciones',
-        'Plazo de análisis', 'Plazo de cronograma', 'Plazo de oficio de cierre',
-        'Porcentaje de Avance'
-    ]
-
-
-def crear_registro_vacio(codigo_nuevo):
-    """Crea un registro completamente vacío con el código asignado"""
-    columnas = obtener_columnas_completas()
-    registro = {}
-    
-    for columna in columnas:
-        if columna == 'Cod':
-            registro[columna] = codigo_nuevo
-        elif columna == 'Porcentaje de Avance':
-            registro[columna] = 0
-        else:
-            registro[columna] = ''
-    
-    return registro
-
-
-def mostrar_formulario_registro(row_data, indice, es_nuevo=False):
-    """Muestra el formulario para editar o crear un registro"""
+def mostrar_formulario(row, indice, es_nuevo=False):
+    """Formulario limpio sin íconos"""
     
     # INFORMACIÓN BÁSICA
-    st.markdown("**Información Básica**")
+    st.subheader("Información Básica")
     col1, col2 = st.columns(2)
     
     with col1:
         codigo = st.text_input("Código", 
-            value=str(row_data.get('Cod', '')), 
-            key=f"codigo_{indice}",
-            disabled=es_nuevo)  # Solo lectura para nuevos registros
-            
-        tipo_dato = st.selectbox("Tipo de Dato", 
-            options=["", "Geográfico", "Estadístico", "Catastral", "Otro"],
-            index=["", "Geográfico", "Estadístico", "Catastral", "Otro"].index(row_data.get('TipoDato', '')) if row_data.get('TipoDato', '') in ["", "Geográfico", "Estadístico", "Catastral", "Otro"] else 0,
-            key=f"tipo_dato_{indice}")
-            
-        entidad = st.text_input("Entidad", 
-            value=str(row_data.get('Entidad', '')), 
+            value=get_safe_value(row, 'Cod'),
+            disabled=es_nuevo,
+            key=f"cod_{indice}")
+        
+        entidad = st.text_input("Entidad",
+            value=get_safe_value(row, 'Entidad'),
             key=f"entidad_{indice}")
         
-    with col2:
-        nivel_info = st.text_input("Nivel de Información", 
-            value=str(row_data.get('Nivel Información ', '')), 
-            key=f"nivel_{indice}")
-            
-        mes_proyectado = st.text_input("Mes Proyectado", 
-            value=str(row_data.get('Mes Proyectado', '')), 
-            key=f"mes_{indice}")
-            
-        funcionario = st.text_input("Funcionario", 
-            value=str(row_data.get('Funcionario de enlace', '')), 
+        funcionario = st.text_input("Funcionario",
+            value=get_safe_value(row, 'Funcionario'),
             key=f"funcionario_{indice}")
     
-    frecuencia = st.selectbox("Frecuencia",
-        options=["", "Anual", "Mensual", "Trimestral", "Semestral"],
-        index=["", "Anual", "Mensual", "Trimestral", "Semestral"].index(row_data.get('Frecuencia', '')) if row_data.get('Frecuencia', '') in ["", "Anual", "Mensual", "Trimestral", "Semestral"] else 0,
-        key=f"frecuencia_{indice}")
+    with col2:
+        nivel_info = st.text_input("Nivel de Información",
+            value=get_safe_value(row, 'Nivel Información '),
+            key=f"nivel_{indice}")
+        
+        tipo_dato = st.selectbox("Tipo de Dato",
+            options=["", "Actualizar", "Crear", "Mantener"],
+            index=0 if not get_safe_value(row, 'TipoDato') else 
+                  ["", "Actualizar", "Crear", "Mantener"].index(get_safe_value(row, 'TipoDato')) 
+                  if get_safe_value(row, 'TipoDato') in ["", "Actualizar", "Crear", "Mantener"] else 0,
+            key=f"tipo_{indice}")
+        
+        frecuencia = st.text_input("Frecuencia",
+            value=get_safe_value(row, 'Frecuencia actualizacion '),
+            key=f"freq_{indice}")
     
-    # ACUERDOS Y COMPROMISOS
-    st.markdown("**Acuerdos y Compromisos**")
+    mes_proyectado = st.text_input("Mes Proyectado",
+        value=get_safe_value(row, 'Mes Proyectado'),
+        key=f"mes_{indice}")
+    
+    # ACUERDOS
+    st.subheader("Acuerdos y Compromisos")
     col1, col2 = st.columns(2)
     
     with col1:
         actas_interes = st.selectbox("Actas de interés",
             options=["", "Si", "No"],
-            index=["", "Si", "No"].index(row_data.get('Actas de interés', '')) if row_data.get('Actas de interés', '') in ["", "Si", "No"] else 0,
+            index=0 if not get_safe_value(row, 'Actas de acercamiento y manifestación de interés') else
+                  ["", "Si", "No"].index(get_safe_value(row, 'Actas de acercamiento y manifestación de interés'))
+                  if get_safe_value(row, 'Actas de acercamiento y manifestación de interés') in ["", "Si", "No"] else 0,
             key=f"actas_{indice}")
-        
-        suscripcion = st.selectbox("Suscripción",
-            options=["", "Si", "No", "Pendiente"],
-            index=["", "Si", "No", "Pendiente"].index(row_data.get('Suscripción', '')) if row_data.get('Suscripción', '') in ["", "Si", "No", "Pendiente"] else 0,
-            key=f"suscripcion_{indice}")
-    
-    with col2:
-        entrega = st.selectbox("Entrega",
-            options=["", "Si", "No", "Parcial"],
-            index=["", "Si", "No", "Parcial"].index(row_data.get('Entrega', '')) if row_data.get('Entrega', '') in ["", "Si", "No", "Parcial"] else 0,
-            key=f"entrega_{indice}")
         
         acuerdo_compromiso = st.selectbox("Acuerdo de compromiso",
             options=["", "Si", "No"],
-            index=["", "Si", "No"].index(row_data.get('Acuerdo de compromiso', '')) if row_data.get('Acuerdo de compromiso', '') in ["", "Si", "No"] else 0,
+            index=0 if not get_safe_value(row, 'Acuerdo de compromiso') else
+                  ["", "Si", "No"].index(get_safe_value(row, 'Acuerdo de compromiso'))
+                  if get_safe_value(row, 'Acuerdo de compromiso') in ["", "Si", "No"] else 0,
             key=f"acuerdo_{indice}")
     
-    # GESTIÓN DE INFORMACIÓN
-    st.markdown("**Gestión de Información**")
+    with col2:
+        suscripcion = st.text_input("Suscripción acuerdo (fecha)",
+            value=get_safe_value(row, 'Suscripción acuerdo de compromiso'),
+            key=f"suscripcion_{indice}")
+        
+        entrega_acuerdo = st.text_input("Entrega acuerdo (fecha)",
+            value=get_safe_value(row, 'Entrega acuerdo de compromiso'),
+            key=f"entrega_{indice}")
+    
+    # GESTIÓN DE DATOS
+    st.subheader("Gestión de Información")
     col1, col2 = st.columns(2)
     
     with col1:
         acceso_datos = st.selectbox("Acceso a datos",
-            options=["", "Si", "No", "Limitado"],
-            index=["", "Si", "No", "Limitado"].index(row_data.get('Acceso a datos', '')) if row_data.get('Acceso a datos', '') in ["", "Si", "No", "Limitado"] else 0,
+            options=["", "Si", "No"],
+            index=0 if not get_safe_value(row, 'Gestion acceso a los datos y documentos requeridos ') else
+                  ["", "Si", "No"].index(get_safe_value(row, 'Gestion acceso a los datos y documentos requeridos '))
+                  if get_safe_value(row, 'Gestion acceso a los datos y documentos requeridos ') in ["", "Si", "No"] else 0,
             key=f"acceso_{indice}")
         
-        analisis_informacion = st.text_input("Análisis de información",
-            value=str(row_data.get('Análisis de información', '')),
-            key=f"analisis_info_{indice}")
+        analisis_info = st.selectbox("Análisis de información",
+            options=["", "Si", "No"],
+            index=0 if not get_safe_value(row, ' Análisis de información') else
+                  ["", "Si", "No"].index(get_safe_value(row, ' Análisis de información'))
+                  if get_safe_value(row, ' Análisis de información') in ["", "Si", "No"] else 0,
+            key=f"analisis_{indice}")
     
     with col2:
-        fecha_entrega = st.text_input("Fecha de entrega (DD/MM/YYYY)",
-            value=str(row_data.get('Fecha de entrega de información', '')),
-            key=f"fecha_entrega_{indice}")
-        
-        cronograma_concertado = st.selectbox("Cronograma concertado",
-            options=["", "Si", "No", "En proceso"],
-            index=["", "Si", "No", "En proceso"].index(row_data.get('Cronograma concertado', '')) if row_data.get('Cronograma concertado', '') in ["", "Si", "No", "En proceso"] else 0,
+        cronograma = st.selectbox("Cronograma Concertado",
+            options=["", "Si", "No"],
+            index=0 if not get_safe_value(row, 'Cronograma Concertado') else
+                  ["", "Si", "No"].index(get_safe_value(row, 'Cronograma Concertado'))
+                  if get_safe_value(row, 'Cronograma Concertado') in ["", "Si", "No"] else 0,
             key=f"cronograma_{indice}")
+        
+        fecha_entrega = st.text_input("Fecha entrega información",
+            value=get_safe_value(row, 'Fecha de entrega de información'),
+            key=f"fecha_entrega_{indice}")
     
-    # ANÁLISIS Y FECHAS
-    st.markdown("**Análisis y Cronograma**")
+    # FECHAS PROGRAMADAS
+    st.subheader("Fechas y Cronograma")
     col1, col2 = st.columns(2)
     
     with col1:
-        analisis_programada = st.text_input("Análisis programada (DD/MM/YYYY)",
-            value=str(row_data.get('Análisis de información (fecha programada)', '')),
+        analisis_programada = st.text_input("Análisis programada",
+            value=get_safe_value(row, 'Análisis y cronograma (fecha programada)'),
             key=f"analisis_prog_{indice}")
         
-        analisis_real = st.text_input("Análisis real (DD/MM/YYYY)",
-            value=str(row_data.get('Análisis y cronograma', '')),
+        analisis_real = st.text_input("Análisis real",
+            value=get_safe_value(row, 'Análisis y cronograma'),
             key=f"analisis_real_{indice}")
     
     with col2:
-        seguimiento_acuerdos = st.text_area("Seguimiento de acuerdos",
-            value=str(row_data.get('Seguimiento de acuerdos', '')),
+        seguimiento = st.text_area("Seguimiento acuerdos",
+            value=get_safe_value(row, 'Seguimiento a los acuerdos'),
             height=80,
             key=f"seguimiento_{indice}")
     
-    # ESTÁNDARES COMPLETOS
-    st.markdown("**Estándares**")
+    # ESTÁNDARES
+    st.subheader("Estándares")
     col1, col2, col3 = st.columns(3)
     
     with col1:
         registro = st.selectbox("Registro",
-            options=["", "Completo", "Incompleto", "No aplica"],
-            index=["", "Completo", "Incompleto", "No aplica"].index(row_data.get('Registro', '')) if row_data.get('Registro', '') in ["", "Completo", "Incompleto", "No aplica"] else 0,
+            options=["", "Completo", "Incompleto"],
+            index=0 if not get_safe_value(row, 'Registro (completo)') else
+                  ["", "Completo", "Incompleto"].index(get_safe_value(row, 'Registro (completo)'))
+                  if get_safe_value(row, 'Registro (completo)') in ["", "Completo", "Incompleto"] else 0,
             key=f"registro_{indice}")
-            
+        
         et = st.selectbox("ET",
-            options=["", "Completo", "Incompleto", "No aplica"],
-            index=["", "Completo", "Incompleto", "No aplica"].index(row_data.get('ET', '')) if row_data.get('ET', '') in ["", "Completo", "Incompleto", "No aplica"] else 0,
+            options=["", "Completo", "Incompleto"],
+            index=0 if not get_safe_value(row, 'ET (completo)') else
+                  ["", "Completo", "Incompleto"].index(get_safe_value(row, 'ET (completo)'))
+                  if get_safe_value(row, 'ET (completo)') in ["", "Completo", "Incompleto"] else 0,
             key=f"et_{indice}")
     
     with col2:
         co = st.selectbox("CO",
-            options=["", "Completo", "Incompleto", "No aplica"],
-            index=["", "Completo", "Incompleto", "No aplica"].index(row_data.get('CO', '')) if row_data.get('CO', '') in ["", "Completo", "Incompleto", "No aplica"] else 0,
+            options=["", "Completo", "Incompleto"],
+            index=0 if not get_safe_value(row, 'CO (completo)') else
+                  ["", "Completo", "Incompleto"].index(get_safe_value(row, 'CO (completo)'))
+                  if get_safe_value(row, 'CO (completo)') in ["", "Completo", "Incompleto"] else 0,
             key=f"co_{indice}")
-            
+        
         dd = st.selectbox("DD",
-            options=["", "Completo", "Incompleto", "No aplica"],
-            index=["", "Completo", "Incompleto", "No aplica"].index(row_data.get('DD', '')) if row_data.get('DD', '') in ["", "Completo", "Incompleto", "No aplica"] else 0,
+            options=["", "Completo", "Incompleto"],
+            index=0 if not get_safe_value(row, 'DD (completo)') else
+                  ["", "Completo", "Incompleto"].index(get_safe_value(row, 'DD (completo)'))
+                  if get_safe_value(row, 'DD (completo)') in ["", "Completo", "Incompleto"] else 0,
             key=f"dd_{indice}")
     
     with col3:
         rec = st.selectbox("REC",
-            options=["", "Completo", "Incompleto", "No aplica"],
-            index=["", "Completo", "Incompleto", "No aplica"].index(row_data.get('REC', '')) if row_data.get('REC', '') in ["", "Completo", "Incompleto", "No aplica"] else 0,
+            options=["", "Completo", "Incompleto"],
+            index=0 if not get_safe_value(row, 'REC (completo)') else
+                  ["", "Completo", "Incompleto"].index(get_safe_value(row, 'REC (completo)'))
+                  if get_safe_value(row, 'REC (completo)') in ["", "Completo", "Incompleto"] else 0,
             key=f"rec_{indice}")
-            
+        
         servicio = st.selectbox("SERVICIO",
-            options=["", "Completo", "Incompleto", "No aplica"],
-            index=["", "Completo", "Incompleto", "No aplica"].index(row_data.get('SERVICIO', '')) if row_data.get('SERVICIO', '') in ["", "Completo", "Incompleto", "No aplica"] else 0,
+            options=["", "Completo", "Incompleto"],
+            index=0 if not get_safe_value(row, 'SERVICIO (completo)') else
+                  ["", "Completo", "Incompleto"].index(get_safe_value(row, 'SERVICIO (completo)'))
+                  if get_safe_value(row, 'SERVICIO (completo)') in ["", "Completo", "Incompleto"] else 0,
             key=f"servicio_{indice}")
     
     # FECHAS DE ESTÁNDARES
     col1, col2 = st.columns(2)
-    
     with col1:
-        estandares_programada = st.text_input("Estándares programada (DD/MM/YYYY)",
-            value=str(row_data.get('Estándares (fecha programada)', '')),
-            key=f"estandares_prog_{indice}")
+        estandares_prog = st.text_input("Estándares programada",
+            value=get_safe_value(row, 'Estándares (fecha programada)'),
+            key=f"est_prog_{indice}")
     
     with col2:
-        estandares_real = st.text_input("Estándares real (DD/MM/YYYY)",
-            value=str(row_data.get('Estándares', '')),
-            key=f"estandares_real_{indice}")
+        estandares_real = st.text_input("Estándares real",
+            value=get_safe_value(row, 'Estándares'),
+            key=f"est_real_{indice}")
     
-    # ORIENTACIÓN Y VERIFICACIONES
-    st.markdown("**Orientación y Verificaciones**")
-    col1, col2, col3 = st.columns(3)
+    # VERIFICACIONES
+    st.subheader("Verificaciones")
+    col1, col2 = st.columns(2)
     
     with col1:
-        resultados_orientacion = st.selectbox("Resultados orientación técnica",
-            options=["", "Si", "No", "Completo"],
-            index=["", "Si", "No", "Completo"].index(row_data.get('Resultados de orientación técnica', '')) if row_data.get('Resultados de orientación técnica', '') in ["", "Si", "No", "Completo"] else 0,
+        orientacion = st.selectbox("Orientación técnica",
+            options=["", "Si", "No"],
+            index=0 if not get_safe_value(row, 'Resultados de orientación técnica') else
+                  ["", "Si", "No"].index(get_safe_value(row, 'Resultados de orientación técnica'))
+                  if get_safe_value(row, 'Resultados de orientación técnica') in ["", "Si", "No"] else 0,
             key=f"orientacion_{indice}")
-    
-    with col2:
-        verificacion_servicio = st.selectbox("Verificación servicio web",
-            options=["", "Si", "No", "Completo"],
-            index=["", "Si", "No", "Completo"].index(row_data.get('Verificación del servicio web geográfico', '')) if row_data.get('Verificación del servicio web geográfico', '') in ["", "Si", "No", "Completo"] else 0,
+        
+        verificacion_web = st.selectbox("Verificación servicio web",
+            options=["", "Si", "No"],
+            index=0 if not get_safe_value(row, 'Verificación del servicio web geográfico') else
+                  ["", "Si", "No"].index(get_safe_value(row, 'Verificación del servicio web geográfico'))
+                  if get_safe_value(row, 'Verificación del servicio web geográfico') in ["", "Si", "No"] else 0,
             key=f"verificacion_{indice}")
     
-    with col3:
+    with col2:
         verificar_aprobar = st.selectbox("Verificar Aprobar",
-            options=["", "Si", "No", "Pendiente"],
-            index=["", "Si", "No", "Pendiente"].index(row_data.get('Verificar Aprobar', '')) if row_data.get('Verificar Aprobar', '') in ["", "Si", "No", "Pendiente"] else 0,
-            key=f"verificar_aprobar_{indice}")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        revisar_validar = st.selectbox("Revisar validar",
-            options=["", "Si", "No", "En proceso"],
-            index=["", "Si", "No", "En proceso"].index(row_data.get('Revisar validar', '')) if row_data.get('Revisar validar', '') in ["", "Si", "No", "En proceso"] else 0,
+            options=["", "Si", "No"],
+            index=0 if not get_safe_value(row, 'Verificar Aprobar Resultados') else
+                  ["", "Si", "No"].index(get_safe_value(row, 'Verificar Aprobar Resultados'))
+                  if get_safe_value(row, 'Verificar Aprobar Resultados') in ["", "Si", "No"] else 0,
+            key=f"aprobar_{indice}")
+        
+        revisar_validar = st.selectbox("Revisar y validar",
+            options=["", "Si", "No"],
+            index=0 if not get_safe_value(row, 'Revisar y validar los datos cargados en la base de datos') else
+                  ["", "Si", "No"].index(get_safe_value(row, 'Revisar y validar los datos cargados en la base de datos'))
+                  if get_safe_value(row, 'Revisar y validar los datos cargados en la base de datos') in ["", "Si", "No"] else 0,
             key=f"revisar_{indice}")
     
-    with col2:
-        aprobacion_resultados = st.selectbox("Aprobación resultados",
-            options=["", "Si", "No", "Pendiente"],
-            index=["", "Si", "No", "Pendiente"].index(row_data.get('Aprobación de resultados', '')) if row_data.get('Aprobación de resultados', '') in ["", "Si", "No", "Pendiente"] else 0,
-            key=f"aprobacion_{indice}")
+    aprobacion = st.selectbox("Aprobación resultados",
+        options=["", "Si", "No"],
+        index=0 if not get_safe_value(row, 'Aprobación resultados obtenidos en la orientación') else
+              ["", "Si", "No"].index(get_safe_value(row, 'Aprobación resultados obtenidos en la orientación'))
+              if get_safe_value(row, 'Aprobación resultados obtenidos en la orientación') in ["", "Si", "No"] else 0,
+        key=f"aprobacion_{indice}")
     
     # PUBLICACIÓN
-    st.markdown("**Publicación**")
+    st.subheader("Publicación")
     col1, col2 = st.columns(2)
     
     with col1:
-        publicacion_programada = st.text_input("Publicación programada (DD/MM/YYYY)",
-            value=str(row_data.get('Fecha de publicación programada', '')),
+        pub_programada = st.text_input("Publicación programada",
+            value=get_safe_value(row, 'Fecha de publicación programada'),
             key=f"pub_prog_{indice}")
         
-        publicacion_real = st.text_input("Publicación real (DD/MM/YYYY)",
-            value=str(row_data.get('Publicación', '')),
-            key=f"pub_real_{indice}")
+        publicacion = st.text_input("Publicación real",
+            value=get_safe_value(row, 'Publicación'),
+            key=f"publicacion_{indice}")
     
     with col2:
         disponer_datos = st.selectbox("Disponer datos temáticos",
-            options=["", "Si", "No", "En proceso"],
-            index=["", "Si", "No", "En proceso"].index(row_data.get('Disponer de los datos temáticos', '')) if row_data.get('Disponer de los datos temáticos', '') in ["", "Si", "No", "En proceso"] else 0,
+            options=["", "Si", "No"],
+            index=0 if not get_safe_value(row, 'Disponer datos temáticos') else
+                  ["", "Si", "No"].index(get_safe_value(row, 'Disponer datos temáticos'))
+                  if get_safe_value(row, 'Disponer datos temáticos') in ["", "Si", "No"] else 0,
             key=f"disponer_{indice}")
         
-        catalogo_recursos = st.selectbox("Catálogo recursos",
-            options=["", "Si", "No", "En proceso"],
-            index=["", "Si", "No", "En proceso"].index(row_data.get('Catálogo de recursos geográficos', '')) if row_data.get('Catálogo de recursos geográficos', '') in ["", "Si", "No", "En proceso"] else 0,
+        catalogo = st.selectbox("Catálogo recursos",
+            options=["", "Si", "No"],
+            index=0 if not get_safe_value(row, 'Catálogo de recursos geográficos') else
+                  ["", "Si", "No"].index(get_safe_value(row, 'Catálogo de recursos geográficos'))
+                  if get_safe_value(row, 'Catálogo de recursos geográficos') in ["", "Si", "No"] else 0,
             key=f"catalogo_{indice}")
     
     # CIERRE
-    st.markdown("**Cierre**")
+    st.subheader("Cierre")
     col1, col2, col3 = st.columns(3)
     
     with col1:
         oficios_cierre = st.selectbox("Oficios de cierre",
-            options=["", "Si", "No", "Pendiente"],
-            index=["", "Si", "No", "Pendiente"].index(row_data.get('Oficios de cierre', '')) if row_data.get('Oficios de cierre', '') in ["", "Si", "No", "Pendiente"] else 0,
+            options=["", "Si", "No"],
+            index=0 if not get_safe_value(row, 'Oficios de cierre') else
+                  ["", "Si", "No"].index(get_safe_value(row, 'Oficios de cierre'))
+                  if get_safe_value(row, 'Oficios de cierre') in ["", "Si", "No"] else 0,
             key=f"oficios_{indice}")
     
     with col2:
-        fecha_oficio_cierre = st.text_input("Fecha oficio cierre (DD/MM/YYYY)",
-            value=str(row_data.get('Fecha de oficio de cierre', '')),
+        fecha_oficio = st.text_input("Fecha oficio cierre",
+            value=get_safe_value(row, 'Fecha de oficio de cierre'),
             key=f"fecha_oficio_{indice}")
     
     with col3:
-        estado_final = st.selectbox("Estado final",
-            options=["", "Completo", "Incompleto", "Cancelado"],
-            index=["", "Completo", "Incompleto", "Cancelado"].index(row_data.get('Estado', '')) if row_data.get('Estado', '') in ["", "Completo", "Incompleto", "Cancelado"] else 0,
+        estado = st.selectbox("Estado",
+            options=["", "Completado", "En proceso", "Pendiente"],
+            index=0 if not get_safe_value(row, 'Estado') else
+                  ["", "Completado", "En proceso", "Pendiente"].index(get_safe_value(row, 'Estado'))
+                  if get_safe_value(row, 'Estado') in ["", "Completado", "En proceso", "Pendiente"] else 0,
             key=f"estado_{indice}")
     
-    # PLAZOS CALCULADOS (solo lectura)
-    st.markdown("**Plazos Calculados**")
+    # PLAZOS (solo lectura)
+    st.subheader("Plazos Calculados")
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.text_input("Plazo análisis", 
-            value=str(row_data.get('Plazo de análisis', '')), 
-            disabled=True,
-            key=f"plazo_analisis_{indice}")
+        st.text_input("Plazo análisis",
+            value=get_safe_value(row, 'Plazo de análisis'),
+            disabled=True)
     
     with col2:
-        st.text_input("Plazo cronograma", 
-            value=str(row_data.get('Plazo de cronograma', '')), 
-            disabled=True,
-            key=f"plazo_cronograma_{indice}")
+        st.text_input("Plazo cronograma",
+            value=get_safe_value(row, 'Plazo de cronograma'),
+            disabled=True)
     
     with col3:
-        st.text_input("Plazo oficio cierre", 
-            value=str(row_data.get('Plazo de oficio de cierre', '')), 
-            disabled=True,
-            key=f"plazo_oficio_{indice}")
+        st.text_input("Plazo oficio cierre",
+            value=get_safe_value(row, 'Plazo de oficio de cierre'),
+            disabled=True)
     
     # OBSERVACIONES
-    st.markdown("**Observaciones**")
-    observaciones = st.text_area("Observaciones",
-        value=str(row_data.get('Observaciones', '')),
+    st.subheader("Observaciones")
+    observacion = st.text_area("Observaciones",
+        value=get_safe_value(row, 'Observación'),
         height=100,
-        key=f"observaciones_{indice}")
+        key=f"obs_{indice}")
     
-    # COMPLETITUD CALCULADA (solo lectura)
-    porcentaje_actual = calcular_porcentaje_avance(row_data)
-    st.text_input("Porcentaje de completitud (%)", 
-        value=f"{porcentaje_actual}%", 
-        disabled=True,
-        key=f"completitud_{indice}")
+    # AVANCE (solo lectura)
+    avance_actual = calcular_avance(row)
+    st.text_input("Porcentaje de Avance",
+        value=f"{avance_actual}%",
+        disabled=True)
     
-    # Retornar todos los valores del formulario
+    # Retornar valores del formulario
     return {
         'Cod': codigo,
+        'Funcionario': funcionario,
         'Entidad': entidad,
-        'TipoDato': tipo_dato,
         'Nivel Información ': nivel_info,
-        'Mes Proyectado': mes_proyectado,
-        'Funcionario de enlace': funcionario,
-        'Frecuencia': frecuencia,
-        'Actas de interés': actas_interes,
-        'Suscripción': suscripcion,
-        'Entrega': entrega,
+        'Frecuencia actualizacion ': frecuencia,
+        'TipoDato': tipo_dato,
+        'Actas de acercamiento y manifestación de interés': actas_interes,
+        'Suscripción acuerdo de compromiso': suscripcion,
+        'Entrega acuerdo de compromiso': entrega_acuerdo,
         'Acuerdo de compromiso': acuerdo_compromiso,
-        'Acceso a datos': acceso_datos,
-        'Análisis de información': analisis_informacion,
+        'Gestion acceso a los datos y documentos requeridos ': acceso_datos,
+        ' Análisis de información': analisis_info,
+        'Cronograma Concertado': cronograma,
+        'Análisis y cronograma (fecha programada)': analisis_programada,
         'Fecha de entrega de información': fecha_entrega,
-        'Cronograma concertado': cronograma_concertado,
-        'Análisis de información (fecha programada)': analisis_programada,
         'Análisis y cronograma': analisis_real,
-        'Seguimiento de acuerdos': seguimiento_acuerdos,
-        'Registro': registro,
-        'ET': et,
-        'CO': co,
-        'DD': dd,
-        'REC': rec,
-        'SERVICIO': servicio,
-        'Estándares (fecha programada)': estandares_programada,
+        'Seguimiento a los acuerdos': seguimiento,
+        'Registro (completo)': registro,
+        'ET (completo)': et,
+        'CO (completo)': co,
+        'DD (completo)': dd,
+        'REC (completo)': rec,
+        'SERVICIO (completo)': servicio,
+        'Estándares (fecha programada)': estandares_prog,
         'Estándares': estandares_real,
-        'Resultados de orientación técnica': resultados_orientacion,
-        'Verificación del servicio web geográfico': verificacion_servicio,
-        'Verificar Aprobar': verificar_aprobar,
-        'Revisar validar': revisar_validar,
-        'Aprobación de resultados': aprobacion_resultados,
-        'Fecha de publicación programada': publicacion_programada,
-        'Publicación': publicacion_real,
-        'Disponer de los datos temáticos': disponer_datos,
-        'Catálogo de recursos geográficos': catalogo_recursos,
+        'Resultados de orientación técnica': orientacion,
+        'Verificación del servicio web geográfico': verificacion_web,
+        'Verificar Aprobar Resultados': verificar_aprobar,
+        'Revisar y validar los datos cargados en la base de datos': revisar_validar,
+        'Aprobación resultados obtenidos en la orientación': aprobacion,
+        'Fecha de publicación programada': pub_programada,
+        'Publicación': publicacion,
+        'Disponer datos temáticos': disponer_datos,
+        'Catálogo de recursos geográficos': catalogo,
         'Oficios de cierre': oficios_cierre,
-        'Fecha de oficio de cierre': fecha_oficio_cierre,
-        'Estado': estado_final,
-        'Observaciones': observaciones
+        'Fecha de oficio de cierre': fecha_oficio,
+        'Estado': estado,
+        'Observación': observacion,
+        'Mes Proyectado': mes_proyectado
     }
 
-
 def mostrar_edicion_registros(registros_df):
-    """Editor limpio con opciones de editar existente o crear nuevo"""
+    """Editor principal limpio"""
     
-    st.subheader("Editor de Registros")
+    st.title("Editor de Registros")
     
-    # Botón para recargar datos desde Google Sheets
+    # Controles principales
     col1, col2, col3 = st.columns([2, 1, 1])
     
     with col1:
-        st.info("💡 Este editor NUNCA modifica la hoja 'Metas', solo trabaja con 'Registros'")
+        if st.button("Cargar desde Google Sheets"):
+            with st.spinner("Cargando datos..."):
+                registros_df = cargar_desde_sheets()
+                if not registros_df.empty:
+                    st.session_state['registros_df'] = registros_df
+                    st.rerun()
     
     with col2:
-        if st.button("🔄 Recargar desde Google Sheets", help="Carga los datos más recientes"):
-            with st.spinner("Cargando datos..."):
-                registros_actualizados = cargar_datos_desde_sheets()
-                if not registros_actualizados.empty:
-                    st.success("✅ Datos recargados exitosamente")
-                    # Actualizar los datos en session_state si existe
-                    if 'registros_df' in st.session_state:
-                        st.session_state.registros_df = registros_actualizados
-                    st.rerun()
-                else:
-                    st.warning("⚠️ No se pudieron cargar datos nuevos")
+        total = len(registros_df) if not registros_df.empty else 0
+        st.metric("Total Registros", total)
     
     with col3:
-        total_registros = len(registros_df) if not registros_df.empty else 0
-        st.metric("Total Registros", total_registros)
+        if 'ultimo_guardado' in st.session_state:
+            st.success(f"Último guardado: {st.session_state.ultimo_guardado}")
     
-    # Pestañas para editar o crear
-    tab1, tab2 = st.tabs(["Editar Existente", "Crear Nuevo Registro"])
+    if registros_df.empty:
+        st.warning("No hay datos disponibles. Usa 'Cargar desde Google Sheets'")
+        return registros_df
+    
+    # Pestañas
+    tab1, tab2 = st.tabs(["Editar Existente", "Crear Nuevo"])
     
     with tab1:
-        if registros_df.empty:
-            st.warning("No hay registros disponibles para editar.")
-            st.info("💡 Usa el botón 'Recargar desde Google Sheets' o crea un nuevo registro.")
-            return registros_df
-        
         # Selector de registro
-        opciones_registros = [
-            f"{registros_df.iloc[i]['Cod']} - {registros_df.iloc[i]['Entidad']} - {registros_df.iloc[i].get('Nivel Información ', 'N/A')}"
-            for i in range(len(registros_df))
+        opciones = [
+            f"{row['Cod']} - {row['Entidad']}"
+            for _, row in registros_df.iterrows()
         ]
         
-        seleccion_registro = st.selectbox(
-            "Seleccionar registro:",
-            options=opciones_registros,
-            key="selector_registro_editar"
-        )
+        if not opciones:
+            st.warning("No hay registros para editar")
+            return registros_df
         
-        indice_seleccionado = opciones_registros.index(seleccion_registro)
-        row_original = registros_df.iloc[indice_seleccionado].copy()
+        seleccion = st.selectbox("Seleccionar registro:", opciones)
+        indice = opciones.index(seleccion)
+        row_seleccionada = registros_df.iloc[indice]
         
-        st.markdown(f"**Editando:** {row_original['Cod']} - {row_original['Entidad']}")
+        st.write(f"Editando: {row_seleccionada['Cod']} - {row_seleccionada['Entidad']}")
         
-        # FORMULARIO DE EDICIÓN
-        form_key = f"form_editor_edit_{row_original['Cod']}_{int(time.time())}"
-        
-        with st.form(form_key, clear_on_submit=False):
+        # Formulario de edición
+        with st.form("form_editar"):
+            valores = mostrar_formulario(row_seleccionada, indice, False)
             
-            # Mostrar formulario
-            valores_form = mostrar_formulario_registro(row_original, indice_seleccionado, es_nuevo=False)
-            
-            # BOTÓN DE GUARDAR
-            submitted = st.form_submit_button("💾 Actualizar Registro", type="primary", use_container_width=True)
-            
-            if submitted:
+            if st.form_submit_button("Guardar Cambios", type="primary"):
                 try:
-                    # Crear registro actualizado
-                    registro_actualizado = row_original.copy()
+                    # Actualizar registro
+                    for campo, valor in valores.items():
+                        if campo in registros_df.columns:
+                            registros_df.iloc[indice, registros_df.columns.get_loc(campo)] = valor
                     
-                    # Actualizar todos los campos del formulario
-                    for campo, valor in valores_form.items():
-                        registro_actualizado[campo] = valor
+                    # Calcular nuevo avance
+                    nuevo_avance = calcular_avance(registros_df.iloc[indice])
+                    if 'Porcentaje Avance' in registros_df.columns:
+                        registros_df.iloc[indice, registros_df.columns.get_loc('Porcentaje Avance')] = nuevo_avance
                     
-                    # Calcular nuevo porcentaje de avance
-                    nuevo_porcentaje = calcular_porcentaje_avance(registro_actualizado)
-                    registro_actualizado['Porcentaje de Avance'] = nuevo_porcentaje
-                    
-                    # Actualizar DataFrame
-                    registros_df.iloc[indice_seleccionado] = registro_actualizado
-                    
-                    # Aplicar validaciones y actualizar plazos
-                    registros_df = validar_reglas_negocio(registros_df)
-                    registros_df = actualizar_plazo_analisis(registros_df)
-                    registros_df = actualizar_plazo_cronograma(registros_df)
-                    registros_df = actualizar_plazo_oficio_cierre(registros_df)
-                    
-                    # Guardar SOLO en hoja Registros (NUNCA en Metas)
-                    exito, mensaje = guardar_solo_registros(registros_df)
+                    # Guardar en Google Sheets
+                    exito, mensaje = guardar_en_sheets(registros_df)
                     
                     if exito:
-                        st.success(f"✅ {mensaje}")
-                        st.success(f"📊 Avance del registro: {nuevo_porcentaje}%")
-                        
-                        # Actualizar timestamp de último guardado
+                        st.success(f"{mensaje}. Avance: {nuevo_avance}%")
                         st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
-                        
-                        # Esperar un momento antes de recargar
+                        st.session_state['registros_df'] = registros_df
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error(f"❌ {mensaje}")
-                        if "ssl" in mensaje.lower():
-                            st.info("💡 Error SSL detectado. Intenta recargar la página e intentar de nuevo.")
+                        st.error(mensaje)
                         
                 except Exception as e:
-                    st.error(f"❌ Error al procesar los cambios: {str(e)}")
-                    st.code(f"Detalle del error: {type(e).__name__}: {str(e)}")
+                    st.error(f"Error al guardar: {str(e)}")
     
     with tab2:
-        st.markdown("**Crear Nuevo Registro**")
+        # Crear nuevo registro
+        st.subheader("Crear Nuevo Registro")
         
-        # Generar código automático
-        nuevo_codigo = generar_nuevo_codigo(registros_df)
-        st.info(f"📝 Código asignado automáticamente: **{nuevo_codigo}**")
+        nuevo_codigo = generar_codigo(registros_df)
+        st.info(f"Código asignado: {nuevo_codigo}")
         
-        # FORMULARIO DE NUEVO REGISTRO
-        form_key_nuevo = f"form_editor_nuevo_{nuevo_codigo}_{int(time.time())}"
+        # Crear registro vacío
+        registro_vacio = pd.Series({col: '' for col in registros_df.columns})
+        registro_vacio['Cod'] = nuevo_codigo
         
-        with st.form(form_key_nuevo, clear_on_submit=True):
+        with st.form("form_nuevo"):
+            valores_nuevo = mostrar_formulario(registro_vacio, "nuevo", True)
             
-            # Crear registro vacío con código asignado
-            registro_vacio = crear_registro_vacio(nuevo_codigo)
-            
-            # Mostrar formulario
-            valores_form_nuevo = mostrar_formulario_registro(registro_vacio, "nuevo", es_nuevo=True)
-            
-            # BOTÓN DE CREAR
-            submitted_nuevo = st.form_submit_button("➕ Crear Nuevo Registro", type="primary", use_container_width=True)
-            
-            if submitted_nuevo:
+            if st.form_submit_button("Crear Registro", type="primary"):
                 try:
                     # Validar campos obligatorios
-                    if not valores_form_nuevo['Entidad'].strip():
-                        st.error("❌ El campo 'Entidad' es obligatorio")
+                    if not valores_nuevo['Entidad'].strip():
+                        st.error("El campo 'Entidad' es obligatorio")
                         return registros_df
                     
-                    # Crear registro completo
-                    nuevo_registro = crear_registro_vacio(nuevo_codigo)
+                    # Crear nuevo registro
+                    nuevo_registro = pd.Series({col: '' for col in registros_df.columns})
                     
-                    # Actualizar con valores del formulario
-                    for campo, valor in valores_form_nuevo.items():
-                        if campo in nuevo_registro:
+                    # Asignar valores del formulario
+                    for campo, valor in valores_nuevo.items():
+                        if campo in nuevo_registro.index:
                             nuevo_registro[campo] = valor
                     
-                    # Calcular porcentaje de avance
-                    nuevo_porcentaje = calcular_porcentaje_avance(nuevo_registro)
-                    nuevo_registro['Porcentaje de Avance'] = nuevo_porcentaje
+                    # Calcular avance
+                    avance = calcular_avance(nuevo_registro)
+                    nuevo_registro['Porcentaje Avance'] = avance
                     
-                    # Asegurar que todas las columnas estén presentes
-                    columnas_completas = obtener_columnas_completas()
-                    for columna in columnas_completas:
-                        if columna not in nuevo_registro:
-                            nuevo_registro[columna] = ''
+                    # Agregar al DataFrame
+                    registros_df = pd.concat([registros_df, nuevo_registro.to_frame().T], ignore_index=True)
                     
-                    # Convertir a DataFrame y concatenar
-                    df_nuevo_registro = pd.DataFrame([nuevo_registro])
-                    
-                    if registros_df.empty:
-                        # Si no hay registros, crear DataFrame con el nuevo
-                        registros_df = df_nuevo_registro
-                    else:
-                        # Asegurar que ambos DataFrames tengan las mismas columnas
-                        for columna in columnas_completas:
-                            if columna not in registros_df.columns:
-                                registros_df[columna] = ''
-                        
-                        # Concatenar el nuevo registro
-                        registros_df = pd.concat([registros_df, df_nuevo_registro], ignore_index=True)
-                    
-                    # Aplicar validaciones y actualizar plazos
-                    registros_df = validar_reglas_negocio(registros_df)
-                    registros_df = actualizar_plazo_analisis(registros_df)
-                    registros_df = actualizar_plazo_cronograma(registros_df)
-                    registros_df = actualizar_plazo_oficio_cierre(registros_df)
-                    
-                    # Guardar SOLO en hoja Registros (NUNCA en Metas)
-                    exito, mensaje = guardar_solo_registros(registros_df)
+                    # Guardar en Google Sheets
+                    exito, mensaje = guardar_en_sheets(registros_df)
                     
                     if exito:
-                        st.success(f"✅ Nuevo registro creado exitosamente: **{nuevo_codigo}**")
-                        st.success(f"📊 {mensaje}")
-                        st.success(f"📈 Avance inicial: {nuevo_porcentaje}%")
-                        st.balloons()
-                        
-                        # Actualizar timestamp de último guardado
+                        st.success(f"Registro {nuevo_codigo} creado exitosamente")
+                        st.success(f"{mensaje}. Avance inicial: {avance}%")
                         st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
-                        
-                        # Esperar un momento antes de recargar
+                        st.session_state['registros_df'] = registros_df
+                        st.balloons()
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error(f"❌ Error al guardar el nuevo registro: {mensaje}")
-                        if "ssl" in mensaje.lower():
-                            st.info("💡 Error SSL detectado. Intenta recargar la página e intentar de nuevo.")
+                        st.error(mensaje)
                         
                 except Exception as e:
-                    st.error(f"❌ Error al crear el nuevo registro: {str(e)}")
-                    st.code(f"Detalle del error: {type(e).__name__}: {str(e)}")
+                    st.error(f"Error al crear registro: {str(e)}")
     
     return registros_df
 
-
-def verificar_conexion_sheets():
-    """Verifica si la conexión con Google Sheets está funcionando - SOLO LEE REGISTROS"""
-    try:
-        from sheets_utils import GoogleSheetsManager
-        
-        # Nueva instancia para evitar problemas SSL
-        manager = GoogleSheetsManager()
-        
-        # Listar hojas disponibles
-        hojas = manager.listar_hojas()
-        
-        if hojas:
-            hojas_str = ', '.join(hojas)
-            # Verificar específicamente la hoja Registros
-            if 'Registros' in hojas:
-                try:
-                    df_test = manager.leer_hoja("Registros")
-                    num_registros = len(df_test) if not df_test.empty else 0
-                    return True, f"✅ Conexión exitosa. Hojas: {hojas_str}. Registros disponibles: {num_registros}"
-                except Exception as e:
-                    return True, f"✅ Conexión exitosa. Hojas: {hojas_str}. Error leyendo Registros: {str(e)}"
-            else:
-                return True, f"✅ Conexión exitosa. Hojas: {hojas_str}. ⚠️ Hoja 'Registros' no encontrada"
-        else:
-            return False, "❌ No se pudieron listar las hojas"
-            
-    except Exception as e:
-        error_msg = str(e).lower()
-        if 'ssl' in error_msg or 'wrong_version_number' in error_msg:
-            return False, "❌ Error SSL: Problema de conexión segura. Refresca la página e intenta de nuevo."
-        elif 'permission' in error_msg or '403' in error_msg:
-            return False, "❌ Error de permisos: Verifica que el service account tenga acceso al spreadsheet."
-        elif 'not found' in error_msg or '404' in error_msg:
-            return False, "❌ Spreadsheet no encontrado: Verifica el SPREADSHEET_ID en la configuración."
-        else:
-            return False, f"❌ Error de conexión: {str(e)}"
-
-
 def mostrar_edicion_registros_con_autenticacion(registros_df):
-    """Wrapper con autenticación para el editor limpio - PROTECCIÓN TOTAL DE METAS"""
+    """Wrapper con autenticación"""
     
     try:
         from auth_utils import verificar_autenticacion
         
         if verificar_autenticacion():
-            
-            # Panel de estado - SIN TOCAR METAS
-            with st.expander("🔧 Estado de Conexión (Solo Registros)", expanded=False):
-                
-                st.warning("🛡️ **PROTECCIÓN ACTIVA**: Este editor JAMÁS modifica la hoja 'Metas'")
-                
-                col1, col2 = st.columns([3, 1])
-                
-                with col1:
-                    if st.button("🔄 Verificar Conexión Google Sheets", key="verificar_sheets_seguro"):
-                        with st.spinner("Verificando conexión (solo lectura Registros)..."):
-                            conexion_ok, mensaje = verificar_conexion_sheets()
-                            if conexion_ok:
-                                st.success(mensaje)
-                            else:
-                                st.error(mensaje)
-                                
-                                # Mostrar sugerencias específicas para cada tipo de error
-                                if "ssl" in mensaje.lower():
-                                    st.info("""
-                                    🔧 **Solución para Error SSL:**
-                                    1. Refresca la página (Ctrl+F5)
-                                    2. Espera 30 segundos e intenta de nuevo
-                                    3. Si persiste, verifica tu conexión a internet
-                                    """)
-                                elif "permission" in mensaje.lower() or "403" in mensaje.lower():
-                                    st.info("""
-                                    🔧 **Solución para Error de Permisos:**
-                                    1. Verifica que el service account tenga acceso al spreadsheet
-                                    2. Comprueba que el correo del service account esté invitado
-                                    3. Asegúrate de que tenga permisos de edición
-                                    """)
-                                elif "not found" in mensaje.lower() or "404" in mensaje.lower():
-                                    st.info("""
-                                    🔧 **Solución para Spreadsheet No Encontrado:**
-                                    1. Verifica el SPREADSHEET_ID en tu configuración
-                                    2. Asegúrate de que el spreadsheet existe
-                                    3. Confirma que el ID sea correcto (debe tener ~44 caracteres)
-                                    """)
-                                else:
-                                    st.info("""
-                                    🔧 **Sugerencias Generales:**
-                                    - Verifica tu conexión a internet
-                                    - Comprueba que el archivo `credentials.json` esté presente
-                                    - Asegúrate de que el SPREADSHEET_ID sea correcto
-                                    - Verifica los permisos de la cuenta de servicio
-                                    """)
-                
-                with col2:
-                    # Mostrar último guardado si existe
-                    if 'ultimo_guardado' in st.session_state:
-                        st.success(f"⏰ Último guardado:\n{st.session_state.ultimo_guardado}")
+            # Panel de diagnóstico
+            with st.expander("Diagnóstico de Conexión"):
+                if st.button("Verificar Google Sheets"):
+                    if GoogleSheetsManager:
+                        try:
+                            manager = GoogleSheetsManager()
+                            hojas = manager.listar_hojas()
+                            st.success(f"Conexión exitosa. Hojas: {', '.join(hojas)}")
+                        except Exception as e:
+                            st.error(f"Error de conexión: {str(e)}")
                     else:
-                        st.info("🕐 Sin guardados\nrecientes")
+                        st.error("GoogleSheetsManager no disponible")
                 
-                # Información de seguridad
-                st.success("""
-                🛡️ **GARANTÍAS DE SEGURIDAD:**
-                ✅ Solo modifica hoja 'Registros'
-                ✅ NUNCA toca hoja 'Metas'
-                ✅ Crea nueva instancia en cada operación
-                ✅ Validaciones antes de guardar
-                """)
+                st.info("Este editor SOLO modifica la hoja 'Registros', nunca 'Metas'")
+            
+            # Usar datos de session_state si están disponibles
+            if 'registros_df' in st.session_state:
+                registros_df = st.session_state['registros_df']
             
             return mostrar_edicion_registros(registros_df)
-            
         else:
-            st.subheader("🔐 Acceso Restringido")
+            st.subheader("Acceso Restringido")
             st.warning("Se requiere autenticación para editar registros")
-            
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                st.info("""
-                **Para acceder al editor seguro:**
-                1. 🔐 Use el panel 'Acceso Administrativo' en la barra lateral
-                2. 👤 Ingrese las credenciales de administrador
-                3. ✅ Podrá editar registros sin afectar Metas
-                """)
-            
-            with col2:
-                # Mostrar vista previa de funcionalidades
-                st.markdown("**🎯 Funcionalidades disponibles:**")
-                st.markdown("""
-                - ✏️ Editar registros existentes
-                - ➕ Crear nuevos registros
-                - 🔢 Autonumeración de códigos
-                - 💾 Guardado seguro (solo Registros)
-                - 🛡️ PROTECCIÓN de hoja Metas
-                - 📊 Cálculo automático de avance
-                - 🔄 Validaciones automáticas
-                - 🚫 SSL error handling
-                """)
-            
+            st.info("Use el panel 'Acceso Administrativo' en la barra lateral")
             return registros_df
             
     except ImportError:
-        st.warning("⚠️ Sistema de autenticación no disponible. Acceso directo habilitado.")
-        st.error("🛡️ IMPORTANTE: Se aplicará protección de hoja Metas")
+        st.warning("Sistema de autenticación no disponible - Acceso directo")
         return mostrar_edicion_registros(registros_df)
