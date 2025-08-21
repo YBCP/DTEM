@@ -486,9 +486,5 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
 
 if __name__ == "__main__":
     print("Dashboard con funcionalidad original completa")
-    print("Ajustes aplicados:")
-    print("  - Estado del sistema colapsable")
-    print("  - Sin iconos innecesarios")
-    print("  - Sin texto informativo excesivo")
-    print("  - Interfaz visual limpia")
+
     print("  - Funcionalidad completa mantenida")
