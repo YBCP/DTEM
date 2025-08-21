@@ -74,6 +74,18 @@ MESES = [
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ]
 
+# LISTAS DE FRECUENCIA
+FRECUENCIAS = [
+    "", "Diaria", "Semanal", "Quincenal", "Mensual", "Bimestral", 
+    "Trimestral", "Semestral", "Anual", "Eventual"
+]
+
+# OPCIONES DE SEGUIMIENTO
+SEGUIMIENTO_OPCIONES = [
+    "", "En seguimiento", "Completado", "Pendiente", "En revisión", 
+    "Requiere acción", "Sin novedad"
+]
+
 # IMPORTS SEGUROS
 try:
     from sheets_utils import GoogleSheetsManager
@@ -136,8 +148,8 @@ def fecha_a_string(fecha):
         return ""
 
 def string_a_fecha(fecha_str):
-    """Convierte string a objeto date"""
-    if not fecha_str or not fecha_str.strip():
+    """Convierte string a objeto date - CORREGIDO para manejar campos vacíos"""
+    if not fecha_str or not fecha_str.strip() or fecha_str.strip() == "":
         return None
     
     try:
@@ -151,6 +163,33 @@ def string_a_fecha(fecha_str):
         return None
     except:
         return None
+
+def obtener_frecuencias_unicas(df):
+    """Obtiene lista única de frecuencias"""
+    if 'Frecuencia actualizacion ' not in df.columns:
+        return []
+    
+    frecuencias = df['Frecuencia actualizacion '].dropna().unique().tolist()
+    frecuencias = [f for f in frecuencias if str(f).strip() and str(f).strip().lower() != 'nan']
+    return sorted(list(set(frecuencias)))
+
+def obtener_seguimientos_unicos(df):
+    """Obtiene lista única de seguimientos"""
+    if 'Seguimiento a los acuerdos' not in df.columns:
+        return []
+    
+    seguimientos = df['Seguimiento a los acuerdos'].dropna().unique().tolist()
+    seguimientos = [s for s in seguimientos if str(s).strip() and str(s).strip().lower() != 'nan']
+    return sorted(list(set(seguimientos)))
+
+def borrar_registro(df, indice):
+    """Borra un registro del DataFrame"""
+    try:
+        df_nuevo = df.drop(df.index[indice]).reset_index(drop=True)
+        return df_nuevo
+    except Exception as e:
+        st.error(f"Error al borrar registro: {str(e)}")
+        return df
 
 def cargar_desde_sheets():
     """Carga datos desde Google Sheets"""
@@ -250,6 +289,8 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
     # Obtener listas únicas para desplegables
     funcionarios_existentes = obtener_funcionarios_unicos(df) if df is not None else []
     entidades_existentes = obtener_entidades_unicas(df) if df is not None else []
+    frecuencias_existentes = obtener_frecuencias_unicos(df) if df is not None else []
+    seguimientos_existentes = obtener_seguimientos_unicos(df) if df is not None else []
     
     # INFORMACIÓN BÁSICA
     st.subheader("Información Básica")
@@ -310,9 +351,26 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
             index=tipo_index,
             key=f"tipo_{indice}")
         
-        frecuencia = st.text_input("Frecuencia",
-            value=get_safe_value(row, 'Frecuencia actualizacion '),
+        # FRECUENCIA - Lista desplegable editable
+        frecuencia_actual = get_safe_value(row, 'Frecuencia actualizacion ')
+        
+        # Combinar frecuencias predefinidas con existentes
+        todas_frecuencias = FRECUENCIAS.copy()
+        for freq in frecuencias_existentes:
+            if freq and freq not in todas_frecuencias:
+                todas_frecuencias.append(freq)
+        
+        frecuencia_index = todas_frecuencias.index(frecuencia_actual) if frecuencia_actual in todas_frecuencias else 0
+        frecuencia = st.selectbox("Frecuencia",
+            options=["-- Seleccionar --"] + todas_frecuencias[1:] + ["-- Agregar nueva --"],
+            index=frecuencia_index if frecuencia_actual in todas_frecuencias[1:] else 0,
             key=f"freq_{indice}")
+        
+        if frecuencia == "-- Agregar nueva --":
+            frecuencia = st.text_input("Nueva frecuencia:",
+                key=f"freq_nueva_{indice}")
+        elif frecuencia == "-- Seleccionar --":
+            frecuencia = ""
     
     # MES PROYECTADO - Lista desplegable de meses
     mes_actual = get_safe_value(row, 'Mes Proyectado')
@@ -343,7 +401,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
             key=f"acuerdo_{indice}")
     
     with col2:
-        # FECHAS - Selectores de fecha
+        # FECHAS - Selectores de fecha (CORREGIDO para campos vacíos)
         suscripcion_fecha = string_a_fecha(get_safe_value(row, 'Suscripción acuerdo de compromiso'))
         suscripcion = st.date_input("Suscripción acuerdo",
             value=suscripcion_fecha,
@@ -402,10 +460,27 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
             key=f"analisis_real_{indice}")
     
     with col2:
-        seguimiento = st.text_area("Seguimiento acuerdos",
-            value=get_safe_value(row, 'Seguimiento a los acuerdos'),
-            height=80,
-            key=f"seguimiento_{indice}")
+        # SEGUIMIENTO - Lista desplegable editable
+        seguimiento_actual = get_safe_value(row, 'Seguimiento a los acuerdos')
+        
+        # Combinar seguimientos predefinidos con existentes
+        todos_seguimientos = SEGUIMIENTO_OPCIONES.copy()
+        for seg in seguimientos_existentes:
+            if seg and seg not in todos_seguimientos:
+                todos_seguimientos.append(seg)
+        
+        seguimiento_index = todos_seguimientos.index(seguimiento_actual) if seguimiento_actual in todos_seguimientos else 0
+        seguimiento = st.selectbox("Seguimiento acuerdos",
+            options=["-- Seleccionar --"] + todos_seguimientos[1:] + ["-- Escribir otro --"],
+            index=seguimiento_index if seguimiento_actual in todos_seguimientos[1:] else 0,
+            key=f"seguimiento_select_{indice}")
+        
+        if seguimiento == "-- Escribir otro --":
+            seguimiento = st.text_area("Otro seguimiento:",
+                height=80,
+                key=f"seguimiento_otro_{indice}")
+        elif seguimiento == "-- Seleccionar --":
+            seguimiento = ""
     
     # ESTÁNDARES
     st.subheader("Estándares")
@@ -608,15 +683,15 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         'Frecuencia actualizacion ': frecuencia,
         'TipoDato': tipo_dato,
         'Actas de acercamiento y manifestación de interés': actas_interes,
-        'Suscripción acuerdo de compromiso': fecha_a_string(suscripcion),
-        'Entrega acuerdo de compromiso': fecha_a_string(entrega_acuerdo),
+        'Suscripción acuerdo de compromiso': fecha_a_string(suscripcion) if suscripcion else "",
+        'Entrega acuerdo de compromiso': fecha_a_string(entrega_acuerdo) if entrega_acuerdo else "",
         'Acuerdo de compromiso': acuerdo_compromiso,
         'Gestion acceso a los datos y documentos requeridos ': acceso_datos,
         ' Análisis de información': analisis_info,
         'Cronograma Concertado': cronograma,
-        'Análisis y cronograma (fecha programada)': fecha_a_string(analisis_programada),
-        'Fecha de entrega de información': fecha_a_string(fecha_entrega),
-        'Análisis y cronograma': fecha_a_string(analisis_real),
+        'Análisis y cronograma (fecha programada)': fecha_a_string(analisis_programada) if analisis_programada else "",
+        'Fecha de entrega de información': fecha_a_string(fecha_entrega) if fecha_entrega else "",
+        'Análisis y cronograma': fecha_a_string(analisis_real) if analisis_real else "",
         'Seguimiento a los acuerdos': seguimiento,
         'Registro (completo)': registro,
         'ET (completo)': et,
@@ -624,19 +699,19 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         'DD (completo)': dd,
         'REC (completo)': rec,
         'SERVICIO (completo)': servicio,
-        'Estándares (fecha programada)': fecha_a_string(estandares_prog),
-        'Estándares': fecha_a_string(estandares_real),
+        'Estándares (fecha programada)': fecha_a_string(estandares_prog) if estandares_prog else "",
+        'Estándares': fecha_a_string(estandares_real) if estandares_real else "",
         'Resultados de orientación técnica': orientacion,
         'Verificación del servicio web geográfico': verificacion_web,
         'Verificar Aprobar Resultados': verificar_aprobar,
         'Revisar y validar los datos cargados en la base de datos': revisar_validar,
         'Aprobación resultados obtenidos en la orientación': aprobacion,
-        'Fecha de publicación programada': fecha_a_string(pub_programada),
-        'Publicación': fecha_a_string(publicacion),
+        'Fecha de publicación programada': fecha_a_string(pub_programada) if pub_programada else "",
+        'Publicación': fecha_a_string(publicacion) if publicacion else "",
         'Disponer datos temáticos': disponer_datos,
         'Catálogo de recursos geográficos': catalogo,
         'Oficios de cierre': oficios_cierre,
-        'Fecha de oficio de cierre': fecha_a_string(fecha_oficio),
+        'Fecha de oficio de cierre': fecha_a_string(fecha_oficio) if fecha_oficio else "",
         'Estado': estado,
         'Observación': observacion,
         'Mes Proyectado': mes_proyectado
@@ -689,7 +764,44 @@ def mostrar_edicion_registros(registros_df):
         indice = opciones.index(seleccion)
         row_seleccionada = registros_df.iloc[indice]
         
-        st.write(f"Editando: {get_safe_value(row_seleccionada, 'Cod')} - {get_safe_value(row_seleccionada, 'Nivel Información ')}")
+        # Información del registro seleccionado y botón de borrar
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            st.write(f"Editando: {get_safe_value(row_seleccionada, 'Cod')} - {get_safe_value(row_seleccionada, 'Nivel Información ')}")
+        
+        with col2:
+            # BOTÓN DE BORRAR REGISTRO
+            if st.button("Borrar Registro", type="secondary", help="Eliminar este registro permanentemente"):
+                # Confirmación con advertencia
+                st.warning("⚠️ ADVERTENCIA: ¿Desea borrar este registro? Este cambio no se puede deshacer.")
+                
+                col_confirm1, col_confirm2 = st.columns(2)
+                
+                with col_confirm1:
+                    if st.button("SÍ, BORRAR", type="primary", key="confirmar_borrar"):
+                        try:
+                            # Borrar registro
+                            registros_df = borrar_registro(registros_df, indice)
+                            
+                            # Guardar en Google Sheets
+                            exito, mensaje = guardar_en_sheets(registros_df)
+                            
+                            if exito:
+                                st.success(f"Registro borrado exitosamente. {mensaje}")
+                                st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
+                                st.session_state['registros_df'] = registros_df
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error(mensaje)
+                                
+                        except Exception as e:
+                            st.error(f"Error al borrar registro: {str(e)}")
+                
+                with col_confirm2:
+                    if st.button("Cancelar", key="cancelar_borrar"):
+                        st.rerun()
         
         # Formulario de edición
         with st.form("form_editar"):
@@ -806,10 +918,6 @@ def mostrar_edicion_registros_con_autenticacion(registros_df):
             st.subheader("Acceso Restringido")
             st.warning("Se requiere autenticación para editar registros")
             return registros_df
-            
-    except ImportError:
-        st.warning("Sistema de autenticación no disponible - Acceso directo")
-        return mostrar_edicion_registros(registros_df)
             
     except ImportError:
         st.warning("Sistema de autenticación no disponible - Acceso directo")
