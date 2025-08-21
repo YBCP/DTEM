@@ -272,17 +272,21 @@ def crear_filtros_reportes():
         tipo_dato_reporte = st.selectbox("Tipo de Dato:", tipos_dato, key="tipo_dato_reporte")
     
     with col2:
-        acuerdo_opciones = ['Todos', 'Si', 'No']
+        # CORREGIDO: Acuerdo de compromiso basado en fecha de entrega
+        acuerdo_opciones = ['Todos', 'Completo', 'En proceso']
         acuerdo_filtro = st.selectbox("Acuerdo de compromiso:", acuerdo_opciones, key="acuerdo_filtro")
         
-        analisis_opciones = ['Todos', 'Con fecha', 'Sin fecha']
+        # Análisis y cronograma basado en fecha real
+        analisis_opciones = ['Todos', 'Completo', 'En proceso']
         analisis_filtro = st.selectbox("Análisis y cronograma:", analisis_opciones, key="analisis_filtro")
     
     with col3:
-        estandares_opciones = ['Todos', 'Con fecha', 'Sin fecha']
+        # Estándares basado en fecha real
+        estandares_opciones = ['Todos', 'Completo', 'En proceso']
         estandares_filtro = st.selectbox("Estándares:", estandares_opciones, key="estandares_filtro")
         
-        publicacion_opciones = ['Todos', 'Con fecha', 'Sin fecha']
+        # Publicación basado en fecha real
+        publicacion_opciones = ['Todos', 'Completo', 'En proceso']
         publicacion_filtro = st.selectbox("Publicación:", publicacion_opciones, key="publicacion_filtro")
     
     with col4:
@@ -308,7 +312,6 @@ def crear_filtros_reportes():
     return (entidad_reporte, tipo_dato_reporte, acuerdo_filtro, 
             analisis_filtro, estandares_filtro, publicacion_filtro, 
             finalizado_filtro, mes_filtro_numero)
-
 
 def main():
     """Función principal CORREGIDA con mejor manejo de errores"""
