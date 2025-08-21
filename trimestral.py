@@ -301,7 +301,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     
     # Resumen ejecutivo
     st.markdown("---")
-    st.markdown("### 📊 Resumen Ejecutivo")
+    st.markdown("### Resumen Ejecutivo")
     
     col1, col2 = st.columns(2)
     
@@ -324,7 +324,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
             eficiencia_actualizar = (total_avance_actualizar / total_meta_actualizar * 100) if total_meta_actualizar > 0 else 0
             
             st.metric(
-                "🔄 ACTUALIZAR (Anual)",
+                "ACTUALIZAR (Anual)",
                 f"{total_avance_actualizar}/{total_meta_actualizar}",
                 f"{eficiencia_actualizar:.1f}% cumplimiento"
             )
@@ -333,7 +333,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     st.markdown("---")
     with st.expander("🔧 Información Técnica"):
         st.markdown(f"""
-        **📊 Fuente de Datos:**
+        **Fuente de Datos:**
         - Metas extraídas de: Hoja METAS de Google Sheets
         - Registros analizados: {len(registros_df)}
         - Registros con publicación: {len(registros_df[registros_df['Publicación'].apply(es_fecha_valida)])}
@@ -344,10 +344,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         - Q3: Publicaciones hasta 30/09/2025
         - Q4: Publicaciones hasta 31/12/2025
         
-        **✅ Correcciones Aplicadas:**
-        - Manejo seguro de tipos datetime/date
-        - Extracción automática desde Google Sheets
-        - Validación de fechas mejorada
+      
         """)
 
 
