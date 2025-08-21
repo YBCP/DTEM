@@ -213,18 +213,30 @@ def cargar_desde_sheets():
         return pd.DataFrame()
 
 def guardar_en_sheets(df):
-    """Guarda datos en Google Sheets - SOLO hoja Registros"""
+    """Guarda datos en Google Sheets - SOLO hoja Registros - MEJORADO"""
     if GoogleSheetsManager is None:
         return False, "GoogleSheetsManager no disponible"
     
     try:
         manager = GoogleSheetsManager()
         
+        # Verificar que el DataFrame no esté vacío
+        if df.empty:
+            return False, "No se puede guardar un DataFrame vacío"
+        
+        # Limpiar datos antes de guardar
+        df_clean = df.copy()
+        df_clean = df_clean.fillna('')
+        df_clean = df_clean.astype(str)
+        df_clean = df_clean.replace('nan', '').replace('None', '')
+        
         # SOLO escribir en Registros
-        exito = manager.escribir_hoja(df, "Registros", limpiar_hoja=True)
+        exito = manager.escribir_hoja(df_clean, "Registros", limpiar_hoja=True)
         
         if exito:
-            return True, "Datos guardados en Google Sheets"
+            # Forzar actualización en session_state
+            st.session_state['registros_df'] = df_clean
+            return True, "Datos guardados y sincronizados en Google Sheets"
         else:
             return False, "Error al escribir en Google Sheets"
             
@@ -752,52 +764,35 @@ def mostrar_edicion_registros(registros_df):
     
     st.title("Editor de Registros")
     
-    # Controles principales
-    col1, col2, col3 = st.columns([2, 1, 1])
+    # Controles principales simplificados
+    col1, col2 = st.columns([2, 1])
     
     with col1:
-        if st.button("Cargar desde Google Sheets"):
-            with st.spinner("Cargando datos..."):
-                registros_df = cargar_desde_sheets()
-                if not registros_df.empty:
-                    st.session_state['registros_df'] = registros_df
-                    st.rerun()
-    
-    with col2:
         total = len(registros_df) if not registros_df.empty else 0
         st.metric("Total Registros", total)
     
-    with col3:
+    with col2:
         if 'ultimo_guardado' in st.session_state:
             st.success(f"Último guardado: {st.session_state.ultimo_guardado}")
     
     if registros_df.empty:
-        st.warning("No hay datos disponibles. Usa 'Cargar desde Google Sheets'")
+        st.warning("No hay datos disponibles")
         return registros_df
     
     # Pestañas
     tab1, tab2 = st.tabs(["Editar Existente", "Crear Nuevo"])
     
     with tab1:
-        # CAMPO DE BÚSQUEDA PARA FILTRAR REGISTROS
+        # CAMPO DE BÚSQUEDA SIMPLIFICADO
         st.subheader("Buscar Registro")
         
-        col_buscar1, col_buscar2 = st.columns([3, 1])
-        
-        with col_buscar1:
-            termino_busqueda = st.text_input(
-                "Buscar por código, entidad o nivel:",
-                placeholder="Escriba para filtrar registros...",
-                key="busqueda_registro"
-            )
-        
-        with col_buscar2:
-            if st.button("Limpiar búsqueda"):
-                # Usar rerun para limpiar la búsqueda
-                st.rerun()
+        termino_busqueda = st.text_input(
+            "Buscar por código, entidad o nivel:",
+            placeholder="Escriba para filtrar registros...",
+            key="busqueda_registro"
+        )
         
         # SELECTOR DE REGISTRO MEJORADO CON BÚSQUEDA
-        opciones = []
         opciones_filtradas = []
         
         for idx, row in registros_df.iterrows():
@@ -805,7 +800,6 @@ def mostrar_edicion_registros(registros_df):
             nivel = get_safe_value(row, 'Nivel Información ', 'Sin nivel')
             entidad = get_safe_value(row, 'Entidad', 'Sin entidad')
             opcion_completa = f"{codigo} - {nivel} - {entidad}"
-            opciones.append(opcion_completa)
             
             # Filtrar según término de búsqueda
             if termino_busqueda:
@@ -853,68 +847,84 @@ def mostrar_edicion_registros(registros_df):
             st.write(f"Editando: {get_safe_value(row_seleccionada, 'Cod')} - {get_safe_value(row_seleccionada, 'Nivel Información ')}")
         
         with col2:
-            # BOTÓN DE BORRAR REGISTRO
+            # BOTÓN DE BORRAR REGISTRO MEJORADO
             if st.button("Borrar Registro", type="secondary", help="Eliminar este registro permanentemente"):
-                # Confirmación con advertencia
-                st.warning("⚠️ ADVERTENCIA: ¿Desea borrar este registro? Este cambio no se puede deshacer.")
-                
-                col_confirm1, col_confirm2 = st.columns(2)
-                
-                with col_confirm1:
-                    if st.button("SÍ, BORRAR", type="primary", key="confirmar_borrar"):
-                        try:
-                            # Borrar registro
-                            registros_df = borrar_registro(registros_df, indice_real)
-                            
-                            # Guardar en Google Sheets
-                            exito, mensaje = guardar_en_sheets(registros_df)
-                            
-                            if exito:
-                                st.success(f"Registro borrado exitosamente. {mensaje}")
-                                st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
-                                st.session_state['registros_df'] = registros_df
-                                time.sleep(1)
-                                st.rerun()
-                            else:
-                                st.error(mensaje)
-                                
-                        except Exception as e:
-                            st.error(f"Error al borrar registro: {str(e)}")
-                
-                with col_confirm2:
-                    if st.button("Cancelar", key="cancelar_borrar"):
-                        st.rerun()
+                # Usar un modal simulado con session_state
+                st.session_state.confirmar_borrado = True
+                st.session_state.registro_a_borrar = indice_real
         
-        # Formulario de edición
-        with st.form("form_editar"):
-            valores = mostrar_formulario(row_seleccionada, indice_real, False, registros_df)
+        # CONFIRMACIÓN DE BORRADO
+        if st.session_state.get('confirmar_borrado', False):
+            st.warning("⚠️ ADVERTENCIA: ¿Desea borrar este registro? Este cambio no se puede deshacer.")
             
-            if st.form_submit_button("Guardar Cambios", type="primary"):
-                try:
-                    # Actualizar registro
-                    for campo, valor in valores.items():
-                        if campo in registros_df.columns:
-                            registros_df.iloc[indice_real, registros_df.columns.get_loc(campo)] = valor
-                    
-                    # Calcular nuevo avance
-                    nuevo_avance = calcular_avance(registros_df.iloc[indice_real])
-                    if 'Porcentaje Avance' in registros_df.columns:
-                        registros_df.iloc[indice_real, registros_df.columns.get_loc('Porcentaje Avance')] = nuevo_avance
-                    
-                    # Guardar en Google Sheets
-                    exito, mensaje = guardar_en_sheets(registros_df)
-                    
-                    if exito:
-                        st.success(f"{mensaje}. Avance: {nuevo_avance}%")
-                        st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
-                        st.session_state['registros_df'] = registros_df
-                        time.sleep(1)
-                        st.rerun()
-                    else:
-                        st.error(mensaje)
+            col_confirm1, col_confirm2 = st.columns(2)
+            
+            with col_confirm1:
+                if st.button("SÍ, BORRAR", type="primary", key="confirmar_borrar_definitivo"):
+                    try:
+                        # Borrar registro del DataFrame
+                        registros_df_actualizado = registros_df.drop(registros_df.index[st.session_state.registro_a_borrar]).reset_index(drop=True)
                         
-                except Exception as e:
-                    st.error(f"Error al guardar: {str(e)}")
+                        # Guardar en Google Sheets
+                        exito, mensaje = guardar_en_sheets(registros_df_actualizado)
+                        
+                        if exito:
+                            st.success(f"Registro borrado exitosamente. {mensaje}")
+                            st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
+                            st.session_state['registros_df'] = registros_df_actualizado
+                            
+                            # Limpiar confirmación
+                            del st.session_state.confirmar_borrado
+                            del st.session_state.registro_a_borrar
+                            
+                            # Forzar actualización completa
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error(mensaje)
+                            
+                    except Exception as e:
+                        st.error(f"Error al borrar registro: {str(e)}")
+            
+            with col_confirm2:
+                if st.button("Cancelar", key="cancelar_borrar"):
+                    # Limpiar confirmación
+                    del st.session_state.confirmar_borrado
+                    if 'registro_a_borrar' in st.session_state:
+                        del st.session_state.registro_a_borrar
+                    st.rerun()
+        
+        # Formulario de edición (solo mostrar si no está en modo confirmación)
+        if not st.session_state.get('confirmar_borrado', False):
+            with st.form("form_editar"):
+                valores = mostrar_formulario(row_seleccionada, indice_real, False, registros_df)
+                
+                if st.form_submit_button("Guardar Cambios", type="primary"):
+                    try:
+                        # Actualizar registro
+                        for campo, valor in valores.items():
+                            if campo in registros_df.columns:
+                                registros_df.iloc[indice_real, registros_df.columns.get_loc(campo)] = valor
+                        
+                        # Calcular nuevo avance
+                        nuevo_avance = calcular_avance(registros_df.iloc[indice_real])
+                        if 'Porcentaje Avance' in registros_df.columns:
+                            registros_df.iloc[indice_real, registros_df.columns.get_loc('Porcentaje Avance')] = nuevo_avance
+                        
+                        # Guardar en Google Sheets
+                        exito, mensaje = guardar_en_sheets(registros_df)
+                        
+                        if exito:
+                            st.success(f"{mensaje}. Avance: {nuevo_avance}%")
+                            st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
+                            st.session_state['registros_df'] = registros_df
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error(mensaje)
+                            
+                    except Exception as e:
+                        st.error(f"Error al guardar: {str(e)}")
     
     with tab2:
         # Crear nuevo registro
