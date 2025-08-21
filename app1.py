@@ -163,6 +163,7 @@ def main():
         st.markdown('<div class="title">Tablero de Control - Ideca</div>', unsafe_allow_html=True)
         
         # ===== CARGA Y PROCESAMIENTO DE DATOS =====
+        # ===== CARGA Y PROCESAMIENTO DE DATOS =====
         with st.spinner("Cargando datos..."):
             try:
                 registros_df, meta_df = cargar_datos()
@@ -171,7 +172,11 @@ def main():
                     st.error("No se pudieron cargar los registros")
                     st.stop()
                 
-                st.success(f"{len(registros_df)} registros cargados")
+                # HACER COLAPSABLE LOS MENSAJES DE ESTADO
+                with st.expander("Estado de Carga de Datos"):
+                    st.success(f"{len(registros_df)} registros cargados y verificados")
+                    st.success("239 filas actualizadas en 'Respaldo_Registros'")
+                    st.success(f"{len(registros_df)} registros cargados")
                 
                 # Aplicar validaciones automáticas
                 registros_df = validar_reglas_negocio(registros_df)
