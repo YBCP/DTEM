@@ -242,7 +242,6 @@ def mostrar_alertas_optimizadas(registros_df):
     - ✅ Priorización automática
     """
     
-    st.title("Alertas de Vencimientos")
     
     # Información del sistema optimizado
     with st.expander("ℹ️ Sistema Optimizado"):
