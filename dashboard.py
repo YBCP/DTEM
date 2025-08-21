@@ -187,7 +187,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
                      entidad_seleccionada, funcionario_seleccionado, nivel_seleccionado):
     """Dashboard principal con todas las funcionalidades originales"""
     
-    st.title("Dashboard de Seguimiento")
+
     
     # FILTROS
     st.subheader("Filtros")
