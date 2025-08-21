@@ -289,7 +289,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
     # Obtener listas únicas para desplegables
     funcionarios_existentes = obtener_funcionarios_unicos(df) if df is not None else []
     entidades_existentes = obtener_entidades_unicas(df) if df is not None else []
-    frecuencias_existentes = obtener_frecuencias_unicos(df) if df is not None else []
+    frecuencias_existentes = obtener_frecuencias_unicas(df) if df is not None else []
     seguimientos_existentes = obtener_seguimientos_unicos(df) if df is not None else []
     
     # INFORMACIÓN BÁSICA
