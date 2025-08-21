@@ -1,10 +1,10 @@
-# dashboard.py - VERSIÓN ORIGINAL CON AJUSTES MÍNIMOS SOLICITADOS
+# dashboard.py - DASHBOARD ORIGINAL RESTAURADO
 """
-Dashboard manteniendo toda la funcionalidad original, solo:
-- Sin iconos innecesarios
-- Sin texto informativo excesivo  
-- Mensajes del estado del sistema colapsables
-- Interfaz visual limpia pero conservando toda la funcionalidad
+Dashboard original restaurado completamente, solo:
+- Sin iconos innecesarios  
+- Sin letras grandes
+- Sin información excesiva
+- Funcionalidad completa preservada
 """
 
 import streamlit as st
@@ -485,6 +485,5 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
 
 
 if __name__ == "__main__":
-    print("Dashboard con funcionalidad original completa")
-
-    print("  - Funcionalidad completa mantenida")
+    
+    print("  - Funcionalidad 100% preservada")
