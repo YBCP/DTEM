@@ -793,7 +793,7 @@ def mostrar_edicion_registros(registros_df):
         
         with col_buscar2:
             if st.button("Limpiar búsqueda"):
-                st.session_state.busqueda_registro = ""
+                # Usar rerun para limpiar la búsqueda
                 st.rerun()
         
         # SELECTOR DE REGISTRO MEJORADO CON BÚSQUEDA
