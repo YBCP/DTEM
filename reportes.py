@@ -48,7 +48,7 @@ except ImportError:
 def aplicar_filtros(registros_df, entidad_reporte, tipo_dato_reporte, acuerdo_filtro, 
                    analisis_filtro, estandares_filtro, publicacion_filtro, 
                    finalizado_filtro, mes_filtro):
-    """Aplica filtros según los datos de Google Sheets"""
+    """Aplica filtros según los datos de Google Sheets - CORREGIDO para fechas"""
     
     df_filtrado = registros_df.copy()
     
@@ -60,28 +60,28 @@ def aplicar_filtros(registros_df, entidad_reporte, tipo_dato_reporte, acuerdo_fi
     if tipo_dato_reporte != 'Todos':
         df_filtrado = df_filtrado[df_filtrado['TipoDato'].str.upper() == tipo_dato_reporte.upper()]
     
-    # Filtro por acuerdo de compromiso
-    if acuerdo_filtro == 'Si':
-        df_filtrado = df_filtrado[df_filtrado['Acuerdo de compromiso'].astype(str).str.upper().isin(['SI', 'SÍ'])]
-    elif acuerdo_filtro == 'No':
-        df_filtrado = df_filtrado[~df_filtrado['Acuerdo de compromiso'].astype(str).str.upper().isin(['SI', 'SÍ'])]
+    # CORREGIDO: Filtro por acuerdo de compromiso - basado en fecha de entrega
+    if acuerdo_filtro == 'Completo':
+        df_filtrado = df_filtrado[df_filtrado['Entrega acuerdo de compromiso'].apply(es_fecha_valida)]
+    elif acuerdo_filtro == 'En proceso':
+        df_filtrado = df_filtrado[~df_filtrado['Entrega acuerdo de compromiso'].apply(es_fecha_valida)]
     
-    # Filtro por análisis y cronograma
-    if analisis_filtro == 'Con fecha':
+    # Filtro por análisis y cronograma - basado en fecha real
+    if analisis_filtro == 'Completo':
         df_filtrado = df_filtrado[df_filtrado['Análisis y cronograma'].apply(es_fecha_valida)]
-    elif analisis_filtro == 'Sin fecha':
+    elif analisis_filtro == 'En proceso':
         df_filtrado = df_filtrado[~df_filtrado['Análisis y cronograma'].apply(es_fecha_valida)]
     
-    # Filtro por estándares
-    if estandares_filtro == 'Con fecha':
+    # Filtro por estándares - basado en fecha real
+    if estandares_filtro == 'Completo':
         df_filtrado = df_filtrado[df_filtrado['Estándares'].apply(es_fecha_valida)]
-    elif estandares_filtro == 'Sin fecha':
+    elif estandares_filtro == 'En proceso':
         df_filtrado = df_filtrado[~df_filtrado['Estándares'].apply(es_fecha_valida)]
     
-    # Filtro por publicación
-    if publicacion_filtro == 'Con fecha':
+    # Filtro por publicación - basado en fecha real
+    if publicacion_filtro == 'Completo':
         df_filtrado = df_filtrado[df_filtrado['Publicación'].apply(es_fecha_valida)]
-    elif publicacion_filtro == 'Sin fecha':
+    elif publicacion_filtro == 'En proceso':
         df_filtrado = df_filtrado[~df_filtrado['Publicación'].apply(es_fecha_valida)]
     
     # Filtro por estado (finalizado)
@@ -136,8 +136,10 @@ def mostrar_reportes_simplificado(registros_df, entidad_reporte, tipo_dato_repor
     avance_promedio = df_filtrado['Porcentaje Avance'].mean()
     completados = len(df_filtrado[df_filtrado['Porcentaje Avance'] == 100])
     sin_avance = len(df_filtrado[df_filtrado['Porcentaje Avance'] == 0])
+    # NUEVA MÉTRICA: Publicados
+    publicados = len(df_filtrado[df_filtrado['Publicación'].apply(es_fecha_valida)])
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         st.metric("Total Registros", total_filtrados)
@@ -149,6 +151,9 @@ def mostrar_reportes_simplificado(registros_df, entidad_reporte, tipo_dato_repor
         st.metric("Completados", completados)
     
     with col4:
+        st.metric("Publicados", publicados)
+    
+    with col5:
         st.metric("Sin Iniciar", sin_avance)
     
     # TABLA DE REGISTROS
