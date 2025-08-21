@@ -161,21 +161,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     """
     st.markdown('<div class="subtitle">Seguimiento Trimestral - Metas vs Avance Real</div>', unsafe_allow_html=True)
     
-    st.info("""
-    **📊 Seguimiento Trimestral - FECHAS LÍMITE EXACTAS**
     
-    **METAS POR TRIMESTRE (Google Sheets):**
-    - **Q1 Meta:** Datos de **MARZO** en hoja METAS
-    - **Q2 Meta:** Datos de **JUNIO** en hoja METAS
-    - **Q3 Meta:** Datos de **SEPTIEMBRE** en hoja METAS
-    - **Q4 Meta:** Datos de **DICIEMBRE** en hoja METAS
-    
-    **FECHAS LÍMITE DE AVANCE (EXACTAS):**
-    - **Q1:** Hasta **31 de MARZO 2025**
-    - **Q2:** Hasta **30 de JUNIO 2025** 
-    - **Q3:** Hasta **30 de SEPTIEMBRE 2025**
-    - **Q4:** Hasta **31 de DICIEMBRE 2025**
-    """)
     
     if registros_df.empty:
         st.warning("No hay registros disponibles")
