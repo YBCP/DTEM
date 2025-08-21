@@ -469,10 +469,15 @@ def validar_alertas_optimizadas():
     return optimizaciones
 
 
+# ===== ALIAS PARA COMPATIBILIDAD =====
+# Mantener el nombre original para no romper app1.py
+mostrar_alertas_vencimientos = mostrar_alertas_optimizadas
+
+
 if __name__ == "__main__":
     print("🚨 Módulo Alertas OPTIMIZADO")
     print("🔧 Optimizaciones aplicadas:")
     for opt in validar_alertas_optimizadas():
         print(f"   {opt}")
     print("\n⚡ Resultado: Alertas más eficientes y menos ruido")
-    print("📝 Uso: from alertas import mostrar_alertas_optimizadas")
+    print("📝 Uso: from alertas import mostrar_alertas_vencimientos (compatible)")
