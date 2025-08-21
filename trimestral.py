@@ -351,8 +351,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     - MÉTRICAS CLAVE RESTAURADAS
     """
     
-    st.title("Seguimiento Trimestral 2025")
-    
+
     if registros_df.empty:
         st.warning("No hay registros disponibles")
         return
