@@ -90,17 +90,7 @@ def mostrar_login():
                         st.error("❌ Credenciales incorrectas")
                         st.warning("💡 Verifique usuario y contraseña")
             
-            # Información sobre credenciales (solo para desarrollo)
-            with st.expander("ℹ️ Información de Acceso"):
-                st.markdown("""
-                **Credenciales de prueba:**
-                - Usuario: `admin`
-                - Contraseña: `qwerty`
-                
-                **⚠️ Nota de seguridad:**
-                En producción, estas credenciales deben ser cambiadas
-                y almacenadas de forma segura.
-                """)
+         
 
 def mostrar_estado_autenticacion():
     """Muestra el estado actual de autenticación en la sidebar"""
