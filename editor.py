@@ -761,8 +761,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
 
 def mostrar_edicion_registros(registros_df):
     """Editor principal limpio"""
-    
-    st.title("Editor de Registros")
+  
     
     # Controles principales simplificados
     col1, col2 = st.columns([2, 1])
