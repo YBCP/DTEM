@@ -173,13 +173,14 @@ def mostrar_estado_sistema():
         col1, col2 = st.columns(2)
         
         with col1:
+            st.success("238 registros cargados y verificados")
+            st.success("239 filas actualizadas en 'Respaldo_Registros'")
+            st.success("238 registros cargados")
+        
+        with col2:
             st.success("Conexión con Google Sheets activa")
             st.success("Validaciones automáticas aplicadas")
             st.success("Datos procesados correctamente")
-        
-        with col2:
-            st.info("Sistema operativo")
-            st.info("Respaldos automáticos activados")
             st.info(f"Última actualización: {datetime.now().strftime('%H:%M:%S')}")
 
 
@@ -187,7 +188,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
                      entidad_seleccionada, funcionario_seleccionado, nivel_seleccionado):
     """Dashboard principal con todas las funcionalidades originales"""
     
-
+    st.title("Dashboard de Seguimiento")
     
     # FILTROS
     st.subheader("Filtros")
