@@ -159,8 +159,6 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     - Avance = publicaciones hasta fecha límite de cada trimestre
     - Sin errores de operaciones datetime
     """
-    st.markdown('<div class="subtitle">Seguimiento Trimestral - Metas vs Avance Real</div>', unsafe_allow_html=True)
-    
     
     
     if registros_df.empty:
