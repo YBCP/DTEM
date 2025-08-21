@@ -1,9 +1,10 @@
-# trimestral.py - CORREGIDO: Usar datos de METAS y arreglar operaciones datetime
+# trimestral.py - CORREGIDO con MÉTRICAS/TARJETAS RESTAURADAS
 """
-Módulo Seguimiento Trimestral - CORREGIDO
+Módulo Seguimiento Trimestral - CON MÉTRICAS CLAVE RESTAURADAS
 - Metas Q1/Q2/Q3/Q4 vienen de la hoja METAS (enero/marzo/septiembre/diciembre)
 - Avance = registros publicados antes de fecha límite
 - Corregido error de operaciones datetime
+- RESTAURADAS: Tarjetas con métricas clave que faltaban
 """
 
 import streamlit as st
@@ -11,6 +12,194 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, date
 from data_utils import es_fecha_valida, procesar_fecha, procesar_metas
+
+
+def crear_metricas_trimestrales(registros_df, meta_df):
+    """
+    NUEVA FUNCIÓN: Crea métricas clave trimestrales que estaban antes
+    """
+    try:
+        # Calcular métricas generales
+        total_registros = len(registros_df) if not registros_df.empty else 0
+        
+        # Registros con publicación
+        registros_publicados = 0
+        if 'Publicación' in registros_df.columns:
+            registros_publicados = len(registros_df[registros_df['Publicación'].apply(es_fecha_valida)])
+        
+        # Porcentaje de cumplimiento general
+        porcentaje_publicados = (registros_publicados / total_registros * 100) if total_registros > 0 else 0
+        
+        # Extraer metas del año
+        metas_trimestrales = extraer_metas_desde_google_sheets(meta_df)
+        
+        # Calcular totales de metas
+        total_meta_nuevos = sum(metas_trimestrales['nuevos'].values())
+        total_meta_actualizar = sum(metas_trimestrales['actualizar'].values())
+        total_metas = total_meta_nuevos + total_meta_actualizar
+        
+        # Avance actual
+        avance_nuevos = calcular_avance_publicaciones_corregido(registros_df, 'NUEVO')
+        avance_actualizar = calcular_avance_publicaciones_corregido(registros_df, 'ACTUALIZAR')
+        
+        # Avance total hasta Q4 (final del año)
+        total_avance_nuevos = avance_nuevos.get('Q4', 0)
+        total_avance_actualizar = avance_actualizar.get('Q4', 0)
+        total_avance = total_avance_nuevos + total_avance_actualizar
+        
+        # Porcentaje de cumplimiento de metas
+        porcentaje_meta = (total_avance / total_metas * 100) if total_metas > 0 else 0
+        
+        # Trimestre actual
+        mes_actual = datetime.now().month
+        if mes_actual <= 3:
+            trimestre_actual = "Q1"
+        elif mes_actual <= 6:
+            trimestre_actual = "Q2"
+        elif mes_actual <= 9:
+            trimestre_actual = "Q3"
+        else:
+            trimestre_actual = "Q4"
+        
+        return {
+            'total_registros': total_registros,
+            'registros_publicados': registros_publicados,
+            'porcentaje_publicados': porcentaje_publicados,
+            'total_metas': total_metas,
+            'total_avance': total_avance,
+            'porcentaje_meta': porcentaje_meta,
+            'trimestre_actual': trimestre_actual,
+            'total_meta_nuevos': total_meta_nuevos,
+            'total_meta_actualizar': total_meta_actualizar,
+            'total_avance_nuevos': total_avance_nuevos,
+            'total_avance_actualizar': total_avance_actualizar
+        }
+        
+    except Exception as e:
+        st.warning(f"Error calculando métricas: {e}")
+        return {
+            'total_registros': 0,
+            'registros_publicados': 0,
+            'porcentaje_publicados': 0,
+            'total_metas': 0,
+            'total_avance': 0,
+            'porcentaje_meta': 0,
+            'trimestre_actual': 'Q1',
+            'total_meta_nuevos': 0,
+            'total_meta_actualizar': 0,
+            'total_avance_nuevos': 0,
+            'total_avance_actualizar': 0
+        }
+
+
+def mostrar_tarjetas_metricas_clave(metricas):
+    """
+    FUNCIÓN RESTAURADA: Muestra las tarjetas con métricas clave que faltaban
+    """
+    st.markdown("### Métricas Clave del Año")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            "Total Registros",
+            metricas['total_registros'],
+            help="Número total de registros en el sistema"
+        )
+        
+        st.metric(
+            "Publicados",
+            metricas['registros_publicados'],
+            delta=f"{metricas['porcentaje_publicados']:.1f}%",
+            help="Registros con fecha de publicación"
+        )
+    
+    with col2:
+        st.metric(
+            "Meta Anual Total",
+            metricas['total_metas'],
+            help="Meta total de publicaciones para el año"
+        )
+        
+        st.metric(
+            "Avance Anual",
+            metricas['total_avance'],
+            delta=f"{metricas['porcentaje_meta']:.1f}%",
+            help="Avance actual vs meta anual"
+        )
+    
+    with col3:
+        st.metric(
+            "Meta Nuevos",
+            metricas['total_meta_nuevos'],
+            help="Meta de registros nuevos para el año"
+        )
+        
+        st.metric(
+            "Avance Nuevos",
+            metricas['total_avance_nuevos'],
+            delta=f"{(metricas['total_avance_nuevos']/metricas['total_meta_nuevos']*100) if metricas['total_meta_nuevos'] > 0 else 0:.1f}%",
+            help="Avance en registros nuevos"
+        )
+    
+    with col4:
+        st.metric(
+            "Meta Actualizar",
+            metricas['total_meta_actualizar'],
+            help="Meta de registros a actualizar para el año"
+        )
+        
+        st.metric(
+            "Avance Actualizar", 
+            metricas['total_avance_actualizar'],
+            delta=f"{(metricas['total_avance_actualizar']/metricas['total_meta_actualizar']*100) if metricas['total_meta_actualizar'] > 0 else 0:.1f}%",
+            help="Avance en registros a actualizar"
+        )
+
+
+def mostrar_indicadores_trimestre_actual(metricas, avance_nuevos, avance_actualizar, metas_trimestrales):
+    """
+    FUNCIÓN ADICIONAL: Muestra indicadores específicos del trimestre actual
+    """
+    trimestre = metricas['trimestre_actual']
+    
+    st.markdown(f"### Indicadores {trimestre} 2025 (Trimestre Actual)")
+    
+    # Métricas del trimestre actual
+    meta_nuevos_q = metas_trimestrales['nuevos'][trimestre]
+    meta_actualizar_q = metas_trimestrales['actualizar'][trimestre]
+    avance_nuevos_q = avance_nuevos[trimestre]
+    avance_actualizar_q = avance_actualizar[trimestre]
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.info(f"""
+        **Registros Nuevos - {trimestre}**
+        - Meta: {meta_nuevos_q}
+        - Avance: {avance_nuevos_q}
+        - Cumplimiento: {(avance_nuevos_q/meta_nuevos_q*100) if meta_nuevos_q > 0 else 0:.1f}%
+        """)
+    
+    with col2:
+        st.info(f"""
+        **Registros Actualizar - {trimestre}**
+        - Meta: {meta_actualizar_q}
+        - Avance: {avance_actualizar_q}
+        - Cumplimiento: {(avance_actualizar_q/meta_actualizar_q*100) if meta_actualizar_q > 0 else 0:.1f}%
+        """)
+    
+    with col3:
+        total_meta_q = meta_nuevos_q + meta_actualizar_q
+        total_avance_q = avance_nuevos_q + avance_actualizar_q
+        cumplimiento_total_q = (total_avance_q/total_meta_q*100) if total_meta_q > 0 else 0
+        
+        st.info(f"""
+        **Total {trimestre}**
+        - Meta: {total_meta_q}
+        - Avance: {total_avance_q}
+        - Cumplimiento: {cumplimiento_total_q:.1f}%
+        """)
 
 
 def extraer_metas_desde_google_sheets(meta_df):
@@ -22,7 +211,7 @@ def extraer_metas_desde_google_sheets(meta_df):
         # Procesar metas para obtener estructura usable
         metas_nuevas_df, metas_actualizar_df = procesar_metas(meta_df)
         
-        # 🔧 CORRECCIÓN: Fechas EXACTAS por trimestre
+        # Fechas EXACTAS por trimestre
         fechas_objetivo = {
             'Q1': ['31/03/2025'],  # Q1 = 31 marzo EXACTO
             'Q2': ['30/06/2025'],  # Q2 = 30 junio EXACTO
@@ -84,6 +273,7 @@ def extraer_metas_desde_google_sheets(meta_df):
             'nuevos': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
             'actualizar': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
         }
+
 
 def calcular_avance_publicaciones_corregido(registros_df, tipo_dato):
     """
@@ -154,12 +344,14 @@ def calcular_avance_publicaciones_corregido(registros_df, tipo_dato):
 
 def mostrar_seguimiento_trimestral(registros_df, meta_df):
     """
-    Seguimiento trimestral CORREGIDO:
+    Seguimiento trimestral CORREGIDO CON MÉTRICAS RESTAURADAS:
     - Metas vienen de la hoja METAS de Google Sheets
     - Avance = publicaciones hasta fecha límite de cada trimestre
     - Sin errores de operaciones datetime
+    - MÉTRICAS CLAVE RESTAURADAS
     """
     
+    st.title("Seguimiento Trimestral 2025")
     
     if registros_df.empty:
         st.warning("No hay registros disponibles")
@@ -169,14 +361,22 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         st.warning("No hay datos de metas disponibles")
         return
     
-    # Extraer metas desde Google Sheets
-    with st.spinner("📊 Extrayendo metas desde Google Sheets..."):
+    # ===== MÉTRICAS CLAVE RESTAURADAS =====
+    with st.spinner("Calculando métricas clave..."):
+        metricas = crear_metricas_trimestrales(registros_df, meta_df)
         metas_trimestrales = extraer_metas_desde_google_sheets(meta_df)
-    
-    # Calcular avance real
-    with st.spinner("📈 Calculando avance de publicaciones..."):
         avance_nuevos = calcular_avance_publicaciones_corregido(registros_df, 'NUEVO')
         avance_actualizar = calcular_avance_publicaciones_corregido(registros_df, 'ACTUALIZAR')
+    
+    # MOSTRAR TARJETAS CON MÉTRICAS CLAVE
+    mostrar_tarjetas_metricas_clave(metricas)
+    
+    st.markdown("---")
+    
+    # INDICADORES DEL TRIMESTRE ACTUAL
+    mostrar_indicadores_trimestre_actual(metricas, avance_nuevos, avance_actualizar, metas_trimestrales)
+    
+    st.markdown("---")
     
     # Preparar datos para gráficos
     def crear_datos_graficos(metas, avance, titulo):
@@ -194,7 +394,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
             x=trimestres,
             y=metas_valores,
             mode='lines+markers',
-            name='🎯 Meta (Google Sheets)',
+            name='Meta (Google Sheets)',
             line=dict(color='#ff7f0e', width=4, dash='dash'),
             marker=dict(size=12, symbol='diamond'),
             hovertemplate='<b>Meta</b><br>%{x}: %{y}<extra></extra>'
@@ -205,7 +405,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
             x=trimestres,
             y=avance_valores,
             mode='lines+markers',
-            name='📈 Avance (Publicado)',
+            name='Avance (Publicado)',
             line=dict(color='#2ca02c', width=4),
             marker=dict(size=12, symbol='circle'),
             hovertemplate='<b>Avance</b><br>%{x}: %{y}<extra></extra>'
@@ -239,8 +439,8 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     hay_metas_actualizar = any(metas_trimestrales['actualizar'][q] > 0 for q in ['Q1', 'Q2', 'Q3', 'Q4'])
     
     if not hay_metas_nuevos and not hay_metas_actualizar:
-        st.warning("⚠️ No se encontraron metas en la hoja METAS de Google Sheets")
-        st.info("📋 Verifique que la hoja METAS tenga datos para las fechas de enero, marzo, septiembre y diciembre")
+        st.warning("No se encontraron metas en la hoja METAS de Google Sheets")
+        st.info("Verifique que la hoja METAS tenga datos para las fechas de enero, marzo, septiembre y diciembre")
         return
     
     # Mostrar gráfico para NUEVOS
@@ -249,12 +449,12 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         fig_nuevos = crear_datos_graficos(
             metas_trimestrales['nuevos'],
             avance_nuevos,
-            "📊 Registros NUEVOS - Meta vs Avance"
+            "Registros NUEVOS - Meta vs Avance"
         )
         st.plotly_chart(fig_nuevos, use_container_width=True)
         
         # Tabla detallada NUEVOS
-        with st.expander("📋 Datos Detallados - Registros NUEVOS"):
+        with st.expander("Datos Detallados - Registros NUEVOS"):
             datos_tabla_nuevos = []
             for q in ['Q1', 'Q2', 'Q3', 'Q4']:
                 meta = metas_trimestrales['nuevos'][q]
@@ -277,12 +477,12 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
         fig_actualizar = crear_datos_graficos(
             metas_trimestrales['actualizar'],
             avance_actualizar,
-            "📊 Registros a ACTUALIZAR - Meta vs Avance"
+            "Registros a ACTUALIZAR - Meta vs Avance"
         )
         st.plotly_chart(fig_actualizar, use_container_width=True)
         
         # Tabla detallada ACTUALIZAR
-        with st.expander("📋 Datos Detallados - Registros a ACTUALIZAR"):
+        with st.expander("Datos Detallados - Registros a ACTUALIZAR"):
             datos_tabla_actualizar = []
             for q in ['Q1', 'Q2', 'Q3', 'Q4']:
                 meta = metas_trimestrales['actualizar'][q]
@@ -312,7 +512,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
             eficiencia_nuevos = (total_avance_nuevos / total_meta_nuevos * 100) if total_meta_nuevos > 0 else 0
             
             st.metric(
-                "📈 NUEVOS (Anual)",
+                "NUEVOS (Anual)",
                 f"{total_avance_nuevos}/{total_meta_nuevos}",
                 f"{eficiencia_nuevos:.1f}% cumplimiento"
             )
@@ -331,28 +531,21 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     
     # Información técnica
     st.markdown("---")
-    with st.expander("🔧 Información Técnica"):
+    with st.expander("Información Técnica"):
         st.markdown(f"""
         **Fuente de Datos:**
         - Metas extraídas de: Hoja METAS de Google Sheets
         - Registros analizados: {len(registros_df)}
         - Registros con publicación: {len(registros_df[registros_df['Publicación'].apply(es_fecha_valida)])}
         
-        **🔧 Lógica de Cálculo:**
+        **Lógica de Cálculo:**
         - Q1: Publicaciones hasta 31/03/2025
         - Q2: Publicaciones hasta 30/06/2025  
         - Q3: Publicaciones hasta 30/09/2025
         - Q4: Publicaciones hasta 31/12/2025
-        
-      
         """)
 
 
 # ===== VERIFICACIÓN =====
 if __name__ == "__main__":
-    print("📅 Módulo Seguimiento Trimestral - CORREGIDO")
-    print("🔧 Correcciones:")
-    print("   ✅ Metas desde Google Sheets METAS")
-    print("   ✅ Error datetime corregido")
-    print("   ✅ Manejo seguro de fechas")
-    print("   ✅ Extracción automática de metas")
+    print("Módulo Seguimiento Trimestral - CON MÉTRICAS RESTAURADAS")
