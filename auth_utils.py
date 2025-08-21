@@ -61,14 +61,7 @@ def mostrar_login():
                 minutos = int((tiempo_sesion.total_seconds() % 3600) // 60)
                 st.info(f"⏱️ Sesión activa: {horas}h {minutos}m")
             
-            # Privilegios del usuario
-            st.markdown("""
-            **🔓 Privilegios habilitados:**
-            - ✏️ Edición de registros
-            - 💾 Guardado en Google Sheets
-            - 🔄 Actualización de plazos
-            - ⚙️ Aplicación de validaciones
-            """)
+           
             
             # Botón de logout
             if st.button("🚪 Cerrar Sesión", type="secondary", use_container_width=True):
@@ -114,22 +107,11 @@ def mostrar_estado_autenticacion():
     if verificar_sesion_activa():
         st.sidebar.success(f"🔓 Conectado: {st.session_state.get('usuario', 'admin')}")
         
-        # Mostrar funcionalidades disponibles
-        st.sidebar.markdown("""
-        **✅ Funcionalidades activas:**
-        - Edición de registros
-        - Guardado automático
-        - Validaciones avanzadas
-        """)
+       
         
     else:
         st.sidebar.warning("🔒 No autenticado")
-        st.sidebar.markdown("""
-        **⚠️ Funcionalidades limitadas:**
-        - Solo visualización
-        - Sin edición de datos
-        - Sin guardado
-        """)
+   
 
 def requiere_autenticacion(func):
     """Decorador para funciones que requieren autenticación"""
@@ -163,13 +145,7 @@ def mostrar_panel_seguridad():
                 fecha_login = st.session_state.fecha_login
                 st.info(f"🕐 Login: {fecha_login.strftime('%H:%M:%S')}")
             
-            # Advertencia sobre seguridad
-            st.warning("""
-            **⚠️ Recordatorios de seguridad:**
-            - Cierre sesión al terminar
-            - No comparta credenciales
-            - Reporte accesos no autorizados
-            """)
+      
             
         else:
             st.info("""
