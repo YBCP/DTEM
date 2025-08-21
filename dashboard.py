@@ -189,9 +189,6 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
     
     st.title("Dashboard de Seguimiento")
     
-    # ESTADO DEL SISTEMA (colapsable)
-    mostrar_estado_sistema()
-    
     # FILTROS
     st.subheader("Filtros")
     entidad_sel, funcionario_sel, tipo_sel = mostrar_filtros_dashboard(registros_df)
@@ -417,6 +414,10 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
 
     # Información sobre contenido
     st.info(f"Datos: {len(registros_df)} registros totales, {len(df_filtrado)} filtrados, {len(registros_df.columns)} campos")
+
+    # ===== ESTADO DEL SISTEMA AL FINAL =====
+    st.markdown("---")
+    mostrar_estado_sistema()
 
 
 # ===== FUNCIONES DE UTILIDAD =====
