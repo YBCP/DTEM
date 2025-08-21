@@ -252,17 +252,23 @@ def aplicar_filtros_dashboard(registros_df, entidad_seleccionada, funcionario_se
 
 
 def crear_filtros_reportes():
-    """Crea filtros específicos para reportes (preservados del original)"""
-    st.markdown("### 🔍 Filtros de Reportes")
+    """Crea filtros específicos para reportes (corregidos según Google Sheets)"""
+    st.markdown("### Filtros de Reportes")
     
-    # Crear las columnas de filtros como en el original
+    # Crear las columnas de filtros
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        entidades_reporte = ['Todas'] + sorted(st.session_state.get('registros_df', pd.DataFrame())['Entidad'].unique() if 'registros_df' in st.session_state and not st.session_state['registros_df'].empty else [])
-        entidad_reporte = st.selectbox("Entidad:", entidades_reporte, key="entidad_reporte")
+        # Obtener entidades únicas de los datos cargados
+        entidades_disponibles = ['Todas']
+        if 'registros_df' in st.session_state and not st.session_state['registros_df'].empty:
+            entidades_unicas = sorted(st.session_state['registros_df']['Entidad'].dropna().unique())
+            entidades_disponibles.extend(entidades_unicas)
         
-        tipos_dato = ['Todos', 'Nuevo', 'Actualizar']
+        entidad_reporte = st.selectbox("Entidad:", entidades_disponibles, key="entidad_reporte")
+        
+        # Tipos de dato corregidos según Google Sheets (TipoDato)
+        tipos_dato = ['Todos', 'Actualizar', 'Nuevo']
         tipo_dato_reporte = st.selectbox("Tipo de Dato:", tipos_dato, key="tipo_dato_reporte")
     
     with col2:
@@ -283,12 +289,25 @@ def crear_filtros_reportes():
         finalizado_opciones = ['Todos', 'Finalizados', 'No finalizados']
         finalizado_filtro = st.selectbox("Estado:", finalizado_opciones, key="finalizado_filtro")
         
-        mes_opciones = ['Todos'] + [f"{i:02d}" for i in range(1, 13)]
-        mes_filtro = st.selectbox("Mes:", mes_opciones, key="mes_filtro")
+        # Mes Proyectado corregido - nombres de meses en lugar de números
+        mes_opciones = ['Todos', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        mes_filtro = st.selectbox("Mes Proyectado:", mes_opciones, key="mes_filtro")
+        
+        # Convertir nombre de mes a número para compatibilidad con código existente
+        if mes_filtro != 'Todos':
+            meses_map = {
+                'Enero': '01', 'Febrero': '02', 'Marzo': '03', 'Abril': '04',
+                'Mayo': '05', 'Junio': '06', 'Julio': '07', 'Agosto': '08',
+                'Septiembre': '09', 'Octubre': '10', 'Noviembre': '11', 'Diciembre': '12'
+            }
+            mes_filtro_numero = meses_map.get(mes_filtro, mes_filtro)
+        else:
+            mes_filtro_numero = 'Todos'
     
     return (entidad_reporte, tipo_dato_reporte, acuerdo_filtro, 
             analisis_filtro, estandares_filtro, publicacion_filtro, 
-            finalizado_filtro, mes_filtro)
+            finalizado_filtro, mes_filtro_numero)
 
 
 def main():
