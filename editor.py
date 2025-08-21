@@ -401,16 +401,22 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
             key=f"acuerdo_{indice}")
     
     with col2:
-        # FECHAS - Selectores de fecha (CORREGIDO para campos vacíos)
+        # FECHAS - Selectores de fecha (CORREGIDO para permitir borrado manual)
         suscripcion_fecha = string_a_fecha(get_safe_value(row, 'Suscripción acuerdo de compromiso'))
         suscripcion = st.date_input("Suscripción acuerdo",
             value=suscripcion_fecha,
             key=f"suscripcion_{indice}")
+        # Permitir borrar fecha manualmente
+        if st.checkbox(f"Borrar fecha suscripción", key=f"borrar_suscripcion_{indice}"):
+            suscripcion = None
         
         entrega_fecha = string_a_fecha(get_safe_value(row, 'Entrega acuerdo de compromiso'))
         entrega_acuerdo = st.date_input("Entrega acuerdo",
             value=entrega_fecha,
             key=f"entrega_{indice}")
+        # Permitir borrar fecha manualmente
+        if st.checkbox(f"Borrar fecha entrega", key=f"borrar_entrega_{indice}"):
+            entrega_acuerdo = None
     
     # GESTIÓN DE DATOS
     st.subheader("Gestión de Información")
@@ -443,6 +449,9 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         fecha_entrega = st.date_input("Fecha entrega información",
             value=fecha_entrega_date,
             key=f"fecha_entrega_{indice}")
+        # Permitir borrar fecha manualmente
+        if st.checkbox(f"Borrar fecha entrega información", key=f"borrar_fecha_entrega_{indice}"):
+            fecha_entrega = None
     
     # FECHAS PROGRAMADAS
     st.subheader("Fechas y Cronograma")
@@ -453,11 +462,17 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         analisis_programada = st.date_input("Análisis programada",
             value=analisis_prog_date,
             key=f"analisis_prog_{indice}")
+        # Permitir borrar fecha manualmente
+        if st.checkbox(f"Borrar fecha análisis programada", key=f"borrar_analisis_prog_{indice}"):
+            analisis_programada = None
         
         analisis_real_date = string_a_fecha(get_safe_value(row, 'Análisis y cronograma'))
         analisis_real = st.date_input("Análisis real",
             value=analisis_real_date,
             key=f"analisis_real_{indice}")
+        # Permitir borrar fecha manualmente
+        if st.checkbox(f"Borrar fecha análisis real", key=f"borrar_analisis_real_{indice}"):
+            analisis_real = None
     
     with col2:
         # SEGUIMIENTO - Lista desplegable editable
@@ -538,12 +553,18 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         estandares_prog = st.date_input("Estándares programada",
             value=est_prog_date,
             key=f"est_prog_{indice}")
+        # Permitir borrar fecha manualmente
+        if st.checkbox(f"Borrar fecha estándares programada", key=f"borrar_est_prog_{indice}"):
+            estandares_prog = None
     
     with col2:
         est_real_date = string_a_fecha(get_safe_value(row, 'Estándares'))
         estandares_real = st.date_input("Estándares real",
             value=est_real_date,
             key=f"est_real_{indice}")
+        # Permitir borrar fecha manualmente
+        if st.checkbox(f"Borrar fecha estándares real", key=f"borrar_est_real_{indice}"):
+            estandares_real = None
     
     # VERIFICACIONES
     st.subheader("Verificaciones")
@@ -595,11 +616,17 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         pub_programada = st.date_input("Publicación programada",
             value=pub_prog_date,
             key=f"pub_prog_{indice}")
+        # Permitir borrar fecha manualmente
+        if st.checkbox(f"Borrar fecha publicación programada", key=f"borrar_pub_prog_{indice}"):
+            pub_programada = None
         
         pub_real_date = string_a_fecha(get_safe_value(row, 'Publicación'))
         publicacion = st.date_input("Publicación real",
             value=pub_real_date,
             key=f"publicacion_{indice}")
+        # Permitir borrar fecha manualmente
+        if st.checkbox(f"Borrar fecha publicación real", key=f"borrar_publicacion_{indice}"):
+            publicacion = None
     
     with col2:
         disponer_datos = st.selectbox("Disponer datos temáticos",
@@ -633,6 +660,9 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         fecha_oficio = st.date_input("Fecha oficio cierre",
             value=fecha_oficio_date,
             key=f"fecha_oficio_{indice}")
+        # Permitir borrar fecha manualmente
+        if st.checkbox(f"Borrar fecha oficio cierre", key=f"borrar_fecha_oficio_{indice}"):
+            fecha_oficio = None
     
     with col3:
         estado = st.selectbox("Estado",
@@ -749,20 +779,72 @@ def mostrar_edicion_registros(registros_df):
     tab1, tab2 = st.tabs(["Editar Existente", "Crear Nuevo"])
     
     with tab1:
-        # SELECTOR DE REGISTRO MEJORADO - Código + Nivel de Información
+        # CAMPO DE BÚSQUEDA PARA FILTRAR REGISTROS
+        st.subheader("Buscar Registro")
+        
+        col_buscar1, col_buscar2 = st.columns([3, 1])
+        
+        with col_buscar1:
+            termino_busqueda = st.text_input(
+                "Buscar por código, entidad o nivel:",
+                placeholder="Escriba para filtrar registros...",
+                key="busqueda_registro"
+            )
+        
+        with col_buscar2:
+            if st.button("Limpiar búsqueda"):
+                st.session_state.busqueda_registro = ""
+                st.rerun()
+        
+        # SELECTOR DE REGISTRO MEJORADO CON BÚSQUEDA
         opciones = []
-        for _, row in registros_df.iterrows():
+        opciones_filtradas = []
+        
+        for idx, row in registros_df.iterrows():
             codigo = get_safe_value(row, 'Cod', 'N/A')
             nivel = get_safe_value(row, 'Nivel Información ', 'Sin nivel')
-            opciones.append(f"{codigo} - {nivel}")
+            entidad = get_safe_value(row, 'Entidad', 'Sin entidad')
+            opcion_completa = f"{codigo} - {nivel} - {entidad}"
+            opciones.append(opcion_completa)
+            
+            # Filtrar según término de búsqueda
+            if termino_busqueda:
+                termino_lower = termino_busqueda.lower()
+                if (termino_lower in codigo.lower() or 
+                    termino_lower in nivel.lower() or 
+                    termino_lower in entidad.lower()):
+                    opciones_filtradas.append((idx, opcion_completa))
+            else:
+                opciones_filtradas.append((idx, opcion_completa))
         
-        if not opciones:
-            st.warning("No hay registros para editar")
+        if not opciones_filtradas:
+            if termino_busqueda:
+                st.warning(f"No se encontraron registros que coincidan con '{termino_busqueda}'")
+                return registros_df
+            else:
+                st.warning("No hay registros para editar")
+                return registros_df
+        
+        # Mostrar solo las opciones filtradas
+        opciones_mostrar = [opcion for _, opcion in opciones_filtradas]
+        
+        if termino_busqueda:
+            st.info(f"Mostrando {len(opciones_filtradas)} registros de {len(registros_df)} total")
+        
+        seleccion = st.selectbox("Seleccionar registro:", opciones_mostrar)
+        
+        # Obtener el índice real del registro seleccionado
+        indice_real = None
+        for idx, opcion in opciones_filtradas:
+            if opcion == seleccion:
+                indice_real = idx
+                break
+        
+        if indice_real is None:
+            st.error("Error al seleccionar registro")
             return registros_df
         
-        seleccion = st.selectbox("Seleccionar registro:", opciones)
-        indice = opciones.index(seleccion)
-        row_seleccionada = registros_df.iloc[indice]
+        row_seleccionada = registros_df.iloc[indice_real]
         
         # Información del registro seleccionado y botón de borrar
         col1, col2 = st.columns([3, 1])
@@ -782,7 +864,7 @@ def mostrar_edicion_registros(registros_df):
                     if st.button("SÍ, BORRAR", type="primary", key="confirmar_borrar"):
                         try:
                             # Borrar registro
-                            registros_df = borrar_registro(registros_df, indice)
+                            registros_df = borrar_registro(registros_df, indice_real)
                             
                             # Guardar en Google Sheets
                             exito, mensaje = guardar_en_sheets(registros_df)
@@ -805,19 +887,19 @@ def mostrar_edicion_registros(registros_df):
         
         # Formulario de edición
         with st.form("form_editar"):
-            valores = mostrar_formulario(row_seleccionada, indice, False, registros_df)
+            valores = mostrar_formulario(row_seleccionada, indice_real, False, registros_df)
             
             if st.form_submit_button("Guardar Cambios", type="primary"):
                 try:
                     # Actualizar registro
                     for campo, valor in valores.items():
                         if campo in registros_df.columns:
-                            registros_df.iloc[indice, registros_df.columns.get_loc(campo)] = valor
+                            registros_df.iloc[indice_real, registros_df.columns.get_loc(campo)] = valor
                     
                     # Calcular nuevo avance
-                    nuevo_avance = calcular_avance(registros_df.iloc[indice])
+                    nuevo_avance = calcular_avance(registros_df.iloc[indice_real])
                     if 'Porcentaje Avance' in registros_df.columns:
-                        registros_df.iloc[indice, registros_df.columns.get_loc('Porcentaje Avance')] = nuevo_avance
+                        registros_df.iloc[indice_real, registros_df.columns.get_loc('Porcentaje Avance')] = nuevo_avance
                     
                     # Guardar en Google Sheets
                     exito, mensaje = guardar_en_sheets(registros_df)
