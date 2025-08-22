@@ -160,9 +160,9 @@ def main():
         mostrar_informacion_sistema_limpia()
         
         # ===== TÍTULO PRINCIPAL LIMPIO =====
-        st.markdown('<div class="title">Tablero de Control - Ideca</div>', unsafe_allow_html=True)
+        st.markdown('<div class="title">Tablero de Control Datos Temáticos - Ideca</div>', unsafe_allow_html=True)
         
-        # ===== CARGA Y PROCESAMIENTO DE DATOS =====
+   
         # ===== CARGA Y PROCESAMIENTO DE DATOS =====
         with st.spinner("Cargando datos..."):
             try:
