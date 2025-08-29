@@ -1,8 +1,9 @@
-# dashboard.py - CORREGIDO: Distribuciones correctas por funcionario
+# dashboard.py - CORREGIDO: Treemap funcionarios + treemap entidades con selector
 """
 Dashboard CORREGIDO:
-- Distribución de Niveles de Información por Funcionario
-- Distribución de Entidades por Funcionario
+- Treemap por Funcionario (como estaba originalmente)
+- Treemap por Entidad (nueva funcionalidad)
+- Selector "Funcionario" o "Entidad" para elegir la visualización
 - Gantt funcionando correctamente
 - Diseño limpio sin iconos innecesarios
 """
@@ -71,150 +72,118 @@ def crear_barras_cumplimiento_optimizado(df_comparacion, titulo):
         """, unsafe_allow_html=True)
 
 
-def crear_distribucion_niveles_por_funcionario(df_filtrado):
-    """
-    NUEVA FUNCIÓN: Distribución de Niveles de Información por Funcionario
-    """
-    if 'Funcionario' not in df_filtrado.columns or 'Nivel Información ' not in df_filtrado.columns:
+def crear_treemap_funcionarios_optimizado(df_filtrado):
+    """Función del treemap de funcionarios (ORIGINAL - mantener igual)"""
+    if 'Funcionario' not in df_filtrado.columns:
         return None
     
-    # Filtrar registros con funcionario y nivel válidos
-    mask = (
-        df_filtrado['Funcionario'].notna() & 
-        df_filtrado['Funcionario'].astype(str).str.strip().ne('') &
-        ~df_filtrado['Funcionario'].astype(str).str.strip().isin(['nan', 'None']) &
-        df_filtrado['Nivel Información '].notna() & 
-        df_filtrado['Nivel Información '].astype(str).str.strip().ne('') &
-        ~df_filtrado['Nivel Información '].astype(str).str.strip().isin(['nan', 'None'])
-    )
+    # Filtrar registros con funcionario
+    mask = (df_filtrado['Funcionario'].notna() & 
+            df_filtrado['Funcionario'].astype(str).str.strip().ne('') &
+            ~df_filtrado['Funcionario'].astype(str).str.strip().isin(['nan', 'None']))
     
-    registros_validos = df_filtrado[mask]
+    registros_con_funcionario = df_filtrado[mask]
     
-    if registros_validos.empty:
-        st.info("No hay registros con funcionario y nivel de información válidos")
+    if registros_con_funcionario.empty:
+        st.info("No hay registros con funcionario asignado")
         return None
     
-    # Crear tabla de distribución
-    distribucion = pd.crosstab(
-        registros_validos['Funcionario'],
-        registros_validos['Nivel Información '],
-        margins=True
-    )
-    
-    # Calcular estadísticas adicionales
-    stats = registros_validos.groupby('Funcionario').agg({
-        'Porcentaje Avance': 'mean',
-        'Cod': 'count'
+    # Contar y calcular estadísticas
+    funcionarios_stats = registros_con_funcionario.groupby('Funcionario').agg({
+        'Cod': 'count',
+        'Porcentaje Avance': 'mean'
     }).round(2)
     
-    stats.columns = ['Avance Promedio', 'Total Registros']
+    funcionarios_stats.columns = ['Cantidad', 'Avance Promedio']
+    funcionarios_stats['Porcentaje'] = (funcionarios_stats['Cantidad'] / len(registros_con_funcionario) * 100).round(2)
     
-    # Crear gráfico de barras apiladas
-    fig = go.Figure()
+    # Crear treemap
+    def obtener_color_por_avance(avance):
+        colors = {90: '#2E7D32', 75: '#388E3C', 60: '#689F38', 
+                 40: '#FBC02D', 25: '#FF8F00', 0: '#D32F2F'}
+        for threshold, color in colors.items():
+            if avance >= threshold:
+                return color
+        return '#D32F2F'
     
-    # Colores para diferentes niveles
-    colores = px.colors.qualitative.Set3
+    colores = [obtener_color_por_avance(avance) for avance in funcionarios_stats['Avance Promedio']]
     
-    niveles = [col for col in distribucion.columns if col != 'All']
+    fig_treemap = go.Figure(go.Treemap(
+        labels=funcionarios_stats.index,
+        values=funcionarios_stats['Cantidad'],
+        parents=[""] * len(funcionarios_stats),
+        textinfo="label+value",
+        textfont=dict(size=12, color='white'),
+        marker=dict(colors=colores, line=dict(color='white', width=2)),
+        hovertemplate='<b>%{label}</b><br>Registros: %{value}<br>Avance: %{customdata:.1f}%<extra></extra>',
+        customdata=funcionarios_stats['Avance Promedio']
+    ))
     
-    for i, nivel in enumerate(niveles):
-        fig.add_trace(go.Bar(
-            name=nivel,
-            x=distribucion.index[:-1],  # Excluir 'All'
-            y=distribucion[nivel][:-1],  # Excluir 'All'
-            marker_color=colores[i % len(colores)],
-            hovertemplate='<b>%{x}</b><br>%{fullData.name}: %{y}<extra></extra>'
-        ))
-    
-    fig.update_layout(
-        title={'text': 'Niveles de Información por Funcionario', 'x': 0.5, 'xanchor': 'center'},
-        xaxis_title='Funcionario',
-        yaxis_title='Cantidad de Registros',
-        barmode='stack',
-        height=600,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
+    fig_treemap.update_layout(
+        title={'text': "Distribución por Funcionario", 'x': 0.5, 'xanchor': 'center'},
+        margin=dict(t=60, l=20, r=20, b=20),
+        height=500
     )
     
-    return fig, distribucion, stats
+    return fig_treemap, funcionarios_stats
 
 
-def crear_distribucion_entidades_por_funcionario(df_filtrado):
+def crear_treemap_entidades_optimizado(df_filtrado):
     """
-    NUEVA FUNCIÓN: Distribución de Entidades por Funcionario
+    NUEVA FUNCIÓN: Treemap por Entidad (misma estructura que funcionarios)
     """
-    if 'Funcionario' not in df_filtrado.columns or 'Entidad' not in df_filtrado.columns:
+    if 'Entidad' not in df_filtrado.columns:
         return None
     
-    # Filtrar registros con funcionario y entidad válidos
-    mask = (
-        df_filtrado['Funcionario'].notna() & 
-        df_filtrado['Funcionario'].astype(str).str.strip().ne('') &
-        ~df_filtrado['Funcionario'].astype(str).str.strip().isin(['nan', 'None']) &
-        df_filtrado['Entidad'].notna() & 
-        df_filtrado['Entidad'].astype(str).str.strip().ne('') &
-        ~df_filtrado['Entidad'].astype(str).str.strip().isin(['nan', 'None'])
-    )
+    # Filtrar registros con entidad
+    mask = (df_filtrado['Entidad'].notna() & 
+            df_filtrado['Entidad'].astype(str).str.strip().ne('') &
+            ~df_filtrado['Entidad'].astype(str).str.strip().isin(['nan', 'None']))
     
-    registros_validos = df_filtrado[mask]
+    registros_con_entidad = df_filtrado[mask]
     
-    if registros_validos.empty:
-        st.info("No hay registros con funcionario y entidad válidos")
+    if registros_con_entidad.empty:
+        st.info("No hay registros con entidad asignada")
         return None
     
-    # Crear tabla de distribución
-    distribucion = pd.crosstab(
-        registros_validos['Funcionario'],
-        registros_validos['Entidad'],
-        margins=True
-    )
-    
-    # Calcular estadísticas adicionales
-    stats = registros_validos.groupby('Funcionario').agg({
-        'Porcentaje Avance': 'mean',
-        'Cod': 'count'
+    # Contar y calcular estadísticas
+    entidades_stats = registros_con_entidad.groupby('Entidad').agg({
+        'Cod': 'count',
+        'Porcentaje Avance': 'mean'
     }).round(2)
     
-    stats.columns = ['Avance Promedio', 'Total Registros']
+    entidades_stats.columns = ['Cantidad', 'Avance Promedio']
+    entidades_stats['Porcentaje'] = (entidades_stats['Cantidad'] / len(registros_con_entidad) * 100).round(2)
     
-    # Crear gráfico de barras apiladas
-    fig = go.Figure()
+    # Crear treemap
+    def obtener_color_por_avance(avance):
+        colors = {90: '#2E7D32', 75: '#388E3C', 60: '#689F38', 
+                 40: '#FBC02D', 25: '#FF8F00', 0: '#D32F2F'}
+        for threshold, color in colors.items():
+            if avance >= threshold:
+                return color
+        return '#D32F2F'
     
-    # Colores para diferentes entidades
-    colores = px.colors.qualitative.Pastel
+    colores = [obtener_color_por_avance(avance) for avance in entidades_stats['Avance Promedio']]
     
-    entidades = [col for col in distribucion.columns if col != 'All']
+    fig_treemap = go.Figure(go.Treemap(
+        labels=entidades_stats.index,
+        values=entidades_stats['Cantidad'],
+        parents=[""] * len(entidades_stats),
+        textinfo="label+value",
+        textfont=dict(size=12, color='white'),
+        marker=dict(colors=colores, line=dict(color='white', width=2)),
+        hovertemplate='<b>%{label}</b><br>Registros: %{value}<br>Avance: %{customdata:.1f}%<extra></extra>',
+        customdata=entidades_stats['Avance Promedio']
+    ))
     
-    for i, entidad in enumerate(entidades):
-        fig.add_trace(go.Bar(
-            name=entidad[:30] + '...' if len(entidad) > 30 else entidad,  # Truncar nombres largos
-            x=distribucion.index[:-1],  # Excluir 'All'
-            y=distribucion[entidad][:-1],  # Excluir 'All'
-            marker_color=colores[i % len(colores)],
-            hovertemplate='<b>%{x}</b><br>%{fullData.name}: %{y}<extra></extra>'
-        ))
-    
-    fig.update_layout(
-        title={'text': 'Entidades por Funcionario', 'x': 0.5, 'xanchor': 'center'},
-        xaxis_title='Funcionario',
-        yaxis_title='Cantidad de Registros',
-        barmode='stack',
-        height=600,
-        legend=dict(
-            orientation="v",
-            yanchor="top",
-            y=1,
-            xanchor="left",
-            x=1.02
-        )
+    fig_treemap.update_layout(
+        title={'text': "Distribución por Entidad", 'x': 0.5, 'xanchor': 'center'},
+        margin=dict(t=60, l=20, r=20, b=20),
+        height=500
     )
     
-    return fig, distribucion, stats
+    return fig_treemap, entidades_stats
 
 
 def mostrar_filtros_dashboard(registros_df):
@@ -277,7 +246,7 @@ def mostrar_estado_sistema():
 
 def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registros_df, 
                      entidad_seleccionada, funcionario_seleccionado, nivel_seleccionado):
-    """Dashboard principal CORREGIDO - Con distribuciones por funcionario"""
+    """Dashboard principal CORREGIDO - Con treemap funcionarios + treemap entidades"""
     
     st.subheader("Dashboard")
     
@@ -419,80 +388,100 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         st.error(f"Error mostrando tabla: {e}")
         st.dataframe(df_filtrado)
 
-    # ===== ANÁLISIS DE DISTRIBUCIÓN CORREGIDO =====
+    # ===== TREEMAPS DE DISTRIBUCIÓN CORREGIDOS =====
     st.markdown("---")
     st.markdown("### Análisis de Distribución")
     
     # SELECTOR PARA TIPO DE DISTRIBUCIÓN CORREGIDO
     tipo_distribucion = st.selectbox(
         "Seleccione tipo de distribución:",
-        ["Niveles de Información por Funcionario", "Entidades por Funcionario"],
+        ["Funcionario", "Entidad"],
         key="tipo_distribucion"
     )
     
-    if tipo_distribucion == "Niveles de Información por Funcionario":
-        # DISTRIBUCIÓN DE NIVELES POR FUNCIONARIO
-        dist_result = crear_distribucion_niveles_por_funcionario(df_filtrado)
+    if tipo_distribucion == "Funcionario":
+        # TREEMAP POR FUNCIONARIO (ORIGINAL)
+        treemap_result = crear_treemap_funcionarios_optimizado(df_filtrado)
         
-        if dist_result:
-            fig_dist, distribucion, stats = dist_result
+        if treemap_result:
+            fig_treemap, data_stats = treemap_result
             
-            st.plotly_chart(fig_dist, use_container_width=True)
-            
-            # Mostrar tabla de distribución
-            st.markdown("#### Tabla de Distribución")
-            st.dataframe(distribucion, use_container_width=True)
+            st.plotly_chart(fig_treemap, use_container_width=True)
             
             # Métricas resumidas
-            col1, col2, col3 = st.columns(3)
+            st.markdown("#### Métricas de Distribución")
+            col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                st.metric("Total Funcionarios", len(stats))
+                st.metric("Total Funcionarios", len(data_stats))
             with col2:
-                max_registros = stats['Total Registros'].max()
-                funcionario_top = stats['Total Registros'].idxmax()
+                max_registros = data_stats['Cantidad'].max()
+                funcionario_top = data_stats['Cantidad'].idxmax()
                 st.metric("Máximo Registros", max_registros, help=f"Funcionario: {funcionario_top}")
             with col3:
-                avance_general = stats['Avance Promedio'].mean()
+                promedio_registros = data_stats['Cantidad'].mean()
+                st.metric("Promedio", f"{promedio_registros:.1f}")
+            with col4:
+                avance_general = data_stats['Avance Promedio'].mean()
                 st.metric("Avance General", f"{avance_general:.1f}%")
 
             # Insights automáticos
-            with st.expander("Estadísticas por Funcionario"):
-                st.dataframe(stats.sort_values('Total Registros', ascending=False), use_container_width=True)
+            with st.expander("Insights y Recomendaciones"):
+                funcionario_mas_registros = data_stats.loc[data_stats['Cantidad'].idxmax()]
+                funcionario_mejor_avance = data_stats.loc[data_stats['Avance Promedio'].idxmax()]
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.info(f"""**Más registros:** {funcionario_mas_registros.name}  
+                    {funcionario_mas_registros['Cantidad']} registros ({funcionario_mas_registros['Porcentaje']:.1f}%)  
+                    Avance: {funcionario_mas_registros['Avance Promedio']:.1f}%""")
+                
+                with col2:
+                    st.success(f"""**Mejor avance:** {funcionario_mejor_avance.name}  
+                    {funcionario_mejor_avance['Cantidad']} registros  
+                    Avance: {funcionario_mejor_avance['Avance Promedio']:.1f}%""")
     
-    elif tipo_distribucion == "Entidades por Funcionario":
-        # DISTRIBUCIÓN DE ENTIDADES POR FUNCIONARIO
-        dist_result = crear_distribucion_entidades_por_funcionario(df_filtrado)
+    elif tipo_distribucion == "Entidad":
+        # TREEMAP POR ENTIDAD (NUEVA FUNCIONALIDAD)
+        treemap_result = crear_treemap_entidades_optimizado(df_filtrado)
         
-        if dist_result:
-            fig_dist, distribucion, stats = dist_result
+        if treemap_result:
+            fig_treemap, data_stats = treemap_result
             
-            st.plotly_chart(fig_dist, use_container_width=True)
-            
-            # Mostrar tabla de distribución (solo para entidades más frecuentes)
-            st.markdown("#### Tabla de Distribución (Top Entidades)")
-            # Mostrar solo las columnas más relevantes para no saturar
-            entidades_top = distribucion.sum().sort_values(ascending=False).head(10).index
-            entidades_top = [e for e in entidades_top if e != 'All']
-            distribucion_top = distribucion[entidades_top + ['All']]
-            st.dataframe(distribucion_top, use_container_width=True)
+            st.plotly_chart(fig_treemap, use_container_width=True)
             
             # Métricas resumidas
-            col1, col2, col3 = st.columns(3)
+            st.markdown("#### Métricas de Distribución")
+            col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                st.metric("Total Funcionarios", len(stats))
+                st.metric("Total Entidades", len(data_stats))
             with col2:
-                max_registros = stats['Total Registros'].max()
-                funcionario_top = stats['Total Registros'].idxmax()
-                st.metric("Máximo Registros", max_registros, help=f"Funcionario: {funcionario_top}")
+                max_registros = data_stats['Cantidad'].max()
+                entidad_top = data_stats['Cantidad'].idxmax()
+                st.metric("Máximo Registros", max_registros, help=f"Entidad: {entidad_top}")
             with col3:
-                avance_general = stats['Avance Promedio'].mean()
+                promedio_registros = data_stats['Cantidad'].mean()
+                st.metric("Promedio", f"{promedio_registros:.1f}")
+            with col4:
+                avance_general = data_stats['Avance Promedio'].mean()
                 st.metric("Avance General", f"{avance_general:.1f}%")
 
             # Insights automáticos
-            with st.expander("Estadísticas por Funcionario"):
-                st.dataframe(stats.sort_values('Total Registros', ascending=False), use_container_width=True)
+            with st.expander("Insights y Recomendaciones"):
+                entidad_mas_registros = data_stats.loc[data_stats['Cantidad'].idxmax()]
+                entidad_mejor_avance = data_stats.loc[data_stats['Avance Promedio'].idxmax()]
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.info(f"""**Más registros:** {entidad_mas_registros.name}  
+                    {entidad_mas_registros['Cantidad']} registros ({entidad_mas_registros['Porcentaje']:.1f}%)  
+                    Avance: {entidad_mas_registros['Avance Promedio']:.1f}%""")
+                
+                with col2:
+                    st.success(f"""**Mejor avance:** {entidad_mejor_avance.name}  
+                    {entidad_mejor_avance['Cantidad']} registros  
+                    Avance: {entidad_mejor_avance['Avance Promedio']:.1f}%""")
 
     # ===== SECCIÓN DE DESCARGA =====
     st.markdown("### Descargar Datos")
@@ -572,7 +561,8 @@ if __name__ == "__main__":
     print("Módulo Dashboard CORREGIDO cargado correctamente")
     print("Funcionalidades corregidas:")
     print("   ✅ Gantt funcionando correctamente")
-    print("   ✅ Distribución de Niveles de Información por Funcionario")
-    print("   ✅ Distribución de Entidades por Funcionario")
+    print("   ✅ Treemap por Funcionario (original mantenido)")
+    print("   ✅ Treemap por Entidad (nueva funcionalidad)")
+    print("   ✅ Selector Funcionario/Entidad")
     print("   ✅ Diseño limpio sin iconos innecesarios")
     print("Listo para usar en app1.py")
