@@ -1,12 +1,10 @@
-# editor_mejorado.py - EDITOR LIMPIO CON AJUSTES SOLICITADOS
+# editor.py - CORREGIDO: Permitir ingreso de funcionarios/entidades nuevas
 """
-Editor limpio y funcional con mejoras:
-- Selector de registro: código + nivel de información
-- Tipo de dato: solo "Actualizar" y "Nuevo"
-- Funcionarios y entidades: listas desplegables editables
-- Mes proyectado: lista desplegable de meses
-- Campos de fecha: selectores de fecha
-- Diseño visual limpio sin iconos ni texto innecesario
+Editor CORREGIDO - Permite agregar funcionarios y entidades nuevas:
+- Funcionarios: Selectbox + opción "Agregar nuevo" + campo texto
+- Entidades: Selectbox + opción "Agregar nueva" + campo texto  
+- Diseño limpio sin iconos innecesarios
+- Todas las funcionalidades mantenidas
 """
 
 import streamlit as st
@@ -148,12 +146,11 @@ def fecha_a_string(fecha):
         return ""
 
 def string_a_fecha(fecha_str):
-    """Convierte string a objeto date - CORREGIDO para manejar campos vacíos"""
+    """Convierte string a objeto date"""
     if not fecha_str or not fecha_str.strip() or fecha_str.strip() == "":
         return None
     
     try:
-        # Intentar varios formatos
         formatos = ["%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"]
         for formato in formatos:
             try:
@@ -213,14 +210,13 @@ def cargar_desde_sheets():
         return pd.DataFrame()
 
 def guardar_en_sheets(df):
-    """Guarda datos en Google Sheets - SOLO hoja Registros - MEJORADO"""
+    """Guarda datos en Google Sheets - SOLO hoja Registros"""
     if GoogleSheetsManager is None:
         return False, "GoogleSheetsManager no disponible"
     
     try:
         manager = GoogleSheetsManager()
         
-        # Verificar que el DataFrame no esté vacío
         if df.empty:
             return False, "No se puede guardar un DataFrame vacío"
         
@@ -253,7 +249,6 @@ def calcular_avance(row):
     """Calcula el porcentaje de avance basado en campos clave"""
     try:
         avance = 0
-        total_campos = 4
         
         # Acuerdo de compromiso
         if get_safe_value(row, 'Acuerdo de compromiso', '').lower() in ['si', 'sí']:
@@ -296,7 +291,9 @@ def generar_codigo(df):
         return "001"
 
 def mostrar_formulario(row, indice, es_nuevo=False, df=None):
-    """Formulario limpio con mejoras solicitadas"""
+    """
+    CORREGIDO: Formulario que permite agregar funcionarios y entidades nuevas
+    """
     
     # Obtener listas únicas para desplegables
     funcionarios_existentes = obtener_funcionarios_unicos(df) if df is not None else []
@@ -314,39 +311,61 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
             disabled=es_nuevo,
             key=f"cod_{indice}")
         
-        # ENTIDAD - Lista desplegable editable
+        # ENTIDAD - CORREGIDO: Selectbox con opción "Agregar nueva"
         entidad_actual = get_safe_value(row, 'Entidad')
-        if entidad_actual and entidad_actual not in entidades_existentes:
-            entidades_existentes.insert(0, entidad_actual)
         
-        entidad_index = entidades_existentes.index(entidad_actual) if entidad_actual in entidades_existentes else 0
-        entidad = st.selectbox("Entidad",
-            options=["-- Seleccionar --"] + entidades_existentes + ["-- Agregar nueva --"],
-            index=entidad_index + 1 if entidad_actual in entidades_existentes else 0,
+        # Opciones del selectbox
+        opciones_entidad = ["-- Seleccionar --"] + entidades_existentes + ["-- Agregar nueva --"]
+        
+        # Determinar índice actual
+        if entidad_actual and entidad_actual in entidades_existentes:
+            entidad_index = entidades_existentes.index(entidad_actual) + 1
+        else:
+            entidad_index = 0
+        
+        entidad_seleccion = st.selectbox("Entidad",
+            options=opciones_entidad,
+            index=entidad_index,
             key=f"entidad_select_{indice}")
         
-        if entidad == "-- Agregar nueva --":
+        # Campo de texto para nueva entidad
+        if entidad_seleccion == "-- Agregar nueva --":
             entidad = st.text_input("Nueva entidad:",
+                value="",
+                placeholder="Escriba el nombre de la nueva entidad",
                 key=f"entidad_nueva_{indice}")
-        elif entidad == "-- Seleccionar --":
+        elif entidad_seleccion == "-- Seleccionar --":
             entidad = ""
+        else:
+            entidad = entidad_seleccion
         
-        # FUNCIONARIO - Lista desplegable editable
+        # FUNCIONARIO - CORREGIDO: Selectbox con opción "Agregar nuevo"
         funcionario_actual = get_safe_value(row, 'Funcionario')
-        if funcionario_actual and funcionario_actual not in funcionarios_existentes:
-            funcionarios_existentes.insert(0, funcionario_actual)
         
-        funcionario_index = funcionarios_existentes.index(funcionario_actual) if funcionario_actual in funcionarios_existentes else 0
-        funcionario = st.selectbox("Funcionario",
-            options=["-- Seleccionar --"] + funcionarios_existentes + ["-- Agregar nuevo --"],
-            index=funcionario_index + 1 if funcionario_actual in funcionarios_existentes else 0,
+        # Opciones del selectbox
+        opciones_funcionario = ["-- Seleccionar --"] + funcionarios_existentes + ["-- Agregar nuevo --"]
+        
+        # Determinar índice actual
+        if funcionario_actual and funcionario_actual in funcionarios_existentes:
+            funcionario_index = funcionarios_existentes.index(funcionario_actual) + 1
+        else:
+            funcionario_index = 0
+        
+        funcionario_seleccion = st.selectbox("Funcionario",
+            options=opciones_funcionario,
+            index=funcionario_index,
             key=f"funcionario_select_{indice}")
         
-        if funcionario == "-- Agregar nuevo --":
+        # Campo de texto para nuevo funcionario
+        if funcionario_seleccion == "-- Agregar nuevo --":
             funcionario = st.text_input("Nuevo funcionario:",
+                value="",
+                placeholder="Escriba el nombre del nuevo funcionario",
                 key=f"funcionario_nuevo_{indice}")
-        elif funcionario == "-- Seleccionar --":
+        elif funcionario_seleccion == "-- Seleccionar --":
             funcionario = ""
+        else:
+            funcionario = funcionario_seleccion
     
     with col2:
         nivel_info = st.text_input("Nivel de Información",
@@ -413,12 +432,12 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
             key=f"acuerdo_{indice}")
     
     with col2:
-        # FECHAS - Selectores de fecha (CORREGIDO para permitir borrado manual)
+        # FECHAS - Selectores de fecha
         suscripcion_fecha = string_a_fecha(get_safe_value(row, 'Suscripción acuerdo de compromiso'))
         suscripcion = st.date_input("Suscripción acuerdo",
             value=suscripcion_fecha,
             key=f"suscripcion_{indice}")
-        # Permitir borrar fecha manualmente
+        
         if st.checkbox(f"Borrar fecha suscripción", key=f"borrar_suscripcion_{indice}"):
             suscripcion = None
         
@@ -426,7 +445,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         entrega_acuerdo = st.date_input("Entrega acuerdo",
             value=entrega_fecha,
             key=f"entrega_{indice}")
-        # Permitir borrar fecha manualmente
+        
         if st.checkbox(f"Borrar fecha entrega", key=f"borrar_entrega_{indice}"):
             entrega_acuerdo = None
     
@@ -461,7 +480,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         fecha_entrega = st.date_input("Fecha entrega información",
             value=fecha_entrega_date,
             key=f"fecha_entrega_{indice}")
-        # Permitir borrar fecha manualmente
+        
         if st.checkbox(f"Borrar fecha entrega información", key=f"borrar_fecha_entrega_{indice}"):
             fecha_entrega = None
     
@@ -474,7 +493,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         analisis_programada = st.date_input("Análisis programada",
             value=analisis_prog_date,
             key=f"analisis_prog_{indice}")
-        # Permitir borrar fecha manualmente
+        
         if st.checkbox(f"Borrar fecha análisis programada", key=f"borrar_analisis_prog_{indice}"):
             analisis_programada = None
         
@@ -482,7 +501,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         analisis_real = st.date_input("Análisis real",
             value=analisis_real_date,
             key=f"analisis_real_{indice}")
-        # Permitir borrar fecha manualmente
+        
         if st.checkbox(f"Borrar fecha análisis real", key=f"borrar_analisis_real_{indice}"):
             analisis_real = None
     
@@ -565,7 +584,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         estandares_prog = st.date_input("Estándares programada",
             value=est_prog_date,
             key=f"est_prog_{indice}")
-        # Permitir borrar fecha manualmente
+        
         if st.checkbox(f"Borrar fecha estándares programada", key=f"borrar_est_prog_{indice}"):
             estandares_prog = None
     
@@ -574,7 +593,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         estandares_real = st.date_input("Estándares real",
             value=est_real_date,
             key=f"est_real_{indice}")
-        # Permitir borrar fecha manualmente
+        
         if st.checkbox(f"Borrar fecha estándares real", key=f"borrar_est_real_{indice}"):
             estandares_real = None
     
@@ -628,7 +647,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         pub_programada = st.date_input("Publicación programada",
             value=pub_prog_date,
             key=f"pub_prog_{indice}")
-        # Permitir borrar fecha manualmente
+        
         if st.checkbox(f"Borrar fecha publicación programada", key=f"borrar_pub_prog_{indice}"):
             pub_programada = None
         
@@ -636,7 +655,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         publicacion = st.date_input("Publicación real",
             value=pub_real_date,
             key=f"publicacion_{indice}")
-        # Permitir borrar fecha manualmente
+        
         if st.checkbox(f"Borrar fecha publicación real", key=f"borrar_publicacion_{indice}"):
             publicacion = None
     
@@ -672,7 +691,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         fecha_oficio = st.date_input("Fecha oficio cierre",
             value=fecha_oficio_date,
             key=f"fecha_oficio_{indice}")
-        # Permitir borrar fecha manualmente
+        
         if st.checkbox(f"Borrar fecha oficio cierre", key=f"borrar_fecha_oficio_{indice}"):
             fecha_oficio = None
     
@@ -761,7 +780,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
 
 def mostrar_edicion_registros(registros_df):
     """Editor principal limpio"""
-  
+    st.subheader("Editor de Registros")
     
     # Controles principales simplificados
     col1, col2 = st.columns([2, 1])
@@ -846,15 +865,14 @@ def mostrar_edicion_registros(registros_df):
             st.write(f"Editando: {get_safe_value(row_seleccionada, 'Cod')} - {get_safe_value(row_seleccionada, 'Nivel Información ')}")
         
         with col2:
-            # BOTÓN DE BORRAR REGISTRO MEJORADO
-            if st.button("Borrar Registro", type="secondary", help="Eliminar este registro permanentemente"):
-                # Usar un modal simulado con session_state
+            # BOTÓN DE BORRAR REGISTRO
+            if st.button("Borrar Registro", type="secondary"):
                 st.session_state.confirmar_borrado = True
                 st.session_state.registro_a_borrar = indice_real
         
         # CONFIRMACIÓN DE BORRADO
         if st.session_state.get('confirmar_borrado', False):
-            st.warning("⚠️ ADVERTENCIA: ¿Desea borrar este registro? Este cambio no se puede deshacer.")
+            st.warning("ADVERTENCIA: ¿Desea borrar este registro? Este cambio no se puede deshacer.")
             
             col_confirm1, col_confirm2 = st.columns(2)
             
