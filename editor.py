@@ -1,4 +1,4 @@
-# editor.py - CORREGIDO: Permitir ingreso de funcionarios/entidades nuevas
+# editor.py - CORREGIDO: Permite agregar funcionarios y entidades nuevas
 """
 Editor CORREGIDO - Permite agregar funcionarios y entidades nuevas:
 - Funcionarios: Selectbox + opción "Agregar nuevo" + campo texto
@@ -179,36 +179,6 @@ def obtener_seguimientos_unicos(df):
     seguimientos = [s for s in seguimientos if str(s).strip() and str(s).strip().lower() != 'nan']
     return sorted(list(set(seguimientos)))
 
-def borrar_registro(df, indice):
-    """Borra un registro del DataFrame"""
-    try:
-        df_nuevo = df.drop(df.index[indice]).reset_index(drop=True)
-        return df_nuevo
-    except Exception as e:
-        st.error(f"Error al borrar registro: {str(e)}")
-        return df
-
-def cargar_desde_sheets():
-    """Carga datos desde Google Sheets"""
-    if GoogleSheetsManager is None:
-        st.error("GoogleSheetsManager no disponible")
-        return pd.DataFrame()
-    
-    try:
-        manager = GoogleSheetsManager()
-        df = manager.leer_hoja("Registros")
-        
-        if df.empty:
-            st.warning("La hoja Registros está vacía")
-            return pd.DataFrame()
-        
-        st.success(f"Datos cargados: {len(df)} registros")
-        return df
-        
-    except Exception as e:
-        st.error(f"Error cargando datos: {str(e)}")
-        return pd.DataFrame()
-
 def guardar_en_sheets(df):
     """Guarda datos en Google Sheets - SOLO hoja Registros"""
     if GoogleSheetsManager is None:
@@ -311,63 +281,77 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
             disabled=es_nuevo,
             key=f"cod_{indice}")
         
-        # ENTIDAD - CORREGIDO: Selectbox con opción "Agregar nueva"
-        entidad_actual = get_safe_value(row, 'Entidad')
-        
-        # Opciones del selectbox
-        opciones_entidad = ["-- Seleccionar --"] + entidades_existentes + ["-- Agregar nueva --"]
-        
-        # Determinar índice actual
-        if entidad_actual and entidad_actual in entidades_existentes:
-            entidad_index = entidades_existentes.index(entidad_actual) + 1
-        else:
-            entidad_index = 0
-        
-        entidad_seleccion = st.selectbox("Entidad",
-            options=opciones_entidad,
-            index=entidad_index,
-            key=f"entidad_select_{indice}")
-        
-        # Campo de texto para nueva entidad
-        if entidad_seleccion == "-- Agregar nueva --":
-            entidad = st.text_input("Nueva entidad:",
-                value="",
-                placeholder="Escriba el nombre de la nueva entidad",
-                key=f"entidad_nueva_{indice}")
-        elif entidad_seleccion == "-- Seleccionar --":
-            entidad = ""
-        else:
-            entidad = entidad_seleccion
-        
-        # FUNCIONARIO - CORREGIDO: Selectbox con opción "Agregar nuevo"
+        # FUNCIONARIO - CORREGIDO: Con opción de agregar nuevo
         funcionario_actual = get_safe_value(row, 'Funcionario')
         
-        # Opciones del selectbox
-        opciones_funcionario = ["-- Seleccionar --"] + funcionarios_existentes + ["-- Agregar nuevo --"]
+        # Crear opciones para el selectbox
+        opciones_funcionario = ["-- Seleccionar --"]
+        if funcionarios_existentes:
+            opciones_funcionario.extend(funcionarios_existentes)
+        opciones_funcionario.append("✏️ Escribir nuevo funcionario")
         
-        # Determinar índice actual
+        # Determinar índice seleccionado
         if funcionario_actual and funcionario_actual in funcionarios_existentes:
             funcionario_index = funcionarios_existentes.index(funcionario_actual) + 1
         else:
             funcionario_index = 0
         
-        funcionario_seleccion = st.selectbox("Funcionario",
+        funcionario_seleccion = st.selectbox(
+            "Funcionario:",
             options=opciones_funcionario,
             index=funcionario_index,
-            key=f"funcionario_select_{indice}")
+            key=f"funcionario_select_{indice}"
+        )
         
-        # Campo de texto para nuevo funcionario
-        if funcionario_seleccion == "-- Agregar nuevo --":
-            funcionario = st.text_input("Nuevo funcionario:",
+        # Campo para nuevo funcionario o valor seleccionado
+        if funcionario_seleccion == "✏️ Escribir nuevo funcionario":
+            funcionario = st.text_input(
+                "Escriba el nombre del nuevo funcionario:",
                 value="",
-                placeholder="Escriba el nombre del nuevo funcionario",
-                key=f"funcionario_nuevo_{indice}")
+                placeholder="Nombre completo del funcionario",
+                key=f"funcionario_nuevo_{indice}"
+            )
         elif funcionario_seleccion == "-- Seleccionar --":
             funcionario = ""
         else:
             funcionario = funcionario_seleccion
     
     with col2:
+        # ENTIDAD - CORREGIDO: Con opción de agregar nueva
+        entidad_actual = get_safe_value(row, 'Entidad')
+        
+        # Crear opciones para el selectbox
+        opciones_entidad = ["-- Seleccionar --"]
+        if entidades_existentes:
+            opciones_entidad.extend(entidades_existentes)
+        opciones_entidad.append("✏️ Escribir nueva entidad")
+        
+        # Determinar índice seleccionado
+        if entidad_actual and entidad_actual in entidades_existentes:
+            entidad_index = entidades_existentes.index(entidad_actual) + 1
+        else:
+            entidad_index = 0
+        
+        entidad_seleccion = st.selectbox(
+            "Entidad:",
+            options=opciones_entidad,
+            index=entidad_index,
+            key=f"entidad_select_{indice}"
+        )
+        
+        # Campo para nueva entidad o valor seleccionado
+        if entidad_seleccion == "✏️ Escribir nueva entidad":
+            entidad = st.text_input(
+                "Escriba el nombre de la nueva entidad:",
+                value="",
+                placeholder="Nombre completo de la entidad",
+                key=f"entidad_nueva_{indice}"
+            )
+        elif entidad_seleccion == "-- Seleccionar --":
+            entidad = ""
+        else:
+            entidad = entidad_seleccion
+        
         nivel_info = st.text_input("Nivel de Información",
             value=get_safe_value(row, 'Nivel Información '),
             key=f"nivel_{indice}")
@@ -381,27 +365,28 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
             options=tipo_opciones,
             index=tipo_index,
             key=f"tipo_{indice}")
-        
-        # FRECUENCIA - Lista desplegable editable
-        frecuencia_actual = get_safe_value(row, 'Frecuencia actualizacion ')
-        
-        # Combinar frecuencias predefinidas con existentes
-        todas_frecuencias = FRECUENCIAS.copy()
-        for freq in frecuencias_existentes:
-            if freq and freq not in todas_frecuencias:
-                todas_frecuencias.append(freq)
-        
-        frecuencia_index = todas_frecuencias.index(frecuencia_actual) if frecuencia_actual in todas_frecuencias else 0
-        frecuencia = st.selectbox("Frecuencia",
-            options=["-- Seleccionar --"] + todas_frecuencias[1:] + ["-- Agregar nueva --"],
-            index=frecuencia_index if frecuencia_actual in todas_frecuencias[1:] else 0,
-            key=f"freq_{indice}")
-        
-        if frecuencia == "-- Agregar nueva --":
-            frecuencia = st.text_input("Nueva frecuencia:",
-                key=f"freq_nueva_{indice}")
-        elif frecuencia == "-- Seleccionar --":
-            frecuencia = ""
+    
+    # FRECUENCIA - Lista desplegable editable
+    frecuencia_actual = get_safe_value(row, 'Frecuencia actualizacion ')
+    
+    # Combinar frecuencias predefinidas con existentes
+    todas_frecuencias = FRECUENCIAS.copy()
+    for freq in frecuencias_existentes:
+        if freq and freq not in todas_frecuencias:
+            todas_frecuencias.append(freq)
+    
+    frecuencia_index = todas_frecuencias.index(frecuencia_actual) if frecuencia_actual in todas_frecuencias else 0
+    frecuencia = st.selectbox("Frecuencia",
+        options=["-- Seleccionar --"] + todas_frecuencias[1:] + ["✏️ Escribir otra"],
+        index=frecuencia_index if frecuencia_actual in todas_frecuencias[1:] else 0,
+        key=f"freq_{indice}")
+    
+    if frecuencia == "✏️ Escribir otra":
+        frecuencia = st.text_input("Nueva frecuencia:",
+            placeholder="Ej: Quincenal, Bimestral, etc.",
+            key=f"freq_nueva_{indice}")
+    elif frecuencia == "-- Seleccionar --":
+        frecuencia = ""
     
     # MES PROYECTADO - Lista desplegable de meses
     mes_actual = get_safe_value(row, 'Mes Proyectado')
@@ -517,11 +502,11 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         
         seguimiento_index = todos_seguimientos.index(seguimiento_actual) if seguimiento_actual in todos_seguimientos else 0
         seguimiento = st.selectbox("Seguimiento acuerdos",
-            options=["-- Seleccionar --"] + todos_seguimientos[1:] + ["-- Escribir otro --"],
+            options=["-- Seleccionar --"] + todos_seguimientos[1:] + ["✏️ Escribir otro"],
             index=seguimiento_index if seguimiento_actual in todos_seguimientos[1:] else 0,
             key=f"seguimiento_select_{indice}")
         
-        if seguimiento == "-- Escribir otro --":
+        if seguimiento == "✏️ Escribir otro":
             seguimiento = st.text_area("Otro seguimiento:",
                 height=80,
                 key=f"seguimiento_otro_{indice}")
