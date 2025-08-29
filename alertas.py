@@ -1,11 +1,11 @@
-# alertas.py - OPTIMIZADA PARA SER MÁS EFICIENTE
+# alertas.py - CORREGIDO: Descarga Excel agregada
 """
-Módulo Alertas - OPTIMIZADO para mejor visualización:
+Módulo Alertas - CORREGIDO:
+- ✅ Descarga Excel agregada además de CSV
 - Filtros inteligentes para reducir ruido
 - Solo alertas realmente importantes
 - Agrupamiento por criticidad
-- Resumen ejecutivo
-- Visualización más limpia y eficiente
+- Visualización limpia y eficiente
 """
 
 import streamlit as st
@@ -14,6 +14,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta, date
 import numpy as np
+import io
 from data_utils import procesar_fecha, es_fecha_valida, formatear_fecha, calcular_porcentaje_avance
 
 
@@ -23,12 +24,11 @@ class AlertasManagerOptimizado:
     def __init__(self, registros_df):
         self.registros_df = registros_df
         self.hoy = datetime.now().date()
-        # CONFIGURACIÓN MÁS ESTRICTA - Solo alertas importantes
+        # CONFIGURACIÓN - Solo alertas importantes
         self.alertas_configuracion = {
             'critico': {'dias': 0, 'color': '#dc2626', 'emoji': '🔴'},      # Vencido
-            'urgente': {'dias': 3, 'color': '#ea580c', 'emoji': '🟠'},     # 3 días (antes 7)
-            'proximo': {'dias': 7, 'color': '#d97706', 'emoji': '🟡'}      # 7 días (antes 15)
-            # Eliminamos 'planificado' para reducir ruido
+            'urgente': {'dias': 3, 'color': '#ea580c', 'emoji': '🟠'},     # 3 días
+            'proximo': {'dias': 7, 'color': '#d97706', 'emoji': '🟡'}      # 7 días
         }
     
     def procesar_fechas_importantes_solamente(self):
@@ -37,10 +37,10 @@ class AlertasManagerOptimizado:
         
         # SOLO campos realmente críticos para alertas
         campos_criticos = [
-            'Análisis y cronograma (fecha programada)',  # Fechas programadas
+            'Análisis y cronograma (fecha programada)',
             'Estándares (fecha programada)',
             'Fecha de publicación programada',
-            'Plazo de oficio de cierre'                 # Plazos oficiales
+            'Plazo de oficio de cierre'
         ]
         
         alertas_importantes = []
@@ -230,21 +230,12 @@ def crear_grafico_alertas_compacto(df_alertas):
 
 def mostrar_alertas_optimizadas(registros_df):
     """
-    Sistema de alertas OPTIMIZADO - Más eficiente y menos ruido
-    
-    OPTIMIZACIONES APLICADAS:
-    - ✅ Solo alertas ≤7 días (antes 30 días)
-    - ✅ Filtros inteligentes para reducir ruido
-    - ✅ Solo registros activos y no completados
-    - ✅ Agrupamiento por criticidad
-    - ✅ Resumen ejecutivo conciso
-    - ✅ Visualización más compacta
-    - ✅ Priorización automática
+    Sistema de alertas OPTIMIZADO - CORREGIDO: Con descarga Excel
     """
-    
+    st.subheader("Alertas de Vencimientos")
     
     # Información del sistema optimizado
-    with st.expander("ℹ️ Sistema Optimizado"):
+    with st.expander("Información del Sistema"):
         st.info("""
         **Alertas Inteligentes** - Solo lo realmente importante:
         
@@ -265,23 +256,23 @@ def mostrar_alertas_optimizadas(registros_df):
     # Procesar alertas optimizadas
     alertas_manager = AlertasManagerOptimizado(registros_df)
     
-    with st.spinner("🔍 Analizando alertas importantes..."):
+    with st.spinner("Analizando alertas importantes..."):
         df_alertas = alertas_manager.procesar_fechas_importantes_solamente()
     
     if df_alertas.empty:
-        st.success("🎉 **¡Excelente!** No hay alertas críticas en el sistema.")
-        st.info("💡 Todas las fechas importantes están bajo control.")
+        st.success("¡Excelente! No hay alertas críticas en el sistema.")
+        st.info("Todas las fechas importantes están bajo control.")
         return
     
     # ===== RESUMEN EJECUTIVO =====
     resumen = crear_resumen_ejecutivo_alertas(df_alertas)
     
-    st.markdown("### 📊 Resumen Ejecutivo")
+    st.markdown("### Resumen Ejecutivo")
     
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Total Alertas", resumen['total'], help="Solo alertas ≤7 días")
+        st.metric("Total Alertas", resumen['total'])
     
     with col2:
         color = "inverse" if resumen['criticas'] > 0 else "normal"
@@ -413,11 +404,11 @@ def mostrar_alertas_optimizadas(registros_df):
             use_container_width=True
         )
     else:
-        st.info("📭 No hay alertas que coincidan con los filtros seleccionados")
+        st.info("No hay alertas que coincidan con los filtros seleccionados")
     
     # ===== ACCIONES RECOMENDADAS =====
     st.markdown("---")
-    st.markdown("### 💡 Acciones Recomendadas")
+    st.markdown("### Acciones Recomendadas")
     
     if resumen['criticas'] > 0:
         st.error(f"""
@@ -435,37 +426,57 @@ def mostrar_alertas_optimizadas(registros_df):
         """)
     
     if resumen['total'] == 0:
-        st.success("✅ **Sistema bajo control** - No hay alertas importantes")
+        st.success("Sistema bajo control - No hay alertas importantes")
     
-    # ===== EXPORTACIÓN SIMPLIFICADA =====
+    # ===== EXPORTACIÓN CORREGIDA: CSV Y EXCEL =====
     st.markdown("---")
-    if st.button("📥 Descargar Alertas (CSV)"):
-        csv = df_alertas.to_csv(index=False)
-        st.download_button(
-            label="💾 Descargar CSV",
-            data=csv,
-            file_name=f"alertas_importantes_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-            mime="text/csv"
-        )
-
-
-# ===== FUNCIONES DE VERIFICACIÓN =====
-def validar_alertas_optimizadas():
-    """Verifica que las optimizaciones estén funcionando"""
-    optimizaciones = [
-        "✅ Filtros inteligentes aplicados",
-        "✅ Solo alertas ≤7 días mostradas",
-        "✅ Exclusión de registros completados",
-        "✅ Priorización automática",
-        "✅ Resumen ejecutivo conciso",
-        "✅ Visualización compacta",
-        "✅ Alertas críticas destacadas",
-        "✅ Reducción significativa de ruido",
-        "✅ Filtros de búsqueda optimizados",
-        "✅ Acciones recomendadas específicas"
-    ]
+    st.markdown("### Descargar Alertas")
     
-    return optimizaciones
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # DESCARGA CSV
+        if st.button("Descargar CSV"):
+            csv = df_alertas.to_csv(index=False)
+            st.download_button(
+                label="💾 Descargar CSV",
+                data=csv,
+                file_name=f"alertas_importantes_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv"
+            )
+    
+    with col2:
+        # DESCARGA EXCEL - CORREGIDO
+        if st.button("Descargar Excel"):
+            try:
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    # Hoja principal con todas las alertas
+                    df_alertas.to_excel(writer, sheet_name='Todas las Alertas', index=False)
+                    
+                    # Hoja por tipo de alerta
+                    if not df_alertas[df_alertas['Tipo_Alerta'] == 'critico'].empty:
+                        df_alertas[df_alertas['Tipo_Alerta'] == 'critico'].to_excel(
+                            writer, sheet_name='Críticas', index=False)
+                    
+                    if not df_alertas[df_alertas['Tipo_Alerta'] == 'urgente'].empty:
+                        df_alertas[df_alertas['Tipo_Alerta'] == 'urgente'].to_excel(
+                            writer, sheet_name='Urgentes', index=False)
+                    
+                    if not df_alertas[df_alertas['Tipo_Alerta'] == 'proximo'].empty:
+                        df_alertas[df_alertas['Tipo_Alerta'] == 'proximo'].to_excel(
+                            writer, sheet_name='Próximas', index=False)
+
+                excel_data = output.getvalue()
+                st.download_button(
+                    label="📊 Descargar Excel",
+                    data=excel_data,
+                    file_name=f"alertas_importantes_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+                
+            except Exception as e:
+                st.error(f"Error generando Excel: {str(e)}")
 
 
 # ===== ALIAS PARA COMPATIBILIDAD =====
@@ -474,9 +485,9 @@ mostrar_alertas_vencimientos = mostrar_alertas_optimizadas
 
 
 if __name__ == "__main__":
-    print("🚨 Módulo Alertas OPTIMIZADO")
-    print("🔧 Optimizaciones aplicadas:")
-    for opt in validar_alertas_optimizadas():
-        print(f"   {opt}")
-    print("\n⚡ Resultado: Alertas más eficientes y menos ruido")
-    print("📝 Uso: from alertas import mostrar_alertas_vencimientos (compatible)")
+    print("🚨 Módulo Alertas CORREGIDO con descarga Excel")
+    print("🔧 Funcionalidades:")
+    print("   ✅ Descarga CSV")
+    print("   ✅ Descarga Excel (CORREGIDO)")
+    print("   ✅ Alertas optimizadas")
+    print("   ✅ Filtros inteligentes")
