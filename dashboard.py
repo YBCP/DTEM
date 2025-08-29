@@ -306,9 +306,9 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
     st.markdown('<div class="subtitle">Diagrama de Gantt - Cronograma de Hitos</div>', unsafe_allow_html=True)
 
     filtros_aplicados = (
-        entidad_seleccionada != 'Todas' or 
-        funcionario_seleccionado != 'Todos' or 
-        nivel_seleccionado != 'Todos'
+        entidad_sel != 'Todas' or 
+        funcionario_sel != 'Todos' or 
+        tipo_sel != 'Todos'
     )
 
     if filtros_aplicados:
@@ -321,7 +321,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         except Exception as e:
             st.error(f"Error creando Gantt: {e}")
     else:
-        st.info("Para visualizar el diagrama de Gantt seleccione filtros específicos (entidad, funcionario o nivel).")
+        st.info("Para visualizar el diagrama de Gantt seleccione filtros específicos (entidad, funcionario o tipo).")
 
     # ===== TABLA DE REGISTROS =====
     st.markdown('<div class="subtitle">Detalle de Registros</div>', unsafe_allow_html=True)
