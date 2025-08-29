@@ -175,26 +175,51 @@ def crear_treemap_funcionarios_con_opciones(df_filtrado, mostrar_entidades=False
 
 
 def mostrar_filtros_dashboard(registros_df):
-    """Muestra los filtros del dashboard"""
+    """FILTROS EN CASCADA: Muestra los filtros del dashboard con dependencias"""
     col1, col2, col3 = st.columns(3)
     
     with col1:
+        # FILTRO 1: ENTIDAD (base - independiente)
         entidades_unicas = ['Todas'] + sorted(registros_df['Entidad'].unique()) if not registros_df.empty else ['Todas']
         entidad_seleccionada = st.selectbox("Entidad", entidades_unicas, key="entidad_dashboard")
     
+    # APLICAR FILTRO DE ENTIDAD para obtener datos disponibles
+    df_filtrado_entidad = registros_df.copy()
+    if entidad_seleccionada != 'Todas':
+        df_filtrado_entidad = df_filtrado_entidad[df_filtrado_entidad['Entidad'] == entidad_seleccionada]
+    
     with col2:
-        if 'Funcionario' in registros_df.columns and not registros_df.empty:
-            funcionarios_unicos = ['Todos'] + sorted([
-                f for f in registros_df['Funcionario'].dropna().unique() 
-                if f and str(f).strip() and str(f) != 'nan'
+        # FILTRO 2: FUNCIONARIO (depende de entidad seleccionada)
+        funcionarios_disponibles = ['Todos']
+        if 'Funcionario' in df_filtrado_entidad.columns and not df_filtrado_entidad.empty:
+            funcionarios_unicos = sorted([
+                f for f in df_filtrado_entidad['Funcionario'].dropna().unique() 
+                if f and str(f).strip() and str(f).strip().lower() not in ['nan', 'none', '']
             ])
-        else:
-            funcionarios_unicos = ['Todos']
-        funcionario_seleccionado = st.selectbox("Funcionario", funcionarios_unicos, key="funcionario_dashboard")
+            funcionarios_disponibles.extend(funcionarios_unicos)
+        
+        funcionario_seleccionado = st.selectbox("Funcionario", funcionarios_disponibles, key="funcionario_dashboard")
+    
+    # APLICAR FILTRO DE FUNCIONARIO
+    df_filtrado_funcionario = df_filtrado_entidad.copy()
+    if funcionario_seleccionado != 'Todos':
+        df_filtrado_funcionario = df_filtrado_funcionario[df_filtrado_funcionario['Funcionario'] == funcionario_seleccionado]
     
     with col3:
-        tipos_dato = ['Todos', 'Nuevo', 'Actualizar']
-        tipo_seleccionado = st.selectbox("Tipo de Dato", tipos_dato, key="tipo_dashboard")
+        # FILTRO 3: TIPO DE DATO (depende de entidad y funcionario)
+        tipos_disponibles = ['Todos']
+        if 'TipoDato' in df_filtrado_funcionario.columns and not df_filtrado_funcionario.empty:
+            tipos_unicos = sorted([
+                t for t in df_filtrado_funcionario['TipoDato'].dropna().unique() 
+                if t and str(t).strip() and str(t).strip().lower() not in ['nan', 'none', '']
+            ])
+            tipos_disponibles.extend(tipos_unicos)
+        
+        # Si no hay tipos disponibles, mantener las opciones estándar
+        if len(tipos_disponibles) == 1:
+            tipos_disponibles = ['Todos', 'Nuevo', 'Actualizar']
+        
+        tipo_seleccionado = st.selectbox("Tipo de Dato", tipos_disponibles, key="tipo_dashboard")
     
     return entidad_seleccionada, funcionario_seleccionado, tipo_seleccionado
 
