@@ -6,6 +6,7 @@ Módulo de Reportes SIMPLIFICADO:
 - Descarga Excel/CSV
 - Sin gráficos, iconos o información innecesaria
 - Filtros corregidos según Google Sheets
+- ERROR CORREGIDO: IDs únicos para botones
 """
 
 import streamlit as st
@@ -194,13 +195,14 @@ def mostrar_reportes_simplificado(registros_df, entidad_reporte, tipo_dato_repor
     except Exception:
         st.dataframe(df_mostrar, use_container_width=True)
     
-    # DESCARGA DE DATOS
+    # DESCARGA DE DATOS - ERROR CORREGIDO: IDs únicos para botones
     st.subheader("Exportar Datos")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("Descargar Excel"):
+        # BOTÓN EXCEL CON ID ÚNICO
+        if st.button("Descargar Excel", key="btn_descargar_excel_reportes"):
             try:
                 output = io.BytesIO()
                 with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -211,21 +213,24 @@ def mostrar_reportes_simplificado(registros_df, entidad_reporte, tipo_dato_repor
                     label="Archivo Excel",
                     data=excel_data,
                     file_name=f"registros_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="download_excel_reportes_unique"
                 )
                 
             except Exception as e:
                 st.error(f"Error generando Excel: {str(e)}")
     
     with col2:
-        if st.button("Descargar CSV"):
+        # BOTÓN CSV CON ID ÚNICO
+        if st.button("Descargar CSV", key="btn_descargar_csv_reportes"):
             try:
                 csv_data = df_filtrado.to_csv(index=False)
                 st.download_button(
                     label="Archivo CSV",
                     data=csv_data,
                     file_name=f"registros_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                    mime="text/csv"
+                    mime="text/csv",
+                    key="download_csv_reportes_unique"
                 )
                 
             except Exception as e:
@@ -301,13 +306,14 @@ def test_reportes_simplificado():
     return df_test
 
 if __name__ == "__main__":
-    print("Módulo de Reportes Simplificado")
+    print("Módulo de Reportes Simplificado - ERROR DE BOTONES CORREGIDO")
     print("Características:")
     print("- Solo métricas generales")
     print("- Tabla de datos filtrados")
     print("- Descarga Excel/CSV")
     print("- Sin gráficos ni iconos")
     print("- Filtros corregidos según Google Sheets")
+    print("- ERROR CORREGIDO: IDs únicos para botones")
     
     df_test = test_reportes_simplificado()
     print(f"Test completado: {len(df_test)} registros de prueba")
