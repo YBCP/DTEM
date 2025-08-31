@@ -582,5 +582,4 @@ if __name__ == "__main__":
     print("Funcionalidades incluidas:")
     for func in validar_dashboard_funcionando():
         print(f"   - {func}")
-    print("NUEVA FUNCIONALIDAD: Toggle registros/entidades por funcionario")
-    print("Listo para importar en app1.py")
+   
