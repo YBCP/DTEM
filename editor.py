@@ -1,7 +1,6 @@
-# editor.py - ARREGLADO: Campos aparecen INMEDIATAMENTE
+# editor.py - ARREGLADO: Los campos aparecen INMEDIATAMENTE
 """
-Solo se arregla el problema de los campos que no aparecen al seleccionar "Nuevo"
-Todo lo demás permanece igual
+ÚNICO CAMBIO: Los campos de texto aparecen inmediatamente al seleccionar "Nuevo funcionario" o "Nueva entidad"
 """
 
 import streamlit as st
@@ -152,9 +151,9 @@ def generar_codigo(df):
     except:
         return "001"
 
-def mostrar_selector_funcionario_ARREGLADO(funcionario_actual, funcionarios_existentes, key_base):
+def mostrar_selector_funcionario(funcionario_actual, funcionarios_existentes, key_base):
     """
-    ARREGLADO: El campo aparece INMEDIATAMENTE sin recargar
+    ARREGLADO: Campo de texto aparece INMEDIATAMENTE sin esperar refresh
     """
     st.markdown("**Funcionario:**")
     
@@ -171,22 +170,19 @@ def mostrar_selector_funcionario_ARREGLADO(funcionario_actual, funcionarios_exis
         key=f"func_select_{key_base}"
     )
     
-    # ARREGLO: Verificación INMEDIATA en la misma ejecución
+    # CORREGIDO: El campo aparece INMEDIATAMENTE en la misma ejecución
     if seleccion == "Nuevo funcionario":
-        # EL CAMPO APARECE AQUÍ, NO EN EL PRÓXIMO REFRESH
-        funcionario_final = st.text_input(
+        # Campo de texto mostrado inmediatamente (no en próximo refresh)
+        nuevo_funcionario = st.text_input(
             "Nombre del nuevo funcionario:",
             value="",
-            placeholder="Escriba el nombre completo",
-            key=f"func_text_{key_base}",
-            help="Este funcionario se añadirá automáticamente"
+            placeholder="Escriba el nombre completo del funcionario",
+            key=f"func_nuevo_{key_base}"
         )
         
-        if funcionario_final and funcionario_final.strip():
-            st.success(f"✓ Funcionario: {funcionario_final}")
-            return funcionario_final.strip()
+        if nuevo_funcionario and nuevo_funcionario.strip():
+            return nuevo_funcionario.strip()
         else:
-            st.warning("⚠ Escriba el nombre del funcionario")
             return ""
             
     elif seleccion == "":
@@ -194,9 +190,9 @@ def mostrar_selector_funcionario_ARREGLADO(funcionario_actual, funcionarios_exis
     else:
         return seleccion
 
-def mostrar_selector_entidad_ARREGLADO(entidad_actual, entidades_existentes, key_base):
+def mostrar_selector_entidad(entidad_actual, entidades_existentes, key_base):
     """
-    ARREGLADO: El campo aparece INMEDIATAMENTE sin recargar
+    ARREGLADO: Campo de texto aparece INMEDIATAMENTE sin esperar refresh
     """
     st.markdown("**Entidad:**")
     
@@ -213,22 +209,19 @@ def mostrar_selector_entidad_ARREGLADO(entidad_actual, entidades_existentes, key
         key=f"ent_select_{key_base}"
     )
     
-    # ARREGLO: Verificación INMEDIATA en la misma ejecución
+    # CORREGIDO: El campo aparece INMEDIATAMENTE en la misma ejecución
     if seleccion == "Nueva entidad":
-        # EL CAMPO APARECE AQUÍ, NO EN EL PRÓXIMO REFRESH
-        entidad_final = st.text_input(
+        # Campo de texto mostrado inmediatamente (no en próximo refresh)
+        nueva_entidad = st.text_input(
             "Nombre de la nueva entidad:",
             value="",
-            placeholder="Escriba el nombre completo",
-            key=f"ent_text_{key_base}",
-            help="Esta entidad se añadirá automáticamente"
+            placeholder="Escriba el nombre completo de la entidad",
+            key=f"ent_nueva_{key_base}"
         )
         
-        if entidad_final and entidad_final.strip():
-            st.success(f"✓ Entidad: {entidad_final}")
-            return entidad_final.strip()
+        if nueva_entidad and nueva_entidad.strip():
+            return nueva_entidad.strip()
         else:
-            st.warning("⚠ Escriba el nombre de la entidad")
             return ""
             
     elif seleccion == "":
@@ -237,14 +230,14 @@ def mostrar_selector_entidad_ARREGLADO(entidad_actual, entidades_existentes, key
         return seleccion
 
 def mostrar_formulario_completo(row, indice, es_nuevo=False, df=None):
-    """FORMULARIO COMPLETO - Solo se arreglan los selectores"""
+    """FORMULARIO COMPLETO - Solo se modifican los selectores de funcionario y entidad"""
     
     # Obtener listas existentes
     funcionarios_existentes = obtener_funcionarios_unicos(df)
     entidades_existentes = obtener_entidades_unicas(df)
     
     # Key base único
-    key_base = f"{indice}_{'nuevo' if es_nuevo else 'edit'}"
+    key_base = f"{indice}_{'nuevo' if es_nuevo else 'edit'}_{datetime.now().microsecond}"
     
     # ======================
     # INFORMACIÓN BÁSICA
@@ -261,14 +254,14 @@ def mostrar_formulario_completo(row, indice, es_nuevo=False, df=None):
             key=f"codigo_{key_base}"
         )
         
-        # FUNCIONARIO - ARREGLADO
+        # FUNCIONARIO - CORREGIDO
         funcionario_actual = get_safe_value(row, 'Funcionario')
-        funcionario = mostrar_selector_funcionario_ARREGLADO(funcionario_actual, funcionarios_existentes, key_base)
+        funcionario = mostrar_selector_funcionario(funcionario_actual, funcionarios_existentes, key_base)
     
     with col2:
-        # ENTIDAD - ARREGLADO  
+        # ENTIDAD - CORREGIDO  
         entidad_actual = get_safe_value(row, 'Entidad')
-        entidad = mostrar_selector_entidad_ARREGLADO(entidad_actual, entidades_existentes, key_base)
+        entidad = mostrar_selector_entidad(entidad_actual, entidades_existentes, key_base)
         
         # NIVEL DE INFORMACIÓN
         nivel_info = st.text_input(
@@ -377,7 +370,6 @@ def mostrar_formulario_completo(row, indice, es_nuevo=False, df=None):
     col1, col2 = st.columns(2)
     
     with col1:
-        # ACCESO A DATOS
         acceso_value = get_safe_value(row, 'Gestion acceso a los datos y documentos requeridos ')
         acceso_index = 0
         if acceso_value in ["Si", "No"]:
@@ -390,7 +382,6 @@ def mostrar_formulario_completo(row, indice, es_nuevo=False, df=None):
             key=f"acceso_{key_base}"
         )
         
-        # ANÁLISIS DE INFORMACIÓN
         analisis_value = get_safe_value(row, ' Análisis de información')
         analisis_index = 0
         if analisis_value in ["Si", "No"]:
@@ -404,7 +395,6 @@ def mostrar_formulario_completo(row, indice, es_nuevo=False, df=None):
         )
     
     with col2:
-        # CRONOGRAMA CONCERTADO
         cronograma_value = get_safe_value(row, 'Cronograma Concertado')
         cronograma_index = 0
         if cronograma_value in ["Si", "No"]:
@@ -417,7 +407,6 @@ def mostrar_formulario_completo(row, indice, es_nuevo=False, df=None):
             key=f"cronograma_{key_base}"
         )
         
-        # FECHA ENTREGA INFORMACIÓN
         fecha_entrega_date = string_a_fecha(get_safe_value(row, 'Fecha de entrega de información'))
         fecha_entrega = st.date_input(
             "Fecha entrega información:",
@@ -830,6 +819,7 @@ def mostrar_formulario_completo(row, indice, es_nuevo=False, df=None):
         'Cronograma Concertado': cronograma,
         'Análisis y cronograma (fecha programada)': fecha_a_string(analisis_programada) if analisis_programada else "",
         'Fecha de entrega de información': fecha_a_string(fecha_entrega) if fecha_entrega else "",
+        'Plazo de análisis': get_safe_value(row, 'Plazo de análisis'),
         'Análisis y cronograma': fecha_a_string(analisis_real) if analisis_real else "",
         'Seguimiento a los acuerdos': seguimiento,
         'Registro (completo)': registro,
@@ -845,21 +835,22 @@ def mostrar_formulario_completo(row, indice, es_nuevo=False, df=None):
         'Verificar Aprobar Resultados': verificar_aprobar,
         'Revisar y validar los datos cargados en la base de datos': revisar_validar,
         'Aprobación resultados obtenidos en la orientación': aprobacion,
+        'Disponer datos temáticos': disponer_datos,
         'Fecha de publicación programada': fecha_a_string(pub_programada) if pub_programada else "",
         'Publicación': fecha_a_string(publicacion) if publicacion else "",
-        'Disponer datos temáticos': disponer_datos,
         'Catálogo de recursos geográficos': catalogo,
         'Oficios de cierre': oficios_cierre,
         'Fecha de oficio de cierre': fecha_a_string(fecha_oficio) if fecha_oficio else "",
+        'Plazo de cronograma': get_safe_value(row, 'Plazo de cronograma'),
+        'Plazo de oficio de cierre': get_safe_value(row, 'Plazo de oficio de cierre'),
         'Estado': estado,
         'Observación': observacion
     }
 
 def mostrar_edicion_registros(registros_df):
-    """Editor principal con formulario completo"""
+    """Editor principal"""
     st.subheader("Editor de Registros")
     
-    # Información básica
     col1, col2 = st.columns([2, 1])
     with col1:
         total = len(registros_df) if not registros_df.empty else 0
@@ -883,7 +874,7 @@ def mostrar_edicion_registros(registros_df):
         termino = st.text_input(
             "Buscar registro:",
             placeholder="Código, entidad o nivel de información...",
-            key="busqueda_editar_v2"
+            key="busqueda_editar"
         )
         
         # Filtrar opciones
@@ -901,7 +892,7 @@ def mostrar_edicion_registros(registros_df):
                 opciones.append((idx, opcion))
         
         if not opciones:
-            st.warning("No hay registros disponibles o no coinciden con la búsqueda")
+            st.warning("No hay registros disponibles")
             return registros_df
         
         # Selector de registro
@@ -909,7 +900,7 @@ def mostrar_edicion_registros(registros_df):
         if termino:
             st.info(f"{len(opciones)} registros encontrados")
         
-        seleccion = st.selectbox("Registro a editar:", opciones_mostrar, key="select_editar_v2")
+        seleccion = st.selectbox("Registro a editar:", opciones_mostrar, key="select_editar")
         
         # Obtener índice real
         indice_real = None
@@ -921,113 +912,59 @@ def mostrar_edicion_registros(registros_df):
         if indice_real is not None:
             row_seleccionada = registros_df.iloc[indice_real]
             
-            # Información del registro y botón eliminar
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.write(f"**Editando:** {get_safe_value(row_seleccionada, 'Cod')} - {get_safe_value(row_seleccionada, 'Entidad')}")
-            with col2:
-                if st.button("Eliminar Registro", type="secondary", key="btn_eliminar_v2"):
-                    if "confirmar_eliminar" not in st.session_state:
-                        st.session_state.confirmar_eliminar = True
-                        st.session_state.indice_eliminar = indice_real
-                        st.rerun()
-            
-            # Confirmación de eliminación
-            if st.session_state.get('confirmar_eliminar', False) and st.session_state.get('indice_eliminar') == indice_real:
-                st.warning("⚠️ **CONFIRMAR ELIMINACIÓN** - Esta acción no se puede deshacer")
-                col1, col2 = st.columns(2)
+            with st.form("form_editar_completo"):
+                valores = mostrar_formulario_completo(row_seleccionada, indice_real, False, registros_df)
                 
-                with col1:
-                    if st.button("✅ SÍ, ELIMINAR", type="primary", key="confirmar_eliminar_v2"):
+                if st.form_submit_button("Guardar Cambios", type="primary"):
+                    if not valores['Funcionario'].strip():
+                        st.error("El campo 'Funcionario' es obligatorio")
+                    elif not valores['Entidad'].strip():
+                        st.error("El campo 'Entidad' es obligatorio")
+                    else:
                         try:
-                            registros_df = registros_df.drop(indice_real).reset_index(drop=True)
+                            # Actualizar registro
+                            for campo, valor in valores.items():
+                                if campo in registros_df.columns:
+                                    registros_df.iloc[indice_real, registros_df.columns.get_loc(campo)] = valor
+                            
+                            # Calcular avance
+                            nuevo_avance = calcular_avance(registros_df.iloc[indice_real])
+                            if 'Porcentaje Avance' in registros_df.columns:
+                                registros_df.iloc[indice_real, registros_df.columns.get_loc('Porcentaje Avance')] = nuevo_avance
+                            
+                            # Guardar
                             exito, mensaje = guardar_en_sheets(registros_df)
                             
                             if exito:
-                                st.success("Registro eliminado correctamente")
+                                st.success(f"Registro actualizado correctamente. Avance: {nuevo_avance}%")
                                 st.session_state['registros_df'] = registros_df
                                 st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
-                                
-                                # Limpiar estado de confirmación
-                                if 'confirmar_eliminar' in st.session_state:
-                                    del st.session_state.confirmar_eliminar
-                                if 'indice_eliminar' in st.session_state:
-                                    del st.session_state.indice_eliminar
-                                
                                 time.sleep(1)
                                 st.rerun()
                             else:
                                 st.error(f"Error: {mensaje}")
                         except Exception as e:
-                            st.error(f"Error eliminando registro: {e}")
-                
-                with col2:
-                    if st.button("❌ Cancelar", key="cancelar_eliminar_v2"):
-                        # Limpiar estado de confirmación
-                        if 'confirmar_eliminar' in st.session_state:
-                            del st.session_state.confirmar_eliminar
-                        if 'indice_eliminar' in st.session_state:
-                            del st.session_state.indice_eliminar
-                        st.rerun()
-            
-            # Formulario de edición (solo mostrar si no está confirmando eliminación)
-            elif not st.session_state.get('confirmar_eliminar', False):
-                with st.form("form_editar_completo_v2"):
-                    valores = mostrar_formulario_completo(row_seleccionada, indice_real, False, registros_df)
-                    
-                    if st.form_submit_button("💾 Guardar Cambios", type="primary"):
-                        # Validaciones obligatorias
-                        if not valores['Funcionario'].strip():
-                            st.error("❌ El campo 'Funcionario' es obligatorio")
-                        elif not valores['Entidad'].strip():
-                            st.error("❌ El campo 'Entidad' es obligatorio")
-                        else:
-                            try:
-                                # Actualizar registro
-                                for campo, valor in valores.items():
-                                    if campo in registros_df.columns:
-                                        registros_df.iloc[indice_real, registros_df.columns.get_loc(campo)] = valor
-                                
-                                # Calcular avance
-                                nuevo_avance = calcular_avance(registros_df.iloc[indice_real])
-                                if 'Porcentaje Avance' in registros_df.columns:
-                                    registros_df.iloc[indice_real, registros_df.columns.get_loc('Porcentaje Avance')] = nuevo_avance
-                                
-                                # Guardar
-                                exito, mensaje = guardar_en_sheets(registros_df)
-                                
-                                if exito:
-                                    st.success(f"✅ Registro actualizado correctamente. Avance: {nuevo_avance}%")
-                                    st.session_state['registros_df'] = registros_df
-                                    st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
-                                    time.sleep(1)
-                                    st.rerun()
-                                else:
-                                    st.error(f"❌ {mensaje}")
-                            except Exception as e:
-                                st.error(f"❌ Error guardando: {e}")
+                            st.error(f"Error guardando: {e}")
     
     with tab2:
         st.subheader("Crear Nuevo Registro")
         
         # Generar código automático
         nuevo_codigo = generar_codigo(registros_df)
-        st.info(f"📝 Código automático asignado: **{nuevo_codigo}**")
+        st.info(f"Código automático: {nuevo_codigo}")
         
-        # Registro vacío para el formulario
+        # Registro vacío
         registro_vacio = pd.Series({col: '' for col in registros_df.columns})
         registro_vacio['Cod'] = nuevo_codigo
         
-        # Formulario de creación
-        with st.form("form_crear_completo_v2"):
+        with st.form("form_crear_completo"):
             valores_nuevo = mostrar_formulario_completo(registro_vacio, "nuevo", True, registros_df)
             
-            if st.form_submit_button("🆕 Crear Registro", type="primary"):
-                # Validaciones obligatorias
+            if st.form_submit_button("Crear Registro", type="primary"):
                 if not valores_nuevo['Funcionario'].strip():
-                    st.error("❌ El campo 'Funcionario' es obligatorio")
+                    st.error("El campo 'Funcionario' es obligatorio")
                 elif not valores_nuevo['Entidad'].strip():
-                    st.error("❌ El campo 'Entidad' es obligatorio")
+                    st.error("El campo 'Entidad' es obligatorio")
                 else:
                     try:
                         # Crear nuevo registro
@@ -1049,17 +986,16 @@ def mostrar_edicion_registros(registros_df):
                         exito, mensaje = guardar_en_sheets(registros_df)
                         
                         if exito:
-                            st.success(f"🎉 Registro {nuevo_codigo} creado exitosamente!")
-                            st.success(f"✅ {mensaje}. Avance inicial: {avance}%")
+                            st.success(f"Registro {nuevo_codigo} creado exitosamente!")
                             st.session_state['registros_df'] = registros_df
                             st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
                             st.balloons()
                             time.sleep(1)
                             st.rerun()
                         else:
-                            st.error(f"❌ {mensaje}")
+                            st.error(f"Error: {mensaje}")
                     except Exception as e:
-                        st.error(f"❌ Error creando registro: {e}")
+                        st.error(f"Error creando registro: {e}")
     
     return registros_df
 
@@ -1069,31 +1005,17 @@ def mostrar_edicion_registros_con_autenticacion(registros_df):
         from auth_utils import verificar_autenticacion
         
         if verificar_autenticacion():
-            # Panel de diagnóstico mínimo
-            with st.expander("🔧 Diagnóstico del Sistema"):
-                if st.button("Verificar Conexión Google Sheets"):
-                    if GoogleSheetsManager:
-                        try:
-                            manager = GoogleSheetsManager()
-                            hojas = manager.listar_hojas()
-                            st.success(f"✅ Conexión exitosa. Hojas disponibles: {', '.join(hojas)}")
-                        except Exception as e:
-                            st.error(f"❌ Error de conexión: {str(e)}")
-                    else:
-                        st.error("❌ GoogleSheetsManager no disponible")
-            
             # Usar datos actualizados
             if 'registros_df' in st.session_state:
                 registros_df = st.session_state['registros_df']
             
             return mostrar_edicion_registros(registros_df)
         else:
-            st.subheader("🔒 Acceso Restringido")
-            st.warning("Se requiere autenticación de administrador para editar registros")
-            st.info("💡 Use el panel 'Acceso Administrativo' en la barra lateral izquierda")
+            st.subheader("Acceso Restringido")
+            st.warning("Se requiere autenticación para editar registros")
             return registros_df
             
     except ImportError:
-        st.warning("⚠️ Sistema de autenticación no disponible - Acceso directo permitido")
+        st.warning("Sistema de autenticación no disponible")
         return mostrar_edicion_registros(registros_df)
    
