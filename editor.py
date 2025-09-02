@@ -153,121 +153,71 @@ def generar_codigo(df):
 
 def mostrar_selector_funcionario(funcionario_actual, funcionarios_existentes, key_base):
     """
-    SOLUCIÓN CON BOTONES: Usar botones para activar campos nuevos
+    SOLUCIÓN SIN BOTONES: Compatible con st.form
     """
     st.markdown("**Funcionario:**")
     
-    # Columnas para selectbox y botón
-    col1, col2 = st.columns([2, 1])
+    # Selectbox normal con opción "Nuevo funcionario"
+    opciones = [""] + funcionarios_existentes + ["➕ Nuevo funcionario"]
     
-    with col1:
-        opciones = [""] + funcionarios_existentes
-        
-        valor_inicial = 0
-        if funcionario_actual and funcionario_actual in funcionarios_existentes:
-            valor_inicial = funcionarios_existentes.index(funcionario_actual) + 1
-        
-        seleccion = st.selectbox(
-            "Funcionarios existentes:",
-            opciones,
-            index=valor_inicial,
-            key=f"func_select_{key_base}"
-        )
+    valor_inicial = 0
+    if funcionario_actual and funcionario_actual in funcionarios_existentes:
+        valor_inicial = funcionarios_existentes.index(funcionario_actual) + 1
     
-    with col2:
-        # BOTÓN para activar campo nuevo
-        if st.button("+ Nuevo Funcionario", key=f"btn_nuevo_func_{key_base}"):
-            st.session_state[f"mostrar_campo_func_{key_base}"] = True
+    seleccion = st.selectbox(
+        "Funcionario:",
+        opciones,
+        index=valor_inicial,
+        key=f"func_select_{key_base}"
+    )
     
-    # Mostrar campo de texto si se presionó el botón
-    if st.session_state.get(f"mostrar_campo_func_{key_base}", False):
+    # Si selecciona "Nuevo funcionario", mostrar campo inmediatamente
+    if seleccion == "➕ Nuevo funcionario":
         nuevo_funcionario = st.text_input(
-            "Nombre del nuevo funcionario:",
+            "Escriba el nombre del nuevo funcionario:",
             value="",
-            placeholder="Escriba el nombre completo",
+            placeholder="Nombre completo del funcionario",
             key=f"func_nuevo_{key_base}"
         )
-        
-        col_guardar, col_cancelar = st.columns(2)
-        with col_guardar:
-            if st.button("✓ Usar Este", key=f"confirmar_func_{key_base}"):
-                if nuevo_funcionario and nuevo_funcionario.strip():
-                    st.session_state[f"mostrar_campo_func_{key_base}"] = False
-                    return nuevo_funcionario.strip()
-                else:
-                    st.error("Debe escribir un nombre")
-        
-        with col_cancelar:
-            if st.button("✗ Cancelar", key=f"cancelar_func_{key_base}"):
-                st.session_state[f"mostrar_campo_func_{key_base}"] = False
-                st.rerun()
-        
-        if nuevo_funcionario and nuevo_funcionario.strip():
-            return nuevo_funcionario.strip()
-        else:
-            return ""
-    
-    # Si no hay campo nuevo activo, usar selección normal
-    return seleccion if seleccion else ""
+        return nuevo_funcionario.strip() if nuevo_funcionario else ""
+    elif seleccion == "":
+        return ""
+    else:
+        return seleccion
 
 def mostrar_selector_entidad(entidad_actual, entidades_existentes, key_base):
     """
-    SOLUCIÓN CON BOTONES: Usar botones para activar campos nuevos
+    SOLUCIÓN SIN BOTONES: Compatible con st.form
     """
     st.markdown("**Entidad:**")
     
-    # Columnas para selectbox y botón
-    col1, col2 = st.columns([2, 1])
+    # Selectbox normal con opción "Nueva entidad"
+    opciones = [""] + entidades_existentes + ["➕ Nueva entidad"]
     
-    with col1:
-        opciones = [""] + entidades_existentes
-        
-        valor_inicial = 0
-        if entidad_actual and entidad_actual in entidades_existentes:
-            valor_inicial = entidades_existentes.index(entidad_actual) + 1
-        
-        seleccion = st.selectbox(
-            "Entidades existentes:",
-            opciones,
-            index=valor_inicial,
-            key=f"ent_select_{key_base}"
-        )
+    valor_inicial = 0
+    if entidad_actual and entidad_actual in entidades_existentes:
+        valor_inicial = entidades_existentes.index(entidad_actual) + 1
     
-    with col2:
-        # BOTÓN para activar campo nuevo
-        if st.button("+ Nueva Entidad", key=f"btn_nueva_ent_{key_base}"):
-            st.session_state[f"mostrar_campo_ent_{key_base}"] = True
+    seleccion = st.selectbox(
+        "Entidad:",
+        opciones,
+        index=valor_inicial,
+        key=f"ent_select_{key_base}"
+    )
     
-    # Mostrar campo de texto si se presionó el botón
-    if st.session_state.get(f"mostrar_campo_ent_{key_base}", False):
+    # Si selecciona "Nueva entidad", mostrar campo inmediatamente  
+    if seleccion == "➕ Nueva entidad":
         nueva_entidad = st.text_input(
-            "Nombre de la nueva entidad:",
+            "Escriba el nombre de la nueva entidad:",
             value="",
-            placeholder="Escriba el nombre completo",
+            placeholder="Nombre completo de la entidad",
             key=f"ent_nueva_{key_base}"
         )
-        
-        col_guardar, col_cancelar = st.columns(2)
-        with col_guardar:
-            if st.button("✓ Usar Esta", key=f"confirmar_ent_{key_base}"):
-                if nueva_entidad and nueva_entidad.strip():
-                    st.session_state[f"mostrar_campo_ent_{key_base}"] = False
-                    return nueva_entidad.strip()
-                else:
-                    st.error("Debe escribir un nombre")
-        
-        with col_cancelar:
-            if st.button("✗ Cancelar", key=f"cancelar_ent_{key_base}"):
-                st.session_state[f"mostrar_campo_ent_{key_base}"] = False
-                st.rerun()
-        
-        if nueva_entidad and nueva_entidad.strip():
-            return nueva_entidad.strip()
-        else:
-            return ""
-    
-    # Si no hay campo nuevo activo, usar selección normal
-    return seleccion if seleccion else ""
+        return nueva_entidad.strip() if nueva_entidad else ""
+    elif seleccion == "":
+        return ""
+    else:
+        return seleccion
 
 def mostrar_formulario_completo(row, indice, es_nuevo=False, df=None):
     """FORMULARIO COMPLETO - Solo se modifican los selectores de funcionario y entidad"""
