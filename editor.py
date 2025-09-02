@@ -157,34 +157,39 @@ def mostrar_selector_funcionario(funcionario_actual, funcionarios_existentes, ke
     """
     st.markdown("**Funcionario:**")
     
-    opciones = [""] + funcionarios_existentes + ["Nuevo funcionario"]
+    # Usar columnas para que el campo aparezca inmediatamente
+    col1, col2 = st.columns([1, 2])
     
-    valor_inicial = 0
-    if funcionario_actual and funcionario_actual in funcionarios_existentes:
-        valor_inicial = funcionarios_existentes.index(funcionario_actual) + 1
+    with col1:
+        opciones = [""] + funcionarios_existentes + ["Nuevo funcionario"]
+        
+        valor_inicial = 0
+        if funcionario_actual and funcionario_actual in funcionarios_existentes:
+            valor_inicial = funcionarios_existentes.index(funcionario_actual) + 1
+        
+        seleccion = st.selectbox(
+            "Seleccionar:",
+            opciones,
+            index=valor_inicial,
+            key=f"func_select_{key_base}"
+        )
     
-    seleccion = st.selectbox(
-        "Funcionario:",
-        opciones,
-        index=valor_inicial,
-        key=f"func_select_{key_base}"
-    )
-    
-    # CORREGIDO: El campo aparece INMEDIATAMENTE en la misma ejecución
-    if seleccion == "Nuevo funcionario":
-        # Campo de texto mostrado inmediatamente (no en próximo refresh)
+    with col2:
+        # CORRECCIÓN: Campo SIEMPRE visible, habilitado solo cuando se selecciona "Nuevo funcionario"
         nuevo_funcionario = st.text_input(
-            "Nombre del nuevo funcionario:",
+            "Nuevo funcionario:",
             value="",
-            placeholder="Escriba el nombre completo del funcionario",
+            placeholder="Escriba el nombre del funcionario",
+            disabled=(seleccion != "Nuevo funcionario"),
             key=f"func_nuevo_{key_base}"
         )
-        
+    
+    # Lógica de retorno
+    if seleccion == "Nuevo funcionario":
         if nuevo_funcionario and nuevo_funcionario.strip():
             return nuevo_funcionario.strip()
         else:
             return ""
-            
     elif seleccion == "":
         return ""
     else:
@@ -196,34 +201,39 @@ def mostrar_selector_entidad(entidad_actual, entidades_existentes, key_base):
     """
     st.markdown("**Entidad:**")
     
-    opciones = [""] + entidades_existentes + ["Nueva entidad"]
+    # Usar columnas para que el campo aparezca inmediatamente
+    col1, col2 = st.columns([1, 2])
     
-    valor_inicial = 0
-    if entidad_actual and entidad_actual in entidades_existentes:
-        valor_inicial = entidades_existentes.index(entidad_actual) + 1
+    with col1:
+        opciones = [""] + entidades_existentes + ["Nueva entidad"]
+        
+        valor_inicial = 0
+        if entidad_actual and entidad_actual in entidades_existentes:
+            valor_inicial = entidades_existentes.index(entidad_actual) + 1
+        
+        seleccion = st.selectbox(
+            "Seleccionar:",
+            opciones,
+            index=valor_inicial,
+            key=f"ent_select_{key_base}"
+        )
     
-    seleccion = st.selectbox(
-        "Entidad:",
-        opciones,
-        index=valor_inicial,
-        key=f"ent_select_{key_base}"
-    )
-    
-    # CORREGIDO: El campo aparece INMEDIATAMENTE en la misma ejecución
-    if seleccion == "Nueva entidad":
-        # Campo de texto mostrado inmediatamente (no en próximo refresh)
+    with col2:
+        # CORRECCIÓN: Campo SIEMPRE visible, habilitado solo cuando se selecciona "Nueva entidad"
         nueva_entidad = st.text_input(
-            "Nombre de la nueva entidad:",
+            "Nueva entidad:",
             value="",
-            placeholder="Escriba el nombre completo de la entidad",
+            placeholder="Escriba el nombre de la entidad",
+            disabled=(seleccion != "Nueva entidad"),
             key=f"ent_nueva_{key_base}"
         )
-        
+    
+    # Lógica de retorno
+    if seleccion == "Nueva entidad":
         if nueva_entidad and nueva_entidad.strip():
             return nueva_entidad.strip()
         else:
             return ""
-            
     elif seleccion == "":
         return ""
     else:
@@ -1018,4 +1028,3 @@ def mostrar_edicion_registros_con_autenticacion(registros_df):
     except ImportError:
         st.warning("Sistema de autenticación no disponible")
         return mostrar_edicion_registros(registros_df)
-   
