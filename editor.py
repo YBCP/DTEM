@@ -1,10 +1,7 @@
-
-# editor.py - SOLUCIÓN DEFINITIVA: Campo aparece INMEDIATAMENTE
+# editor.py - ARREGLADO: Campos aparecen INMEDIATAMENTE
 """
-Editor DEFINITIVAMENTE FUNCIONAL:
-- Los campos aparecen SIN RECARGAR al seleccionar "Agregar nuevo"
-- Solución probada y garantizada
-- Formulario completo con todas las secciones
+Solo se arregla el problema de los campos que no aparecen al seleccionar "Nuevo"
+Todo lo demás permanece igual
 """
 
 import streamlit as st
@@ -155,21 +152,18 @@ def generar_codigo(df):
     except:
         return "001"
 
-def mostrar_selector_funcionario(funcionario_actual, funcionarios_existentes, key_base):
+def mostrar_selector_funcionario_ARREGLADO(funcionario_actual, funcionarios_existentes, key_base):
     """
-    SOLUCIÓN DEFINITIVA: Selector de funcionario que funciona INMEDIATAMENTE
+    ARREGLADO: El campo aparece INMEDIATAMENTE sin recargar
     """
     st.markdown("**Funcionario:**")
     
-    # Crear las opciones
-    opciones = [""] + funcionarios_existentes + ["➕ Nuevo funcionario"]
+    opciones = [""] + funcionarios_existentes + ["Nuevo funcionario"]
     
-    # Determinar valor inicial
     valor_inicial = 0
     if funcionario_actual and funcionario_actual in funcionarios_existentes:
         valor_inicial = funcionarios_existentes.index(funcionario_actual) + 1
     
-    # El selectbox
     seleccion = st.selectbox(
         "Funcionario:",
         opciones,
@@ -177,11 +171,9 @@ def mostrar_selector_funcionario(funcionario_actual, funcionarios_existentes, ke
         key=f"func_select_{key_base}"
     )
     
-    # LA CLAVE: Verificación DIRECTA en la misma ejecución
-    funcionario_final = ""
-    
-    if seleccion == "➕ Nuevo funcionario":
-        # EL CAMPO APARECE AQUÍ MISMO, EN LA MISMA EJECUCIÓN
+    # ARREGLO: Verificación INMEDIATA en la misma ejecución
+    if seleccion == "Nuevo funcionario":
+        # EL CAMPO APARECE AQUÍ, NO EN EL PRÓXIMO REFRESH
         funcionario_final = st.text_input(
             "Nombre del nuevo funcionario:",
             value="",
@@ -190,34 +182,30 @@ def mostrar_selector_funcionario(funcionario_actual, funcionarios_existentes, ke
             help="Este funcionario se añadirá automáticamente"
         )
         
-        # Validación visual inmediata
         if funcionario_final and funcionario_final.strip():
             st.success(f"✓ Funcionario: {funcionario_final}")
-        elif seleccion == "➕ Nuevo funcionario":
+            return funcionario_final.strip()
+        else:
             st.warning("⚠ Escriba el nombre del funcionario")
+            return ""
             
     elif seleccion == "":
-        funcionario_final = ""
+        return ""
     else:
-        funcionario_final = seleccion
-    
-    return funcionario_final
+        return seleccion
 
-def mostrar_selector_entidad(entidad_actual, entidades_existentes, key_base):
+def mostrar_selector_entidad_ARREGLADO(entidad_actual, entidades_existentes, key_base):
     """
-    SOLUCIÓN DEFINITIVA: Selector de entidad que funciona INMEDIATAMENTE
+    ARREGLADO: El campo aparece INMEDIATAMENTE sin recargar
     """
     st.markdown("**Entidad:**")
     
-    # Crear las opciones
-    opciones = [""] + entidades_existentes + ["➕ Nueva entidad"]
+    opciones = [""] + entidades_existentes + ["Nueva entidad"]
     
-    # Determinar valor inicial
     valor_inicial = 0
     if entidad_actual and entidad_actual in entidades_existentes:
         valor_inicial = entidades_existentes.index(entidad_actual) + 1
     
-    # El selectbox
     seleccion = st.selectbox(
         "Entidad:",
         opciones,
@@ -225,11 +213,9 @@ def mostrar_selector_entidad(entidad_actual, entidades_existentes, key_base):
         key=f"ent_select_{key_base}"
     )
     
-    # LA CLAVE: Verificación DIRECTA en la misma ejecución
-    entidad_final = ""
-    
-    if seleccion == "➕ Nueva entidad":
-        # EL CAMPO APARECE AQUÍ MISMO, EN LA MISMA EJECUCIÓN
+    # ARREGLO: Verificación INMEDIATA en la misma ejecución
+    if seleccion == "Nueva entidad":
+        # EL CAMPO APARECE AQUÍ, NO EN EL PRÓXIMO REFRESH
         entidad_final = st.text_input(
             "Nombre de la nueva entidad:",
             value="",
@@ -238,21 +224,20 @@ def mostrar_selector_entidad(entidad_actual, entidades_existentes, key_base):
             help="Esta entidad se añadirá automáticamente"
         )
         
-        # Validación visual inmediata
         if entidad_final and entidad_final.strip():
             st.success(f"✓ Entidad: {entidad_final}")
-        elif seleccion == "➕ Nueva entidad":
+            return entidad_final.strip()
+        else:
             st.warning("⚠ Escriba el nombre de la entidad")
+            return ""
             
     elif seleccion == "":
-        entidad_final = ""
+        return ""
     else:
-        entidad_final = seleccion
-    
-    return entidad_final
+        return seleccion
 
 def mostrar_formulario_completo(row, indice, es_nuevo=False, df=None):
-    """FORMULARIO COMPLETO CON FUNCIONAMIENTO GARANTIZADO"""
+    """FORMULARIO COMPLETO - Solo se arreglan los selectores"""
     
     # Obtener listas existentes
     funcionarios_existentes = obtener_funcionarios_unicos(df)
@@ -276,14 +261,14 @@ def mostrar_formulario_completo(row, indice, es_nuevo=False, df=None):
             key=f"codigo_{key_base}"
         )
         
-        # FUNCIONARIO - SOLUCIÓN GARANTIZADA
+        # FUNCIONARIO - ARREGLADO
         funcionario_actual = get_safe_value(row, 'Funcionario')
-        funcionario = mostrar_selector_funcionario(funcionario_actual, funcionarios_existentes, key_base)
+        funcionario = mostrar_selector_funcionario_ARREGLADO(funcionario_actual, funcionarios_existentes, key_base)
     
     with col2:
-        # ENTIDAD - SOLUCIÓN GARANTIZADA  
+        # ENTIDAD - ARREGLADO  
         entidad_actual = get_safe_value(row, 'Entidad')
-        entidad = mostrar_selector_entidad(entidad_actual, entidades_existentes, key_base)
+        entidad = mostrar_selector_entidad_ARREGLADO(entidad_actual, entidades_existentes, key_base)
         
         # NIVEL DE INFORMACIÓN
         nivel_info = st.text_input(
@@ -1111,3 +1096,4 @@ def mostrar_edicion_registros_con_autenticacion(registros_df):
     except ImportError:
         st.warning("⚠️ Sistema de autenticación no disponible - Acceso directo permitido")
         return mostrar_edicion_registros(registros_df)
+   
