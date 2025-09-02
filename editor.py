@@ -153,42 +153,38 @@ def generar_codigo(df):
 
 def mostrar_selector_funcionario(funcionario_actual, funcionarios_existentes, key_base):
     """
-    ARREGLADO: Campo de texto aparece INMEDIATAMENTE sin esperar refresh
+    CORREGIDO DEFINITIVO: Campo se habilita inmediatamente
     """
     st.markdown("**Funcionario:**")
     
-    # Usar columnas para que el campo aparezca inmediatamente
-    col1, col2 = st.columns([1, 2])
+    opciones = [""] + funcionarios_existentes + ["Nuevo funcionario"]
     
-    with col1:
-        opciones = [""] + funcionarios_existentes + ["Nuevo funcionario"]
-        
-        valor_inicial = 0
-        if funcionario_actual and funcionario_actual in funcionarios_existentes:
-            valor_inicial = funcionarios_existentes.index(funcionario_actual) + 1
-        
-        seleccion = st.selectbox(
-            "Seleccionar:",
-            opciones,
-            index=valor_inicial,
-            key=f"func_select_{key_base}"
-        )
+    valor_inicial = 0
+    if funcionario_actual and funcionario_actual in funcionarios_existentes:
+        valor_inicial = funcionarios_existentes.index(funcionario_actual) + 1
     
-    with col2:
-        # CORRECCIÓN: Campo SIEMPRE visible, habilitado solo cuando se selecciona "Nuevo funcionario"
-        nuevo_funcionario = st.text_input(
-            "Nuevo funcionario:",
-            value="",
-            placeholder="Escriba el nombre del funcionario",
-            disabled=(seleccion != "Nuevo funcionario"),
-            key=f"func_nuevo_{key_base}"
-        )
+    seleccion = st.selectbox(
+        "Seleccionar funcionario:",
+        opciones,
+        index=valor_inicial,
+        key=f"func_select_{key_base}"
+    )
     
-    # Lógica de retorno
+    # SOLUCIÓN: Mostrar campo inmediatamente después del selectbox
     if seleccion == "Nuevo funcionario":
+        nuevo_funcionario = st.text_input(
+            "Escriba el nombre del nuevo funcionario:",
+            value="",
+            placeholder="Nombre completo del funcionario",
+            key=f"func_nuevo_{key_base}",
+            help="Este funcionario se agregará a la lista"
+        )
+        
         if nuevo_funcionario and nuevo_funcionario.strip():
+            st.success(f"✓ Nuevo funcionario: {nuevo_funcionario}")
             return nuevo_funcionario.strip()
         else:
+            st.info("Escriba el nombre del funcionario")
             return ""
     elif seleccion == "":
         return ""
@@ -197,42 +193,38 @@ def mostrar_selector_funcionario(funcionario_actual, funcionarios_existentes, ke
 
 def mostrar_selector_entidad(entidad_actual, entidades_existentes, key_base):
     """
-    ARREGLADO: Campo de texto aparece INMEDIATAMENTE sin esperar refresh
+    CORREGIDO DEFINITIVO: Campo se habilita inmediatamente
     """
     st.markdown("**Entidad:**")
     
-    # Usar columnas para que el campo aparezca inmediatamente
-    col1, col2 = st.columns([1, 2])
+    opciones = [""] + entidades_existentes + ["Nueva entidad"]
     
-    with col1:
-        opciones = [""] + entidades_existentes + ["Nueva entidad"]
-        
-        valor_inicial = 0
-        if entidad_actual and entidad_actual in entidades_existentes:
-            valor_inicial = entidades_existentes.index(entidad_actual) + 1
-        
-        seleccion = st.selectbox(
-            "Seleccionar:",
-            opciones,
-            index=valor_inicial,
-            key=f"ent_select_{key_base}"
-        )
+    valor_inicial = 0
+    if entidad_actual and entidad_actual in entidades_existentes:
+        valor_inicial = entidades_existentes.index(entidad_actual) + 1
     
-    with col2:
-        # CORRECCIÓN: Campo SIEMPRE visible, habilitado solo cuando se selecciona "Nueva entidad"
-        nueva_entidad = st.text_input(
-            "Nueva entidad:",
-            value="",
-            placeholder="Escriba el nombre de la entidad",
-            disabled=(seleccion != "Nueva entidad"),
-            key=f"ent_nueva_{key_base}"
-        )
+    seleccion = st.selectbox(
+        "Seleccionar entidad:",
+        opciones,
+        index=valor_inicial,
+        key=f"ent_select_{key_base}"
+    )
     
-    # Lógica de retorno
+    # SOLUCIÓN: Mostrar campo inmediatamente después del selectbox
     if seleccion == "Nueva entidad":
+        nueva_entidad = st.text_input(
+            "Escriba el nombre de la nueva entidad:",
+            value="",
+            placeholder="Nombre completo de la entidad",
+            key=f"ent_nueva_{key_base}",
+            help="Esta entidad se agregará a la lista"
+        )
+        
         if nueva_entidad and nueva_entidad.strip():
+            st.success(f"✓ Nueva entidad: {nueva_entidad}")
             return nueva_entidad.strip()
         else:
+            st.info("Escriba el nombre de la entidad")
             return ""
     elif seleccion == "":
         return ""
