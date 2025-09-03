@@ -849,7 +849,7 @@ def mostrar_formulario_completo(row, indice, es_nuevo=False, df=None):
     }
 
 def mostrar_edicion_registros(registros_df):
-    """Editor principal"""
+    """Editor principal - SELECTORES FUERA DEL FORMULARIO"""
     st.subheader("Editor de Registros")
     
     col1, col2 = st.columns([2, 1])
@@ -871,7 +871,7 @@ def mostrar_edicion_registros(registros_df):
     with tab1:
         st.subheader("Editar Registro Existente")
         
-        # Búsqueda de registros
+        # SECCIÓN FUERA DEL FORMULARIO - SELECCIÓN DE REGISTRO
         termino = st.text_input(
             "Buscar registro:",
             placeholder="Código, entidad o nivel de información...",
@@ -896,7 +896,6 @@ def mostrar_edicion_registros(registros_df):
             st.warning("No hay registros disponibles")
             return registros_df
         
-        # Selector de registro
         opciones_mostrar = [opcion for _, opcion in opciones]
         if termino:
             st.info(f"{len(opciones)} registros encontrados")
@@ -913,16 +912,120 @@ def mostrar_edicion_registros(registros_df):
         if indice_real is not None:
             row_seleccionada = registros_df.iloc[indice_real]
             
+            # SELECTORES DE FUNCIONARIO Y ENTIDAD FUERA DEL FORM
+            st.markdown("---")
+            st.markdown("#### Funcionario y Entidad")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                funcionario_seleccionado = mostrar_selector_funcionario(
+                    get_safe_value(row_seleccionada, 'Funcionario'), 
+                    obtener_funcionarios_unicos(registros_df), 
+                    f"edit_{indice_real}"
+                )
+            
+            with col2:
+                entidad_seleccionada = mostrar_selector_entidad(
+                    get_safe_value(row_seleccionada, 'Entidad'),
+                    obtener_entidades_unicas(registros_df),
+                    f"edit_{indice_real}"
+                )
+            
+            # FORMULARIO SIN LOS SELECTORES DE FUNCIONARIO/ENTIDAD
             with st.form("form_editar_completo"):
-                valores = mostrar_formulario_completo(row_seleccionada, indice_real, False, registros_df)
+                st.markdown("#### Resto de Información")
                 
+                # Usar valores seleccionados o actuales
+                funcionario_final = funcionario_seleccionado or get_safe_value(row_seleccionada, 'Funcionario')
+                entidad_final = entidad_seleccionada or get_safe_value(row_seleccionada, 'Entidad')
+                
+                # Mostrar información básica
+                col1, col2 = st.columns(2)
+                with col1:
+                    codigo = st.text_input("Código:", value=get_safe_value(row_seleccionada, 'Cod'), disabled=True)
+                    st.info(f"Funcionario: {funcionario_final}")
+                
+                with col2:
+                    st.info(f"Entidad: {entidad_final}")
+                    nivel_info = st.text_input("Nivel de Información:", value=get_safe_value(row_seleccionada, 'Nivel Información '))
+                
+                # Resto del formulario simplificado
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    tipo_actual = get_safe_value(row_seleccionada, 'TipoDato')
+                    tipo_opciones = ["", "Actualizar", "Nuevo"]
+                    tipo_index = tipo_opciones.index(tipo_actual) if tipo_actual in tipo_opciones else 0
+                    tipo_dato = st.selectbox("Tipo de Dato:", tipo_opciones, index=tipo_index)
+                
+                with col2:
+                    mes_actual = get_safe_value(row_seleccionada, 'Mes Proyectado')
+                    mes_index = MESES.index(mes_actual) if mes_actual in MESES else 0
+                    mes_proyectado = st.selectbox("Mes Proyectado:", MESES, index=mes_index)
+                
+                with col3:
+                    frecuencia_actual = get_safe_value(row_seleccionada, 'Frecuencia actualizacion ')
+                    frecuencia_index = FRECUENCIAS.index(frecuencia_actual) if frecuencia_actual in FRECUENCIAS else 0
+                    frecuencia = st.selectbox("Frecuencia:", FRECUENCIAS, index=frecuencia_index)
+                
+                # Fechas principales
+                st.subheader("Fechas Principales")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    analisis_real_date = string_a_fecha(get_safe_value(row_seleccionada, 'Análisis y cronograma'))
+                    analisis_real = st.date_input("Análisis y cronograma:", value=analisis_real_date)
+                    if st.checkbox("Limpiar análisis", key="limpiar_analisis_edit"):
+                        analisis_real = None
+                
+                    estandares_real_date = string_a_fecha(get_safe_value(row_seleccionada, 'Estándares'))
+                    estandares_real = st.date_input("Estándares:", value=estandares_real_date)
+                    if st.checkbox("Limpiar estándares", key="limpiar_estandares_edit"):
+                        estandares_real = None
+                
+                with col2:
+                    pub_real_date = string_a_fecha(get_safe_value(row_seleccionada, 'Publicación'))
+                    publicacion = st.date_input("Publicación:", value=pub_real_date)
+                    if st.checkbox("Limpiar publicación", key="limpiar_pub_edit"):
+                        publicacion = None
+                    
+                    fecha_oficio_date = string_a_fecha(get_safe_value(row_seleccionada, 'Fecha de oficio de cierre'))
+                    fecha_oficio = st.date_input("Fecha oficio cierre:", value=fecha_oficio_date)
+                    if st.checkbox("Limpiar oficio", key="limpiar_oficio_edit"):
+                        fecha_oficio = None
+                
+                # Estado y observaciones
+                estado_value = get_safe_value(row_seleccionada, 'Estado')
+                estado_opciones = ["", "Completado", "En proceso", "Pendiente"]
+                estado_index = estado_opciones.index(estado_value) if estado_value in estado_opciones else 0
+                estado = st.selectbox("Estado:", estado_opciones, index=estado_index)
+                
+                observacion = st.text_area("Observaciones:", value=get_safe_value(row_seleccionada, 'Observación'), height=100)
+                
+                # SUBMIT DEL FORMULARIO
                 if st.form_submit_button("Guardar Cambios", type="primary"):
-                    if not valores['Funcionario'].strip():
-                        st.error("El campo 'Funcionario' es obligatorio")
-                    elif not valores['Entidad'].strip():
-                        st.error("El campo 'Entidad' es obligatorio")
+                    if not funcionario_final.strip():
+                        st.error("Debe seleccionar un funcionario")
+                    elif not entidad_final.strip():
+                        st.error("Debe seleccionar una entidad")
                     else:
                         try:
+                            # Crear valores actualizados (solo campos principales)
+                            valores = {
+                                'Cod': codigo,
+                                'Funcionario': funcionario_final,
+                                'Entidad': entidad_final,
+                                'Nivel Información ': nivel_info,
+                                'TipoDato': tipo_dato,
+                                'Mes Proyectado': mes_proyectado,
+                                'Frecuencia actualizacion ': frecuencia,
+                                'Análisis y cronograma': fecha_a_string(analisis_real) if analisis_real else "",
+                                'Estándares': fecha_a_string(estandares_real) if estandares_real else "",
+                                'Publicación': fecha_a_string(publicacion) if publicacion else "",
+                                'Fecha de oficio de cierre': fecha_a_string(fecha_oficio) if fecha_oficio else "",
+                                'Estado': estado,
+                                'Observación': observacion
+                            }
+                            
                             # Actualizar registro
                             for campo, valor in valores.items():
                                 if campo in registros_df.columns:
@@ -937,7 +1040,7 @@ def mostrar_edicion_registros(registros_df):
                             exito, mensaje = guardar_en_sheets(registros_df)
                             
                             if exito:
-                                st.success(f"Registro actualizado correctamente. Avance: {nuevo_avance}%")
+                                st.success(f"Registro actualizado. Avance: {nuevo_avance}%")
                                 st.session_state['registros_df'] = registros_df
                                 st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
                                 time.sleep(1)
@@ -950,26 +1053,92 @@ def mostrar_edicion_registros(registros_df):
     with tab2:
         st.subheader("Crear Nuevo Registro")
         
-        # Generar código automático
+        # SELECTORES FUERA DEL FORMULARIO
         nuevo_codigo = generar_codigo(registros_df)
         st.info(f"Código automático: {nuevo_codigo}")
         
-        # Registro vacío
-        registro_vacio = pd.Series({col: '' for col in registros_df.columns})
-        registro_vacio['Cod'] = nuevo_codigo
+        st.markdown("#### Funcionario y Entidad")
+        col1, col2 = st.columns(2)
         
+        with col1:
+            funcionario_nuevo = mostrar_selector_funcionario("", obtener_funcionarios_unicos(registros_df), "nuevo")
+        
+        with col2:
+            entidad_nueva = mostrar_selector_entidad("", obtener_entidades_unicas(registros_df), "nuevo")
+        
+        # FORMULARIO PARA CREAR - SIN SELECTORES DE FUNCIONARIO/ENTIDAD
         with st.form("form_crear_completo"):
-            valores_nuevo = mostrar_formulario_completo(registro_vacio, "nuevo", True, registros_df)
+            st.markdown("#### Información del Registro")
             
+            # Mostrar selecciones
+            col1, col2 = st.columns(2)
+            with col1:
+                st.info(f"Funcionario: {funcionario_nuevo if funcionario_nuevo else 'No seleccionado'}")
+            with col2:
+                st.info(f"Entidad: {entidad_nueva if entidad_nueva else 'No seleccionada'}")
+            
+            # Campos principales
+            nivel_info = st.text_input("Nivel de Información:")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                tipo_dato = st.selectbox("Tipo de Dato:", ["", "Actualizar", "Nuevo"])
+            with col2:
+                mes_proyectado = st.selectbox("Mes Proyectado:", MESES)
+            with col3:
+                frecuencia = st.selectbox("Frecuencia:", FRECUENCIAS)
+            
+            # Fechas principales
+            st.subheader("Fechas")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                analisis_real = st.date_input("Análisis y cronograma:", value=None)
+                if st.checkbox("Limpiar análisis", key="limpiar_analisis_nuevo"):
+                    analisis_real = None
+                
+                estandares_real = st.date_input("Estándares:", value=None) 
+                if st.checkbox("Limpiar estándares", key="limpiar_estandares_nuevo"):
+                    estandares_real = None
+            
+            with col2:
+                publicacion = st.date_input("Publicación:", value=None)
+                if st.checkbox("Limpiar publicación", key="limpiar_pub_nuevo"):
+                    publicacion = None
+                
+                fecha_oficio = st.date_input("Fecha oficio cierre:", value=None)
+                if st.checkbox("Limpiar oficio", key="limpiar_oficio_nuevo"):
+                    fecha_oficio = None
+            
+            estado = st.selectbox("Estado:", ["", "Completado", "En proceso", "Pendiente"])
+            observacion = st.text_area("Observaciones:", height=100)
+            
+            # SUBMIT
             if st.form_submit_button("Crear Registro", type="primary"):
-                if not valores_nuevo['Funcionario'].strip():
-                    st.error("El campo 'Funcionario' es obligatorio")
-                elif not valores_nuevo['Entidad'].strip():
-                    st.error("El campo 'Entidad' es obligatorio")
+                if not funcionario_nuevo or not funcionario_nuevo.strip():
+                    st.error("Debe seleccionar un funcionario")
+                elif not entidad_nueva or not entidad_nueva.strip():
+                    st.error("Debe seleccionar una entidad")
                 else:
                     try:
                         # Crear nuevo registro
                         nuevo_registro = pd.Series({col: '' for col in registros_df.columns})
+                        
+                        valores_nuevo = {
+                            'Cod': nuevo_codigo,
+                            'Funcionario': funcionario_nuevo,
+                            'Entidad': entidad_nueva,
+                            'Nivel Información ': nivel_info,
+                            'TipoDato': tipo_dato,
+                            'Mes Proyectado': mes_proyectado,
+                            'Frecuencia actualizacion ': frecuencia,
+                            'Análisis y cronograma': fecha_a_string(analisis_real) if analisis_real else "",
+                            'Estándares': fecha_a_string(estandares_real) if estandares_real else "",
+                            'Publicación': fecha_a_string(publicacion) if publicacion else "",
+                            'Fecha de oficio de cierre': fecha_a_string(fecha_oficio) if fecha_oficio else "",
+                            'Estado': estado,
+                            'Observación': observacion
+                        }
                         
                         # Asignar valores
                         for campo, valor in valores_nuevo.items():
@@ -987,7 +1156,7 @@ def mostrar_edicion_registros(registros_df):
                         exito, mensaje = guardar_en_sheets(registros_df)
                         
                         if exito:
-                            st.success(f"Registro {nuevo_codigo} creado exitosamente!")
+                            st.success(f"Registro {nuevo_codigo} creado. Avance: {avance}%")
                             st.session_state['registros_df'] = registros_df
                             st.session_state.ultimo_guardado = datetime.now().strftime("%H:%M:%S")
                             st.balloons()
@@ -996,7 +1165,7 @@ def mostrar_edicion_registros(registros_df):
                         else:
                             st.error(f"Error: {mensaje}")
                     except Exception as e:
-                        st.error(f"Error creando registro: {e}")
+                        st.error(f"Error creando: {e}")
     
     return registros_df
 
