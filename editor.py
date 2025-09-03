@@ -775,11 +775,9 @@ def mostrar_formulario_completo(row, indice, es_nuevo=False, df=None):
         value=f"{avance_actual}%",
         disabled=True)
     
-    # Retornar valores del formulario
+    # Retornar valores del formulario (SIN funcionario y entidad que van fuera)
     return {
         'Cod': codigo,
-        'Funcionario': funcionario,
-        'Entidad': entidad,
         'Nivel Información ': nivel_info,
         'Frecuencia actualizacion ': frecuencia,
         'TipoDato': tipo_dato,
@@ -981,7 +979,7 @@ def mostrar_edicion_registros_con_autenticacion(registros_df):
         password = st.text_input("Contraseña:", type="password", key="password_editor")
         
         if st.button("Acceder"):
-            if password == "admin123":
+            if password == "qwerty":
                 st.session_state.editor_autorizado = True
                 st.rerun()
             else:
