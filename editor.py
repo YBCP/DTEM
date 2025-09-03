@@ -186,7 +186,542 @@ def mostrar_campo_fecha_con_limpiar(label, fecha_actual, key_base):
     
     return None if limpiar else fecha
 
-def mostrar_formulario_completo_todas_secciones(row, indice, es_nuevo=False, df=None):
+def mostrar_formulario_sin_func_ent(row, indice, es_nuevo=False, df=None):
+    """FORMULARIO COMPLETO SIN FUNCIONARIO Y ENTIDAD (van afuera del form)"""
+    
+    key_base = f"{indice}_{datetime.now().microsecond}"
+    
+    # ==================== INFORMACIÓN BÁSICA (SIN FUNCIONARIO/ENTIDAD) ====================
+    st.markdown("### Información Básica")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        codigo = st.text_input(
+            "Código:",
+            value=get_safe_value(row, 'Cod'),
+            disabled=True,  # Siempre disabled
+            key=f"cod_{key_base}"
+        )
+        
+        nivel_info = st.text_input(
+            "Nivel de Información:",
+            value=get_safe_value(row, 'Nivel Información '),
+            key=f"nivel_{key_base}"
+        )
+    
+    with col2:
+        tipo_actual = get_safe_value(row, 'TipoDato')
+        tipo_index = 0
+        if tipo_actual in ["Actualizar", "Nuevo"]:
+            tipo_index = ["", "Actualizar", "Nuevo"].index(tipo_actual)
+        
+        tipo_dato = st.selectbox(
+            "Tipo de Dato:",
+            ["", "Actualizar", "Nuevo"],
+            index=tipo_index,
+            key=f"tipo_{key_base}"
+        )
+        
+        mes_actual = get_safe_value(row, 'Mes Proyectado')
+        mes_index = 0
+        if mes_actual in MESES:
+            mes_index = MESES.index(mes_actual)
+        
+        mes_proyectado = st.selectbox(
+            "Mes Proyectado:",
+            MESES,
+            index=mes_index,
+            key=f"mes_{key_base}"
+        )
+    
+    freq_actual = get_safe_value(row, 'Frecuencia actualizacion ')
+    freq_index = 0
+    if freq_actual in FRECUENCIAS:
+        freq_index = FRECUENCIAS.index(freq_actual)
+    
+    frecuencia = st.selectbox(
+        "Frecuencia:",
+        FRECUENCIAS,
+        index=freq_index,
+        key=f"freq_{key_base}"
+    )
+    
+    # ==================== ACUERDOS Y COMPROMISOS ====================
+    st.markdown("### Acuerdos y Compromisos")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # ACTAS DE INTERÉS
+        actas_actual = get_safe_value(row, 'Actas de acercamiento y manifestación de interés')
+        actas_index = 0
+        if actas_actual in OPCIONES_SI_NO:
+            actas_index = OPCIONES_SI_NO.index(actas_actual)
+        
+        actas_interes = st.selectbox(
+            "Actas de interés:",
+            OPCIONES_SI_NO,
+            index=actas_index,
+            key=f"actas_{key_base}"
+        )
+        
+        # ACUERDO DE COMPROMISO
+        acuerdo_actual = get_safe_value(row, 'Acuerdo de compromiso')
+        acuerdo_index = 0
+        if acuerdo_actual in OPCIONES_SI_NO:
+            acuerdo_index = OPCIONES_SI_NO.index(acuerdo_actual)
+        
+        acuerdo_compromiso = st.selectbox(
+            "Acuerdo de compromiso:",
+            OPCIONES_SI_NO,
+            index=acuerdo_index,
+            key=f"acuerdo_{key_base}"
+        )
+    
+    with col2:
+        suscripcion = mostrar_campo_fecha_con_limpiar(
+            "Suscripción acuerdo:",
+            get_safe_value(row, 'Suscripción acuerdo de compromiso'),
+            f"susc_{key_base}"
+        )
+        
+        entrega_acuerdo = mostrar_campo_fecha_con_limpiar(
+            "Entrega acuerdo:",
+            get_safe_value(row, 'Entrega acuerdo de compromiso'),
+            f"entrega_{key_base}"
+        )
+    
+    # ==================== GESTIÓN DE INFORMACIÓN ====================
+    st.markdown("### Gestión de Información")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # ACCESO A DATOS
+        acceso_actual = get_safe_value(row, 'Gestion acceso a los datos y documentos requeridos ')
+        acceso_index = 0
+        if acceso_actual in OPCIONES_SI_NO:
+            acceso_index = OPCIONES_SI_NO.index(acceso_actual)
+        
+        acceso_datos = st.selectbox(
+            "Acceso a datos:",
+            OPCIONES_SI_NO,
+            index=acceso_index,
+            key=f"acceso_{key_base}"
+        )
+        
+        # ANÁLISIS DE INFORMACIÓN
+        analisis_info_actual = get_safe_value(row, ' Análisis de información')
+        analisis_info_index = 0
+        if analisis_info_actual in OPCIONES_SI_NO:
+            analisis_info_index = OPCIONES_SI_NO.index(analisis_info_actual)
+        
+        analisis_info = st.selectbox(
+            "Análisis de información:",
+            OPCIONES_SI_NO,
+            index=analisis_info_index,
+            key=f"analisis_info_{key_base}"
+        )
+    
+    with col2:
+        # CRONOGRAMA CONCERTADO
+        cronograma_actual = get_safe_value(row, 'Cronograma Concertado')
+        cronograma_index = 0
+        if cronograma_actual in OPCIONES_SI_NO:
+            cronograma_index = OPCIONES_SI_NO.index(cronograma_actual)
+        
+        cronograma = st.selectbox(
+            "Cronograma Concertado:",
+            OPCIONES_SI_NO,
+            index=cronograma_index,
+            key=f"cronograma_{key_base}"
+        )
+        
+        fecha_entrega = mostrar_campo_fecha_con_limpiar(
+            "Fecha entrega información:",
+            get_safe_value(row, 'Fecha de entrega de información'),
+            f"entrega_info_{key_base}"
+        )
+    
+    # ==================== CRONOGRAMA Y FECHAS ====================
+    st.markdown("### Cronograma y Fechas")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        analisis_programada = mostrar_campo_fecha_con_limpiar(
+            "Análisis programada:",
+            get_safe_value(row, 'Análisis y cronograma (fecha programada)'),
+            f"analisis_prog_{key_base}"
+        )
+        
+        analisis_real = mostrar_campo_fecha_con_limpiar(
+            "Análisis real:",
+            get_safe_value(row, 'Análisis y cronograma'),
+            f"analisis_real_{key_base}"
+        )
+    
+    with col2:
+        # SEGUIMIENTO
+        seguimiento = st.text_area(
+            "Seguimiento a los acuerdos:",
+            value=get_safe_value(row, 'Seguimiento a los acuerdos'),
+            height=100,
+            key=f"seguimiento_{key_base}"
+        )
+    
+    # ==================== ESTÁNDARES (TODOS LOS CAMPOS) ====================
+    st.markdown("### Estándares")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        # REGISTRO
+        registro_actual = get_safe_value(row, 'Registro (completo)')
+        registro_index = 0
+        if registro_actual in ESTADOS_ESTANDARES:
+            registro_index = ESTADOS_ESTANDARES.index(registro_actual)
+        
+        registro = st.selectbox(
+            "Registro:",
+            ESTADOS_ESTANDARES,
+            index=registro_index,
+            key=f"registro_{key_base}"
+        )
+        
+        # ET
+        et_actual = get_safe_value(row, 'ET (completo)')
+        et_index = 0
+        if et_actual in ESTADOS_ESTANDARES:
+            et_index = ESTADOS_ESTANDARES.index(et_actual)
+        
+        et = st.selectbox(
+            "ET:",
+            ESTADOS_ESTANDARES,
+            index=et_index,
+            key=f"et_{key_base}"
+        )
+    
+    with col2:
+        # CO
+        co_actual = get_safe_value(row, 'CO (completo)')
+        co_index = 0
+        if co_actual in ESTADOS_ESTANDARES:
+            co_index = ESTADOS_ESTANDARES.index(co_actual)
+        
+        co = st.selectbox(
+            "CO:",
+            ESTADOS_ESTANDARES,
+            index=co_index,
+            key=f"co_{key_base}"
+        )
+        
+        # DD
+        dd_actual = get_safe_value(row, 'DD (completo)')
+        dd_index = 0
+        if dd_actual in ESTADOS_ESTANDARES:
+            dd_index = ESTADOS_ESTANDARES.index(dd_actual)
+        
+        dd = st.selectbox(
+            "DD:",
+            ESTADOS_ESTANDARES,
+            index=dd_index,
+            key=f"dd_{key_base}"
+        )
+    
+    with col3:
+        # REC
+        rec_actual = get_safe_value(row, 'REC (completo)')
+        rec_index = 0
+        if rec_actual in ESTADOS_ESTANDARES:
+            rec_index = ESTADOS_ESTANDARES.index(rec_actual)
+        
+        rec = st.selectbox(
+            "REC:",
+            ESTADOS_ESTANDARES,
+            index=rec_index,
+            key=f"rec_{key_base}"
+        )
+        
+        # SERVICIO
+        servicio_actual = get_safe_value(row, 'SERVICIO (completo)')
+        servicio_index = 0
+        if servicio_actual in ESTADOS_ESTANDARES:
+            servicio_index = ESTADOS_ESTANDARES.index(servicio_actual)
+        
+        servicio = st.selectbox(
+            "SERVICIO:",
+            ESTADOS_ESTANDARES,
+            index=servicio_index,
+            key=f"servicio_{key_base}"
+        )
+    
+    # FECHAS DE ESTÁNDARES
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        estandares_programada = mostrar_campo_fecha_con_limpiar(
+            "Estándares programada:",
+            get_safe_value(row, 'Estándares (fecha programada)'),
+            f"est_prog_{key_base}"
+        )
+    
+    with col2:
+        estandares_real = mostrar_campo_fecha_con_limpiar(
+            "Estándares real:",
+            get_safe_value(row, 'Estándares'),
+            f"est_real_{key_base}"
+        )
+    
+    # ==================== VERIFICACIONES ====================
+    st.markdown("### Verificaciones")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # ORIENTACIÓN TÉCNICA
+        orientacion_actual = get_safe_value(row, 'Resultados de orientación técnica')
+        orientacion_index = 0
+        if orientacion_actual in OPCIONES_SI_NO:
+            orientacion_index = OPCIONES_SI_NO.index(orientacion_actual)
+        
+        orientacion = st.selectbox(
+            "Orientación técnica:",
+            OPCIONES_SI_NO,
+            index=orientacion_index,
+            key=f"orientacion_{key_base}"
+        )
+        
+        # VERIFICACIÓN WEB
+        verif_web_actual = get_safe_value(row, 'Verificación del servicio web geográfico')
+        verif_web_index = 0
+        if verif_web_actual in OPCIONES_SI_NO:
+            verif_web_index = OPCIONES_SI_NO.index(verif_web_actual)
+        
+        verificacion_web = st.selectbox(
+            "Verificación servicio web:",
+            OPCIONES_SI_NO,
+            index=verif_web_index,
+            key=f"verif_web_{key_base}"
+        )
+        
+        # VERIFICAR APROBAR
+        aprobar_actual = get_safe_value(row, 'Verificar Aprobar Resultados')
+        aprobar_index = 0
+        if aprobar_actual in OPCIONES_SI_NO:
+            aprobar_index = OPCIONES_SI_NO.index(aprobar_actual)
+        
+        verificar_aprobar = st.selectbox(
+            "Verificar Aprobar:",
+            OPCIONES_SI_NO,
+            index=aprobar_index,
+            key=f"aprobar_{key_base}"
+        )
+    
+    with col2:
+        # REVISAR Y VALIDAR
+        revisar_actual = get_safe_value(row, 'Revisar y validar los datos cargados en la base de datos')
+        revisar_index = 0
+        if revisar_actual in OPCIONES_SI_NO:
+            revisar_index = OPCIONES_SI_NO.index(revisar_actual)
+        
+        revisar_validar = st.selectbox(
+            "Revisar y validar:",
+            OPCIONES_SI_NO,
+            index=revisar_index,
+            key=f"revisar_{key_base}"
+        )
+        
+        # APROBACIÓN RESULTADOS
+        aprobacion_actual = get_safe_value(row, 'Aprobación resultados obtenidos en la orientación')
+        aprobacion_index = 0
+        if aprobacion_actual in OPCIONES_SI_NO:
+            aprobacion_index = OPCIONES_SI_NO.index(aprobacion_actual)
+        
+        aprobacion = st.selectbox(
+            "Aprobación resultados:",
+            OPCIONES_SI_NO,
+            index=aprobacion_index,
+            key=f"aprobacion_{key_base}"
+        )
+    
+    # ==================== PUBLICACIÓN ====================
+    st.markdown("### Publicación")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        pub_programada = mostrar_campo_fecha_con_limpiar(
+            "Publicación programada:",
+            get_safe_value(row, 'Fecha de publicación programada'),
+            f"pub_prog_{key_base}"
+        )
+        
+        publicacion = mostrar_campo_fecha_con_limpiar(
+            "Publicación real:",
+            get_safe_value(row, 'Publicación'),
+            f"pub_real_{key_base}"
+        )
+    
+    with col2:
+        # DISPONER DATOS
+        disponer_actual = get_safe_value(row, 'Disponer datos temáticos')
+        disponer_index = 0
+        if disponer_actual in OPCIONES_SI_NO:
+            disponer_index = OPCIONES_SI_NO.index(disponer_actual)
+        
+        disponer_datos = st.selectbox(
+            "Disponer datos temáticos:",
+            OPCIONES_SI_NO,
+            index=disponer_index,
+            key=f"disponer_{key_base}"
+        )
+        
+        # CATÁLOGO
+        catalogo_actual = get_safe_value(row, 'Catálogo de recursos geográficos')
+        catalogo_index = 0
+        if catalogo_actual in OPCIONES_SI_NO:
+            catalogo_index = OPCIONES_SI_NO.index(catalogo_actual)
+        
+        catalogo = st.selectbox(
+            "Catálogo recursos:",
+            OPCIONES_SI_NO,
+            index=catalogo_index,
+            key=f"catalogo_{key_base}"
+        )
+    
+    # ==================== CIERRE ====================
+    st.markdown("### Cierre")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        # OFICIOS DE CIERRE
+        oficios_actual = get_safe_value(row, 'Oficios de cierre')
+        oficios_index = 0
+        if oficios_actual in OPCIONES_SI_NO:
+            oficios_index = OPCIONES_SI_NO.index(oficios_actual)
+        
+        oficios_cierre = st.selectbox(
+            "Oficios de cierre:",
+            OPCIONES_SI_NO,
+            index=oficios_index,
+            key=f"oficios_{key_base}"
+        )
+    
+    with col2:
+        fecha_oficio = mostrar_campo_fecha_con_limpiar(
+            "Fecha oficio cierre:",
+            get_safe_value(row, 'Fecha de oficio de cierre'),
+            f"oficio_{key_base}"
+        )
+    
+    with col3:
+        # ESTADO
+        estado_actual = get_safe_value(row, 'Estado')
+        estado_index = 0
+        if estado_actual in ESTADOS_REGISTRO:
+            estado_index = ESTADOS_REGISTRO.index(estado_actual)
+        
+        estado = st.selectbox(
+            "Estado:",
+            ESTADOS_REGISTRO,
+            index=estado_index,
+            key=f"estado_{key_base}"
+        )
+    
+    # ==================== PLAZOS (SOLO LECTURA) ====================
+    st.markdown("### Plazos Calculados")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.text_input(
+            "Plazo análisis:",
+            value=get_safe_value(row, 'Plazo de análisis'),
+            disabled=True,
+            key=f"plazo_analisis_{key_base}"
+        )
+    
+    with col2:
+        st.text_input(
+            "Plazo cronograma:",
+            value=get_safe_value(row, 'Plazo de cronograma'),
+            disabled=True,
+            key=f"plazo_cronograma_{key_base}"
+        )
+    
+    with col3:
+        st.text_input(
+            "Plazo oficio cierre:",
+            value=get_safe_value(row, 'Plazo de oficio de cierre'),
+            disabled=True,
+            key=f"plazo_oficio_{key_base}"
+        )
+    
+    # ==================== OBSERVACIONES Y AVANCE ====================
+    st.markdown("### Observaciones")
+    
+    observacion = st.text_area(
+        "Observaciones:",
+        value=get_safe_value(row, 'Observación'),
+        height=100,
+        key=f"obs_{key_base}"
+    )
+    
+    # AVANCE CALCULADO
+    avance_actual = calcular_avance(row)
+    st.text_input(
+        "Porcentaje de Avance:",
+        value=f"{avance_actual}%",
+        disabled=True,
+        key=f"avance_{key_base}"
+    )
+    
+    # RETORNAR TODOS LOS VALORES (SIN FUNCIONARIO/ENTIDAD - se agregan afuera)
+    return {
+        'Cod': codigo,
+        'Nivel Información ': nivel_info,
+        'Frecuencia actualizacion ': frecuencia,
+        'TipoDato': tipo_dato,
+        'Mes Proyectado': mes_proyectado,
+        'Actas de acercamiento y manifestación de interés': actas_interes,
+        'Suscripción acuerdo de compromiso': fecha_a_string(suscripcion) if suscripcion else "",
+        'Entrega acuerdo de compromiso': fecha_a_string(entrega_acuerdo) if entrega_acuerdo else "",
+        'Acuerdo de compromiso': acuerdo_compromiso,
+        'Gestion acceso a los datos y documentos requeridos ': acceso_datos,
+        ' Análisis de información': analisis_info,
+        'Cronograma Concertado': cronograma,
+        'Análisis y cronograma (fecha programada)': fecha_a_string(analisis_programada) if analisis_programada else "",
+        'Fecha de entrega de información': fecha_a_string(fecha_entrega) if fecha_entrega else "",
+        'Plazo de análisis': get_safe_value(row, 'Plazo de análisis'),
+        'Análisis y cronograma': fecha_a_string(analisis_real) if analisis_real else "",
+        'Seguimiento a los acuerdos': seguimiento,
+        'Registro (completo)': registro,
+        'ET (completo)': et,
+        'CO (completo)': co,
+        'DD (completo)': dd,
+        'REC (completo)': rec,
+        'SERVICIO (completo)': servicio,
+        'Estándares (fecha programada)': fecha_a_string(estandares_programada) if estandares_programada else "",
+        'Estándares': fecha_a_string(estandares_real) if estandares_real else "",
+        'Resultados de orientación técnica': orientacion,
+        'Verificación del servicio web geográfico': verificacion_web,
+        'Verificar Aprobar Resultados': verificar_aprobar,
+        'Revisar y validar los datos cargados en la base de datos': revisar_validar,
+        'Aprobación resultados obtenidos en la orientación': aprobacion,
+        'Disponer datos temáticos': disponer_datos,
+        'Fecha de publicación programada': fecha_a_string(pub_programada) if pub_programada else "",
+        'Publicación': fecha_a_string(publicacion) if publicacion else "",
+        'Catálogo de recursos geográficos': catalogo,
+        'Oficios de cierre': oficios_cierre,
+        'Fecha de oficio de cierre': fecha_a_string(fecha_oficio) if fecha_oficio else "",
+        'Plazo de cronograma': get_safe_value(row, 'Plazo de cronograma'),
+        'Plazo de oficio de cierre': get_safe_value(row, 'Plazo de oficio de cierre'),
+        'Estado': estado,
+        'Observación': observacion
+    }
     """FORMULARIO COMPLETO CON TODAS LAS SECCIONES DE GOOGLE SHEETS"""
     
     funcionarios_existentes = obtener_funcionarios_unicos(df)
