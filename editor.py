@@ -1231,3 +1231,54 @@ def recalcular_todos_avances(registros_df):
             if avance_actual != nuevo_avance:
                 registros_df.at[idx, 'Porcentaje Avance'] = nuevo_avance
                 registros_actualizados += 1
+
+def mostrar_edicion_registros_con_autenticacion(registros_df):
+    """
+    FUNCIÓN PRINCIPAL CON AUTENTICACIÓN - Para usar en app1.py
+    Wrapper que requiere autenticación para acceder al editor completo
+    """
+    
+    # Verificar autenticación
+    try:
+        from auth_utils import verificar_autenticacion
+    except ImportError:
+        def verificar_autenticacion():
+            return st.session_state.get('autenticado', False)
+    
+    if not verificar_autenticacion():
+        st.warning("Acceso restringido")
+        st.info("Debe iniciar sesión como administrador para editar registros")
+        
+        # Mostrar solo vista de lectura
+        st.subheader("Vista de Solo Lectura")
+        
+        if not registros_df.empty:
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Total Registros", len(registros_df))
+            
+            with col2:
+                if 'Porcentaje Avance' in registros_df.columns:
+                    avance_promedio = registros_df['Porcentaje Avance'].mean()
+                    st.metric("Avance Promedio", f"{avance_promedio:.1f}%")
+                else:
+                    st.metric("Avance Promedio", "N/A")
+            
+            with col3:
+                if 'Estado' in registros_df.columns:
+                    completados = len(registros_df[registros_df['Estado'] == 'Completado'])
+                    st.metric("Completados", completados)
+                else:
+                    st.metric("Completados", "N/A")
+            
+            # Tabla de solo lectura (primeros 20 registros)
+            st.dataframe(registros_df.head(20), use_container_width=True)
+        else:
+            st.warning("No hay datos disponibles")
+        
+        return registros_df
+    
+    else:
+        # Usuario autenticado - mostrar editor completo
+        return mostrar_edicion_registros(registros_df)
