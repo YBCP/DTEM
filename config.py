@@ -1,27 +1,27 @@
-# 2. config.py - Configuración de la página y estilos
+# config.py - Configuración limpia sin iconos ni elementos innecesarios
 
 import streamlit as st
 
 def setup_page():
     """Configura la página de Streamlit."""
     st.set_page_config(
-        page_title="Dashboard de Seguimiento a Datos Temáticos - Ideca",
+        page_title="Tablero de Control Datos Temáticos - Ideca",
         page_icon="📊",
         layout="wide"
     )
 
 
 def load_css():
-    """Carga estilos CSS personalizados."""
+    """Carga estilos CSS personalizados limpios."""
     st.markdown("""
     <style>
-    /* Estilos existentes... */
-
+    /* Estilos base limpios */
     .title {
         font-size: 2.5rem;
         font-weight: bold;
         color: #1E40AF;
         margin-bottom: 1rem;
+        text-align: center;
     }
 
     .subtitle {
@@ -34,9 +34,17 @@ def load_css():
         padding-bottom: 0.5rem;
     }
 
-    /* Más estilos existentes... */
+    /* Métricas limpias */
+    .metric-card {
+        background: white;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        border: 1px solid #E5E7EB;
+        margin-bottom: 1rem;
+        text-align: center;
+    }
 
-    /* Estilos para las alertas */
+    /* Alertas limpias */
     .alert-card {
         padding: 1rem;
         border-radius: 0.5rem;
@@ -59,7 +67,7 @@ def load_css():
         border-left: 4px solid #1e40af;
     }
 
-    /* Estilos para indicadores de estado */
+    /* Estados simples */
     .estado-badge {
         display: inline-block;
         padding: 0.25rem 0.5rem;
@@ -83,12 +91,12 @@ def load_css():
         color: #1e40af;
     }
 
-    /* Estilos para las tablas de alertas */
+    /* Tablas limpias */
     .stDataFrame {
         margin-bottom: 2rem;
     }
 
-    /* Mejorar la visibilidad de los días de rezago */
+    /* Días de rezago visibles */
     .dias-rezago-positivo {
         color: #b91c1c;
         font-weight: bold;
@@ -97,6 +105,81 @@ def load_css():
     .dias-rezago-negativo {
         color: #047857;
         font-weight: bold;
+    }
+
+    /* Botones limpios */
+    .stButton > button {
+        border-radius: 0.5rem;
+        border: none;
+        font-weight: 500;
+    }
+
+    /* Sidebar limpio */
+    .css-1d391kg {
+        background-color: #f8fafc;
+    }
+
+    /* Remover elementos innecesarios */
+    .css-1rs6os {
+        display: none;
+    }
+
+    /* Footer limpio */
+    footer {
+        visibility: hidden;
+    }
+
+    /* Headers limpios */
+    h1, h2, h3 {
+        color: #1E40AF;
+        font-weight: 600;
+    }
+
+    /* Inputs limpios */
+    .stSelectbox, .stTextInput, .stDateInput {
+        margin-bottom: 1rem;
+    }
+
+    /* Expanders limpios */
+    .streamlit-expanderHeader {
+        background-color: #f8fafc;
+        border-radius: 0.5rem;
+    }
+
+    /* Tabs limpios */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2px;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        background-color: #f8fafc;
+        border-radius: 4px 4px 0px 0px;
+        gap: 1px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background-color: #1E40AF;
+        color: white;
+    }
+
+    /* Containers limpios */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+
+    /* Spinner limpio */
+    .stSpinner {
+        text-align: center;
+    }
+
+    /* Progress bars limpios */
+    .stProgress > div > div > div > div {
+        background-color: #1E40AF;
     }
     </style>
     """, unsafe_allow_html=True)
