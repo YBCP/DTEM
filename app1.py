@@ -1,4 +1,4 @@
-# app1.py - VERSIÓN LIMPIA COMPLETA
+# app1.py - VERSIÓN LIMPIA COMPLETA Y CORREGIDA
 """
 Archivo principal del sistema Ideca - Versión Limpia
 - Sin iconos innecesarios
@@ -162,7 +162,6 @@ def main():
         # ===== TÍTULO PRINCIPAL LIMPIO =====
         st.markdown('<div class="title">Tablero de Control Datos Temáticos - Ideca</div>', unsafe_allow_html=True)
         
-   
         # ===== CARGA Y PROCESAMIENTO DE DATOS =====
         with st.spinner("Cargando datos..."):
             try:
