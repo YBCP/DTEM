@@ -1,3 +1,5 @@
+# data_utils.py - CORREGIDO: Error "The truth value of a Series is ambiguous"
+
 import pandas as pd
 import numpy as np
 import io
@@ -47,12 +49,10 @@ def limpiar_valor(valor):
 
     return valor.strip()
 
-import streamlit as st
-
-
 def cargar_datos():
     """
     VERSIÓN ULTRA SEGURA: Carga los datos con verificación adicional de Metas.
+    CORREGIDO: Elimina evaluaciones ambiguas de Series
     """
     try:
         # Importar el sistema de respaldo ultra seguro
@@ -197,7 +197,7 @@ def crear_estructura_metas_inicial():
 
 def procesar_fecha(fecha_str):
     """
-    Procesa una fecha de manera segura manejando NaT.
+    CORREGIDO: Procesa una fecha de manera segura manejando NaT.
     CORRECCIÓN CRÍTICA: SIEMPRE devuelve datetime, NUNCA date
     """
     if pd.isna(fecha_str) or fecha_str == '' or fecha_str is None:
@@ -236,13 +236,27 @@ def procesar_fecha(fecha_str):
         return None
 
 def es_fecha_valida(valor):
-    """Verifica si un valor es una fecha válida."""
+    """
+    CORREGIDO: Verifica si un valor es una fecha válida.
+    ELIMINA evaluación ambigua de Series
+    """
+    try:
+        # CORRECCIÓN: Verificar si es una Series
+        if isinstance(valor, pd.Series):
+            # Si es una Series, verificar cada elemento
+            return valor.apply(lambda x: es_fecha_valida_individual(x)).any()
+        else:
+            return es_fecha_valida_individual(valor)
+    except Exception:
+        return False
+
+def es_fecha_valida_individual(valor):
+    """Verifica si un valor individual es una fecha válida"""
     try:
         fecha = procesar_fecha(valor)
         return fecha is not None and pd.notna(fecha)
     except Exception:
         return False
-
 
 def formatear_fecha(fecha_str):
     """Formatea una fecha en formato DD/MM/YYYY manejando NaT."""
@@ -257,10 +271,14 @@ def formatear_fecha(fecha_str):
 
 def verificar_completado_por_fecha(fecha_programada, fecha_completado=None):
     """
-    Verifica si una tarea está completada basada en fechas.
+    CORREGIDO: Verifica si una tarea está completada basada en fechas.
     CORRECCIÓN CRÍTICA: Manejo seguro de comparaciones datetime
     """
+    # CORRECCIÓN: Verificar si fecha_completado es válida
     if fecha_completado is not None and pd.notna(fecha_completado):
+        # Verificar que no sea una Series
+        if isinstance(fecha_completado, pd.Series):
+            return fecha_completado.notna().any()
         return True
 
     fecha_actual = datetime.now()  # SIEMPRE datetime
@@ -275,61 +293,48 @@ def verificar_completado_por_fecha(fecha_programada, fecha_completado=None):
 
 def calcular_porcentaje_avance(registro):
     """
-    MODIFICADO: Calcula el porcentaje de avance de un registro basado en los campos de completitud.
-    NUEVA REGLA: Si tiene fecha de oficio de cierre, automáticamente 100% de avance.
-
-    Ponderación (cuando no hay fecha de cierre):
-    - Acuerdo de compromiso: 20%
-    - Análisis y cronograma (fecha real): 20%
-    - Estándares (fecha real): 30%
-    - Publicación (fecha real): 25%
-    - Fecha de oficio de cierre: 5%
+    CORREGIDO: Calcula el porcentaje de avance de un registro basado en los campos de completitud.
+    ELIMINA evaluaciones ambiguas de Series
     """
     try:
+        # CORRECCIÓN: Verificar que registro no sea None o vacío
+        if registro is None:
+            return 0
+        
+        # CORRECCIÓN: Si es una Series vacía, devolver 0
+        if isinstance(registro, pd.Series) and registro.empty:
+            return 0
+
         # NUEVA REGLA: Si tiene fecha de oficio de cierre, automáticamente 100%
-        if ('Fecha de oficio de cierre' in registro and 
-            registro['Fecha de oficio de cierre'] and 
-            pd.notna(registro['Fecha de oficio de cierre']) and
-            str(registro['Fecha de oficio de cierre']).strip() != ''):
+        fecha_oficio = registro.get('Fecha de oficio de cierre', '')
+        if fecha_oficio and pd.notna(fecha_oficio) and str(fecha_oficio).strip() != '':
             return 100
 
         # Si no hay fecha de cierre, calcular normalmente
-        # Inicializar el avance
         avance = 0
 
         # Verificar el acuerdo de compromiso (20%)
-        if 'Acuerdo de compromiso' in registro and str(registro['Acuerdo de compromiso']).strip().upper() in ['SI',
-                                                                                                              'SÍ', 'S',
-                                                                                                              'YES',
-                                                                                                              'Y',
-                                                                                                              'COMPLETO']:
+        acuerdo_valor = registro.get('Acuerdo de compromiso', '')
+        if acuerdo_valor and str(acuerdo_valor).strip().upper() in ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO']:
             avance += 20
 
-        # Verificar análisis y cronograma - VERIFICADO: basado en la fecha (20%)
-        if ('Análisis y cronograma' in registro and 
-            registro['Análisis y cronograma'] and 
-            pd.notna(registro['Análisis y cronograma']) and
-            str(registro['Análisis y cronograma']).strip() != ''):
+        # Verificar análisis y cronograma - basado en la fecha (20%)
+        analisis_valor = registro.get('Análisis y cronograma', '')
+        if analisis_valor and pd.notna(analisis_valor) and str(analisis_valor).strip() != '':
             avance += 20
 
         # Verificar estándares - basado en la fecha (30%)
-        if ('Estándares' in registro and 
-            registro['Estándares'] and 
-            pd.notna(registro['Estándares']) and
-            str(registro['Estándares']).strip() != ''):
+        estandares_valor = registro.get('Estándares', '')
+        if estandares_valor and pd.notna(estandares_valor) and str(estandares_valor).strip() != '':
             avance += 30
 
-        # Verificar publicación - VERIFICADO: basado en la fecha (25%)
-        if ('Publicación' in registro and 
-            registro['Publicación'] and 
-            pd.notna(registro['Publicación']) and
-            str(registro['Publicación']).strip() != ''):
+        # Verificar publicación - basado en la fecha (25%)
+        publicacion_valor = registro.get('Publicación', '')
+        if publicacion_valor and pd.notna(publicacion_valor) and str(publicacion_valor).strip() != '':
             avance += 25
 
-        # Nota: No sumamos los 5% del oficio de cierre aquí porque si llegáramos a este punto
-        # significa que no hay fecha de cierre, por lo que el máximo sería 95%
-
         return avance
+        
     except Exception as e:
         # En caso de error, retornar 0
         st.warning(f"Error al calcular porcentaje de avance: {e}")
@@ -337,10 +342,16 @@ def calcular_porcentaje_avance(registro):
         
 
 def procesar_metas(meta_df):
-    """Procesa las metas a partir del DataFrame de metas."""
+    """
+    CORREGIDO: Procesa las metas a partir del DataFrame de metas.
+    ELIMINA evaluaciones ambiguas de Series
+    """
     try:
-        # La estructura de las metas es compleja, vamos a procesarla
-        # Asumiendo que las filas 3 en adelante contienen las fechas y metas
+        # Verificar que meta_df no esté vacío
+        if meta_df.empty:
+            st.warning("DataFrame de metas está vacío, usando datos por defecto")
+            return crear_metas_por_defecto()
+
         fechas = []
         metas_nuevas = {}
         metas_actualizar = {}
@@ -350,7 +361,7 @@ def procesar_metas(meta_df):
             metas_nuevas[hito] = []
             metas_actualizar[hito] = []
 
-        # Procesar cada fila (desde la fila 3 que contiene las fechas y valores)
+        # Procesar cada fila
         for i in range(len(meta_df)):
             try:
                 fila = meta_df.iloc[i]
@@ -360,7 +371,7 @@ def procesar_metas(meta_df):
                 if fecha is not None:
                     fechas.append(fecha)
 
-                    # Columnas 1-4 son para registros nuevos (asegurar que existan)
+                    # Columnas 1-4 son para registros nuevos
                     metas_nuevas['Acuerdo de compromiso'].append(
                         pd.to_numeric(fila[1] if len(fila) > 1 else 0, errors='coerce') or 0)
                     metas_nuevas['Análisis y cronograma'].append(
@@ -370,7 +381,7 @@ def procesar_metas(meta_df):
                     metas_nuevas['Publicación'].append(
                         pd.to_numeric(fila[4] if len(fila) > 4 else 0, errors='coerce') or 0)
 
-                    # Columnas 6-9 son para registros a actualizar (asegurar que existan)
+                    # Columnas 6-9 son para registros a actualizar
                     metas_actualizar['Acuerdo de compromiso'].append(
                         pd.to_numeric(fila[6] if len(fila) > 6 else 0, errors='coerce') or 0)
                     metas_actualizar['Análisis y cronograma'].append(
@@ -383,92 +394,102 @@ def procesar_metas(meta_df):
                 st.warning(f"Error al procesar fila {i} de metas: {e}")
                 continue
 
-        # Si no hay fechas, mostrar un error
+        # Si no hay fechas, crear datos por defecto
         if not fechas:
-            st.warning("No se pudieron procesar las fechas de las metas, usando datos por defecto")
-            # Crear un DataFrame de ejemplo como respaldo
-            fechas = [datetime.now()]
-            for hito in metas_nuevas:
-                metas_nuevas[hito] = [0]
-                metas_actualizar[hito] = [0]
+            return crear_metas_por_defecto()
 
         # Convertir a DataFrames
         metas_nuevas_df = pd.DataFrame(metas_nuevas, index=fechas)
         metas_actualizar_df = pd.DataFrame(metas_actualizar, index=fechas)
 
         return metas_nuevas_df, metas_actualizar_df
+        
     except Exception as e:
         st.error(f"Error al procesar metas: {e}")
-        # Crear DataFrames vacíos como respaldo
-        fechas = [datetime.now()]
-        metas_nuevas = {'Acuerdo de compromiso': [0], 'Análisis y cronograma': [0], 'Estándares': [0],
-                        'Publicación': [0]}
-        metas_actualizar = {'Acuerdo de compromiso': [0], 'Análisis y cronograma': [0], 'Estándares': [0],
-                            'Publicación': [0]}
+        return crear_metas_por_defecto()
 
-        metas_nuevas_df = pd.DataFrame(metas_nuevas, index=fechas)
-        metas_actualizar_df = pd.DataFrame(metas_actualizar, index=fechas)
+def crear_metas_por_defecto():
+    """Crea metas por defecto cuando hay errores"""
+    fechas = [datetime.now()]
+    metas_nuevas = {'Acuerdo de compromiso': [0], 'Análisis y cronograma': [0], 'Estándares': [0], 'Publicación': [0]}
+    metas_actualizar = {'Acuerdo de compromiso': [0], 'Análisis y cronograma': [0], 'Estándares': [0], 'Publicación': [0]}
 
-        return metas_nuevas_df, metas_actualizar_df
+    metas_nuevas_df = pd.DataFrame(metas_nuevas, index=fechas)
+    metas_actualizar_df = pd.DataFrame(metas_actualizar, index=fechas)
+
+    return metas_nuevas_df, metas_actualizar_df
 
 def verificar_estado_fechas(row):
     """
-    Verifica si las fechas están vencidas o próximas a vencer.
-    CORRECCIÓN CRÍTICA: Comparaciones datetime seguras
+    CORREGIDO: Verifica si las fechas están vencidas o próximas a vencer.
+    ELIMINA evaluaciones ambiguas de Series
     """
-    fecha_actual = datetime.now()  # SIEMPRE datetime
-    estado = "normal"
+    try:
+        fecha_actual = datetime.now()
+        estado = "normal"
 
-    campos_fecha = [
-        'Análisis y cronograma (fecha programada)',
-        'Estándares (fecha programada)',
-        'Fecha de publicación programada'
-    ]
+        campos_fecha = [
+            'Análisis y cronograma (fecha programada)',
+            'Estándares (fecha programada)',
+            'Fecha de publicación programada'
+        ]
 
-    for campo in campos_fecha:
-        if campo in row and pd.notna(row[campo]) and str(row[campo]).strip() != '':
-            fecha = procesar_fecha(row[campo])  # SIEMPRE devuelve datetime o None
-            if fecha is not None and pd.notna(fecha):
-                # Ya no necesitamos conversión manual
-                if fecha < fecha_actual:
-                    return "vencido"
-                if fecha <= fecha_actual + timedelta(days=30):
-                    estado = "proximo"
+        for campo in campos_fecha:
+            # CORRECCIÓN: Verificar que el campo existe y obtener valor de forma segura
+            if campo in row and pd.notna(row[campo]):
+                valor_campo = row[campo]
+                # CORRECCIÓN: Verificar que no sea Series
+                if isinstance(valor_campo, pd.Series):
+                    continue
+                
+                if str(valor_campo).strip() != '':
+                    fecha = procesar_fecha(valor_campo)
+                    if fecha is not None and pd.notna(fecha):
+                        if fecha < fecha_actual:
+                            return "vencido"
+                        if fecha <= fecha_actual + timedelta(days=30):
+                            estado = "proximo"
 
-    return estado
+        return estado
+        
+    except Exception as e:
+        # En caso de error, devolver estado normal
+        return "normal"
 
 def validar_campos_fecha(df, campos_fecha=['Análisis y cronograma', 'Estándares', 'Publicación']):
     """
-    Valida que los campos específicos contengan solo fechas válidas.
-    Si no son fechas válidas, los convierte a fechas o los deja vacíos.
+    CORREGIDO: Valida que los campos específicos contengan solo fechas válidas.
     """
     df_validado = df.copy()
 
     for campo in campos_fecha:
         if campo in df_validado.columns:
             df_validado[campo] = df_validado[campo].apply(
-                lambda x: formatear_fecha(x) if es_fecha_valida(x) else ""
+                lambda x: formatear_fecha(x) if es_fecha_valida_individual(x) else ""
             )
 
     return df_validado
 
-# Extracto de data_utils.py - FUNCIÓN DE GUARDADO CORREGIDA
-
 def guardar_datos_editados(df, crear_backup=True):
     """
-    VERSIÓN ULTRA SEGURA Y CORREGIDA: Guarda los datos editados con verificación
+    CORREGIDO: Guarda los datos editados con verificación
+    ELIMINA evaluaciones ambiguas de Series
     """
     try:
-        # ✅ VALIDACIÓN CRÍTICA: Solo permitir datos de registros
+        # Validación básica
+        if df is None or df.empty:
+            return False, "DataFrame vacío o None"
+
+        # Validar que solo son registros
         if 'Cod' not in df.columns or 'Entidad' not in df.columns:
-            return False, "❌ Error: Solo se pueden guardar datos de registros, no metas"
+            return False, "Error: Solo se pueden guardar datos de registros, no metas"
         
         # Validar que los campos de fechas sean fechas válidas
         df_validado = validar_campos_fecha(df)
         
         sheets_manager = get_sheets_manager()
         
-        # ✅ PROTECCIÓN METAS: Crear backup de Metas ANTES de cualquier operación
+        # Crear backup de Metas ANTES de cualquier operación
         metas_backup = None
         try:
             metas_backup = sheets_manager.leer_hoja("Metas")
@@ -477,81 +498,77 @@ def guardar_datos_editados(df, crear_backup=True):
         except:
             metas_backup = None
         
-        # NUEVO: Crear respaldo automático antes de guardar
+        # Crear respaldo automático antes de guardar
         if crear_backup:
             try:
                 from backup_utils import crear_respaldo_automatico
                 respaldo_exitoso = crear_respaldo_automatico(df_validado)
                 if respaldo_exitoso:
-                    import streamlit as st
-                    st.info("💾 Respaldo automático creado antes de guardar")
+                    st.info("Respaldo automático creado antes de guardar")
                 else:
-                    import streamlit as st
-                    st.warning("⚠️ No se pudo crear respaldo automático, pero continuando...")
+                    st.warning("No se pudo crear respaldo automático, pero continuando...")
             except ImportError:
-                import streamlit as st
-                st.warning("⚠️ Sistema de respaldo no disponible")
+                st.warning("Sistema de respaldo no disponible")
             except Exception as e:
-                import streamlit as st
-                st.warning(f"⚠️ Error en respaldo automático: {e}, pero continuando...")
+                st.warning(f"Error en respaldo automático: {e}, pero continuando...")
         
-        # ✅ GUARDAR SOLO EN REGISTROS (nunca tocar Metas)
-        import streamlit as st
-        st.info("💾 Guardando en hoja 'Registros' de Google Sheets...")
+        # Guardar SOLO en Registros
+        st.info("Guardando en hoja 'Registros' de Google Sheets...")
         
         exito = sheets_manager.escribir_hoja(df_validado, "Registros", limpiar_hoja=True)
         
-        # ✅ VERIFICACIÓN Y RESTAURACIÓN AUTOMÁTICA DE METAS
+        # Verificación y restauración automática de Metas
         if metas_backup is not None:
             try:
-                # Verificar si Metas se mantuvo intacta
                 metas_actual = sheets_manager.leer_hoja("Metas")
                 if metas_actual.empty:
-                    # ¡EMERGENCIA! Metas se borró, restaurar inmediatamente
-                    st.warning("🚨 ALERTA: Tabla Metas se borró - Restaurando automáticamente...")
+                    st.warning("Tabla Metas se borró - Restaurando automáticamente...")
                     restaurar_exito = sheets_manager.escribir_hoja(metas_backup, "Metas", limpiar_hoja=True)
                     if restaurar_exito:
-                        st.success("✅ Tabla Metas restaurada exitosamente")
+                        st.success("Tabla Metas restaurada exitosamente")
                     else:
-                        st.error("❌ ERROR CRÍTICO: No se pudo restaurar tabla Metas")
+                        st.error("ERROR CRÍTICO: No se pudo restaurar tabla Metas")
             except Exception as verificacion_error:
-                st.error(f"❌ Error verificando/restaurando Metas: {verificacion_error}")
+                st.error(f"Error verificando/restaurando Metas: {verificacion_error}")
         
         if exito:
-            # NUEVO: Verificar que los datos se guardaron correctamente
+            # Verificar que los datos se guardaron correctamente
             try:
                 df_verificacion = sheets_manager.leer_hoja("Registros")
                 if not df_verificacion.empty and len(df_verificacion) >= len(df_validado) * 0.9:
-                    st.success("✅ Guardado verificado en Google Sheets - Hoja 'Registros'")
-                    return True, "✅ Datos guardados y verificados exitosamente en Google Sheets."
+                    st.success("Guardado verificado en Google Sheets - Hoja 'Registros'")
+                    return True, "Datos guardados y verificados exitosamente en Google Sheets."
                 else:
-                    st.warning("⚠️ Los datos se guardaron pero la verificación mostró inconsistencias")
-                    return True, "⚠️ Datos guardados pero con advertencias. Verifique el contenido."
+                    st.warning("Los datos se guardaron pero la verificación mostró inconsistencias")
+                    return True, "Datos guardados pero con advertencias. Verifique el contenido."
             except Exception as e:
-                st.warning(f"⚠️ Error en verificación post-guardado: {e}")
-                return True, "✅ Datos guardados en Google Sheets (verificación falló)."
+                st.warning(f"Error en verificación post-guardado: {e}")
+                return True, "Datos guardados en Google Sheets (verificación falló)."
         else:
-            return False, "❌ Error al guardar datos en Google Sheets."
+            return False, "Error al guardar datos en Google Sheets."
             
     except Exception as e:
-        import streamlit as st
-        error_msg = f"❌ Error al guardar datos: {str(e)}"
+        error_msg = f"Error al guardar datos: {str(e)}"
         st.error(error_msg)
         return False, error_msg
 
 def guardar_datos_editados_rapido(df, numero_fila=None):
     """
-    Versión rápida para guardar cambios individuales sin reescribir toda la hoja.
-    INCLUYE verificaciones de seguridad básicas y protección de Metas.
+    CORREGIDO: Versión rápida para guardar cambios individuales.
+    ELIMINA evaluaciones ambiguas de Series
     """
     try:
-        # ✅ VALIDACIÓN CRÍTICA: Solo permitir datos de registros
+        # Validación básica
+        if df is None or df.empty:
+            return False, "DataFrame vacío o None"
+
+        # Validar que solo son registros
         if 'Cod' not in df.columns or 'Entidad' not in df.columns:
-            return False, "❌ Error: Solo se pueden guardar datos de registros"
+            return False, "Error: Solo se pueden guardar datos de registros"
         
         sheets_manager = get_sheets_manager()
         
-        # ✅ PROTECCIÓN METAS: Backup rápido de Metas
+        # Backup rápido de Metas
         metas_backup = None
         try:
             metas_backup = sheets_manager.leer_hoja("Metas")
@@ -559,11 +576,6 @@ def guardar_datos_editados_rapido(df, numero_fila=None):
                 metas_backup = None
         except:
             metas_backup = None
-        
-        # NUEVO: Verificación básica antes de guardar
-        if df.empty:
-            st.error("❌ No se puede guardar: DataFrame vacío")
-            return False, "❌ Error: Datos vacíos"
         
         if numero_fila is not None:
             # Actualizar solo una fila específica
@@ -572,55 +584,62 @@ def guardar_datos_editados_rapido(df, numero_fila=None):
             # Guardar todo el DataFrame
             exito = sheets_manager.escribir_hoja(df, "Registros", limpiar_hoja=True)
         
-        # ✅ VERIFICACIÓN RÁPIDA DE METAS
+        # Verificación rápida de Metas
         if metas_backup is not None:
             try:
                 metas_actual = sheets_manager.leer_hoja("Metas")
                 if metas_actual.empty:
-                    # Restaurar Metas si se borró
                     sheets_manager.escribir_hoja(metas_backup, "Metas", limpiar_hoja=True)
-                    st.info("🔄 Tabla Metas restaurada automáticamente")
+                    st.info("Tabla Metas restaurada automáticamente")
             except:
-                pass  # En modo rápido, no mostrar errores de verificación
+                pass
         
         if exito:
-            return True, "✅ Datos guardados."
+            return True, "Datos guardados."
         else:
-            return False, "❌ Error al guardar."
+            return False, "Error al guardar."
             
     except Exception as e:
-        return False, f"❌ Error: {str(e)}"
+        return False, f"Error: {str(e)}"
 
 def contar_registros_completados_por_fecha(df, columna_fecha_programada, columna_fecha_completado):
     """
-    Cuenta los registros que tienen una fecha de completado o cuya fecha programada ya pasó.
-    CORRECCIÓN CRÍTICA: Uso correcto de procesar_fecha()
+    CORREGIDO: Cuenta los registros que tienen una fecha de completado o cuya fecha programada ya pasó.
+    ELIMINA evaluaciones ambiguas de Series
     """
     count = 0
     
     for _, row in df.iterrows():
         try:
-            if columna_fecha_programada in row and pd.notna(row[columna_fecha_programada]) and str(row[columna_fecha_programada]).strip() != '':
-                fecha_programada = row[columna_fecha_programada]
+            # Verificar que la columna existe y tiene valor
+            if columna_fecha_programada in row and pd.notna(row[columna_fecha_programada]):
+                valor_fecha = row[columna_fecha_programada]
+                
+                # CORRECCIÓN: Verificar que no sea Series
+                if isinstance(valor_fecha, pd.Series):
+                    continue
+                    
+                if str(valor_fecha).strip() != '':
+                    fecha_programada = valor_fecha
 
-                # Verificar si hay una fecha de completado VÁLIDA
-                fecha_completado = None
-                if columna_fecha_completado in row:
-                    if es_fecha_valida(row[columna_fecha_completado]):
-                        fecha_completado = procesar_fecha(row[columna_fecha_completado])  # datetime o None
+                    # Verificar si hay una fecha de completado VÁLIDA
+                    fecha_completado = None
+                    if columna_fecha_completado in row:
+                        valor_completado = row[columna_fecha_completado]
+                        if not isinstance(valor_completado, pd.Series) and es_fecha_valida_individual(valor_completado):
+                            fecha_completado = procesar_fecha(valor_completado)
 
-                if verificar_completado_por_fecha(fecha_programada, fecha_completado):
-                    count += 1
+                    if verificar_completado_por_fecha(fecha_programada, fecha_completado):
+                        count += 1
         except Exception as e:
             # Ignorar errores en filas individuales y continuar
             continue
 
     return count
 
+# Resto de funciones auxiliares...
 def verificar_integridad_metas():
-    """
-    NUEVA FUNCIÓN: Verifica específicamente la integridad de la tabla Metas
-    """
+    """Verifica específicamente la integridad de la tabla Metas"""
     try:
         sheets_manager = get_sheets_manager()
         metas_df = sheets_manager.leer_hoja("Metas")
@@ -628,7 +647,6 @@ def verificar_integridad_metas():
         if metas_df.empty:
             return False, "Tabla Metas está vacía"
         
-        # Verificar estructura básica de metas
         if len(metas_df.columns) < 5:
             return False, "Tabla Metas tiene muy pocas columnas"
         
@@ -641,9 +659,7 @@ def verificar_integridad_metas():
         return False, f"Error verificando Metas: {str(e)}"
 
 def proteger_metas_durante_operacion(funcion_operacion, *args, **kwargs):
-    """
-    NUEVA FUNCIÓN: Wrapper para proteger Metas durante cualquier operación crítica
-    """
+    """Wrapper para proteger Metas durante cualquier operación crítica"""
     try:
         sheets_manager = get_sheets_manager()
         
@@ -664,22 +680,19 @@ def proteger_metas_durante_operacion(funcion_operacion, *args, **kwargs):
             try:
                 metas_actual = sheets_manager.leer_hoja("Metas")
                 if metas_actual.empty:
-                    # Restaurar Metas si se borró
                     sheets_manager.escribir_hoja(metas_backup, "Metas", limpiar_hoja=True)
-                    st.warning("🔄 Tabla Metas restaurada automáticamente después de operación")
+                    st.warning("Tabla Metas restaurada automáticamente después de operación")
             except Exception as restore_error:
-                st.error(f"❌ Error restaurando Metas: {restore_error}")
+                st.error(f"Error restaurando Metas: {restore_error}")
         
         return resultado
         
     except Exception as e:
-        st.error(f"❌ Error en operación protegida: {str(e)}")
+        st.error(f"Error en operación protegida: {str(e)}")
         return None
 
 def limpiar_y_validar_registros(df):
-    """
-    NUEVA FUNCIÓN: Limpia y valida registros antes de cualquier operación
-    """
+    """Limpia y valida registros antes de cualquier operación"""
     try:
         # Verificar que es un DataFrame de registros
         if 'Cod' not in df.columns or 'Entidad' not in df.columns:
@@ -706,17 +719,15 @@ def limpiar_y_validar_registros(df):
         return df_limpio
         
     except Exception as e:
-        st.error(f"❌ Error limpiando registros: {str(e)}")
+        st.error(f"Error limpiando registros: {str(e)}")
         raise e
 
 def sincronizar_con_google_sheets(df, hoja="Registros", crear_backup=True):
-    """
-    NUEVA FUNCIÓN: Sincronización segura con Google Sheets con protección de Metas
-    """
+    """Sincronización segura con Google Sheets con protección de Metas"""
     try:
         # Validar que solo son registros
         if hoja == "Registros" and ('Cod' not in df.columns or 'Entidad' not in df.columns):
-            return False, "❌ Error: Solo se pueden sincronizar datos de registros"
+            return False, "Error: Solo se pueden sincronizar datos de registros"
         
         # Limpiar y validar datos
         df_validado = limpiar_y_validar_registros(df)
@@ -736,19 +747,17 @@ def sincronizar_con_google_sheets(df, hoja="Registros", crear_backup=True):
                     from backup_utils import crear_respaldo_automatico
                     crear_respaldo_automatico(df_validado)
                 except:
-                    pass  # No fallar si el respaldo falla
+                    pass
             
-            return True, f"✅ Sincronización exitosa con {hoja}"
+            return True, f"Sincronización exitosa con {hoja}"
         else:
-            return False, f"❌ Error en sincronización con {hoja}"
+            return False, f"Error en sincronización con {hoja}"
             
     except Exception as e:
-        return False, f"❌ Error en sincronización: {str(e)}"
+        return False, f"Error en sincronización: {str(e)}"
 
 def obtener_estado_sistema():
-    """
-    NUEVA FUNCIÓN: Obtiene el estado completo del sistema de datos
-    """
+    """Obtiene el estado completo del sistema de datos"""
     try:
         sheets_manager = get_sheets_manager()
         
@@ -815,9 +824,7 @@ def obtener_estado_sistema():
         }
 
 def reparar_sistema_automatico():
-    """
-    NUEVA FUNCIÓN: Repara automáticamente problemas comunes del sistema
-    """
+    """Repara automáticamente problemas comunes del sistema"""
     try:
         sheets_manager = get_sheets_manager()
         reparaciones = []
@@ -826,71 +833,44 @@ def reparar_sistema_automatico():
         try:
             metas_df = sheets_manager.leer_hoja("Metas")
             if metas_df.empty:
-                # Recrear estructura de Metas
                 metas_nueva = crear_estructura_metas_inicial()
                 sheets_manager.escribir_hoja(metas_nueva, "Metas", limpiar_hoja=True)
-                reparaciones.append("✅ Tabla Metas recreada")
+                reparaciones.append("Tabla Metas recreada")
         except:
-            # Crear Metas desde cero
             metas_nueva = crear_estructura_metas_inicial()
             sheets_manager.escribir_hoja(metas_nueva, "Metas", limpiar_hoja=True)
-            reparaciones.append("✅ Tabla Metas creada desde cero")
+            reparaciones.append("Tabla Metas creada desde cero")
         
         # Verificar y reparar Registros
         try:
             registros_df = sheets_manager.leer_hoja("Registros")
             if registros_df.empty:
-                # Intentar restaurar desde respaldo
                 try:
                     respaldo_df = sheets_manager.leer_hoja("Respaldo_Registros")
                     if not respaldo_df.empty:
                         sheets_manager.escribir_hoja(respaldo_df, "Registros", limpiar_hoja=True)
-                        reparaciones.append("✅ Registros restaurados desde respaldo")
+                        reparaciones.append("Registros restaurados desde respaldo")
                     else:
-                        # Crear estructura mínima
                         registros_nuevo = crear_estructura_registros_basica()
                         sheets_manager.escribir_hoja(registros_nuevo, "Registros", limpiar_hoja=True)
-                        reparaciones.append("✅ Estructura básica de Registros creada")
+                        reparaciones.append("Estructura básica de Registros creada")
                 except:
                     registros_nuevo = crear_estructura_registros_basica()
                     sheets_manager.escribir_hoja(registros_nuevo, "Registros", limpiar_hoja=True)
-                    reparaciones.append("✅ Estructura básica de Registros creada")
+                    reparaciones.append("Estructura básica de Registros creada")
         except:
             registros_nuevo = crear_estructura_registros_basica()
             sheets_manager.escribir_hoja(registros_nuevo, "Registros", limpiar_hoja=True)
-            reparaciones.append("✅ Tabla Registros creada desde cero")
-        
-        # Verificar columnas requeridas en Registros
-        try:
-            registros_df = sheets_manager.leer_hoja("Registros")
-            columnas_requeridas = [
-                'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
-                'Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación',
-                'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
-                'Plazo de oficio de cierre', 'Fecha de oficio de cierre', 'Estado', 'Observación',
-                'Funcionario', 'Frecuencia actualizacion '
-            ]
-            
-            columnas_faltantes = [col for col in columnas_requeridas if col not in registros_df.columns]
-            if columnas_faltantes:
-                for col in columnas_faltantes:
-                    registros_df[col] = ''
-                sheets_manager.escribir_hoja(registros_df, "Registros", limpiar_hoja=True)
-                reparaciones.append(f"✅ Agregadas columnas faltantes: {len(columnas_faltantes)}")
-        except Exception as col_error:
-            reparaciones.append(f"⚠️ Error agregando columnas: {str(col_error)}")
+            reparaciones.append("Tabla Registros creada desde cero")
         
         return True, reparaciones
         
     except Exception as e:
-        return False, [f"❌ Error en reparación automática: {str(e)}"]
+        return False, [f"Error en reparación automática: {str(e)}"]
 
-# NUEVAS FUNCIONES DE DIAGNÓSTICO
 def diagnosticar_errores_datetime(df):
-    """
-    Función de diagnóstico para identificar problemas de datetime en el DataFrame
-    """
-    print("\n🔍 DIAGNÓSTICO DE ERRORES DATETIME")
+    """Función de diagnóstico para identificar problemas de datetime en el DataFrame"""
+    print("\nDIAGNÓSTICO DE ERRORES DATETIME")
     print("="*50)
     
     campos_fecha = [
@@ -910,7 +890,7 @@ def diagnosticar_errores_datetime(df):
     
     for campo in campos_fecha:
         if campo in df.columns:
-            print(f"\n📅 Analizando campo: {campo}")
+            print(f"\nAnalizando campo: {campo}")
             
             valores_problematicos = []
             tipos_encontrados = []
@@ -918,7 +898,6 @@ def diagnosticar_errores_datetime(df):
             for idx, valor in df[campo].items():
                 if pd.notna(valor) and str(valor).strip() != '':
                     try:
-                        # Probar procesar_fecha
                         fecha_procesada = procesar_fecha(valor)
                         if fecha_procesada is None:
                             valores_problematicos.append((idx, valor, type(valor).__name__))
@@ -928,27 +907,24 @@ def diagnosticar_errores_datetime(df):
                         valores_problematicos.append((idx, valor, f"Error: {e}"))
             
             if valores_problematicos:
-                print(f"   ❌ {len(valores_problematicos)} valores problemáticos encontrados")
-                for idx, valor, tipo_error in valores_problematicos[:3]:  # Mostrar solo los primeros 3
+                print(f"   {len(valores_problematicos)} valores problemáticos encontrados")
+                for idx, valor, tipo_error in valores_problematicos[:3]:
                     print(f"      Fila {idx}: {valor} ({tipo_error})")
                 problemas_encontrados.append(campo)
             else:
                 tipos_unicos = list(set(tipos_encontrados))
-                print(f"   ✅ Campo correcto. Tipos después de procesar: {tipos_unicos}")
+                print(f"   Campo correcto. Tipos después de procesar: {tipos_unicos}")
     
     if problemas_encontrados:
-        print(f"\n⚠️  CAMPOS CON PROBLEMAS: {problemas_encontrados}")
-        print("🔧 APLICAR CORRECCIÓN EN fecha_utils.py y data_utils.py")
+        print(f"\nCAMPOS CON PROBLEMAS: {problemas_encontrados}")
     else:
-        print("\n✅ TODOS LOS CAMPOS DE FECHA ESTÁN CORRECTOS")
+        print("\nTODOS LOS CAMPOS DE FECHA ESTÁN CORRECTOS")
     
     return problemas_encontrados
 
 def reparar_fechas_automaticamente(df):
-    """
-    Repara automáticamente los problemas de fechas más comunes
-    """
-    print("\n🔧 REPARANDO FECHAS AUTOMÁTICAMENTE...")
+    """Repara automáticamente los problemas de fechas más comunes"""
+    print("\nREPARANDO FECHAS AUTOMÁTICAMENTE...")
     
     df_reparado = df.copy()
     reparaciones = 0
@@ -968,19 +944,15 @@ def reparar_fechas_automaticamente(df):
             for idx, valor in df_reparado[campo].items():
                 if pd.notna(valor) and str(valor).strip() != '':
                     try:
-                        # Intentar procesar la fecha
                         fecha_procesada = procesar_fecha(valor)
                         if fecha_procesada is None:
-                            # Si no se puede procesar, limpiar el valor
                             df_reparado.at[idx, campo] = ''
                             reparaciones += 1
                         else:
-                            # Si se puede procesar, formatear correctamente
                             df_reparado.at[idx, campo] = formatear_fecha(fecha_procesada)
                     except Exception:
-                        # Si hay error, limpiar el valor
                         df_reparado.at[idx, campo] = ''
                         reparaciones += 1
     
-    print(f"✅ Reparaciones aplicadas: {reparaciones}")
+    print(f"Reparaciones aplicadas: {reparaciones}")
     return df_reparado
