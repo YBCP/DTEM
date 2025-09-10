@@ -25,17 +25,23 @@ def crear_respaldo_automatico(registros_df):
         if not all(col in registros_df.columns for col in columnas_esenciales):
             return False
         
-        # CORRECCIÓN: Usar & en lugar de and para operaciones pandas
-        registros_validos = registros_df[
-            (registros_df['Cod'].notna()) & 
-            (registros_df['Cod'].astype(str).str.strip() != '') &
-            (registros_df['Cod'].astype(str).str.strip() != 'nan') &
-            (registros_df['Cod'].astype(str).str.strip() != 'None') &
-            (registros_df['Entidad'].notna()) & 
-            (registros_df['Entidad'].astype(str).str.strip() != '') &
-            (registros_df['Entidad'].astype(str).str.strip() != 'nan') &
-            (registros_df['Entidad'].astype(str).str.strip() != 'None')
-        ]
+        # CORRECCIÓN: Usar evaluación separada en lugar de operadores booleanos complejos
+        mask_cod_notna = registros_df['Cod'].notna()
+        mask_cod_not_empty = registros_df['Cod'].astype(str).str.strip() != ''
+        mask_cod_not_nan = registros_df['Cod'].astype(str).str.strip() != 'nan'
+        mask_cod_not_none = registros_df['Cod'].astype(str).str.strip() != 'None'
+        
+        mask_entidad_notna = registros_df['Entidad'].notna()
+        mask_entidad_not_empty = registros_df['Entidad'].astype(str).str.strip() != ''
+        mask_entidad_not_nan = registros_df['Entidad'].astype(str).str.strip() != 'nan'
+        mask_entidad_not_none = registros_df['Entidad'].astype(str).str.strip() != 'None'
+        
+        # Combinar todas las máscaras paso a paso
+        mask_cod_completa = mask_cod_notna & mask_cod_not_empty & mask_cod_not_nan & mask_cod_not_none
+        mask_entidad_completa = mask_entidad_notna & mask_entidad_not_empty & mask_entidad_not_nan & mask_entidad_not_none
+        mask_final = mask_cod_completa & mask_entidad_completa
+        
+        registros_validos = registros_df[mask_final]
         
         # REQUISITO MÍNIMO: Al menos 1 registro válido
         if len(registros_validos) == 0:
@@ -77,7 +83,7 @@ def crear_respaldo_automatico(registros_df):
             return False
     
     except Exception as e:
-        st.error(f"❌ Error al crear respaldo: {str(e)}")
+        st.error(f"Error al crear respaldo: {str(e)}")
         return False
 
 
@@ -98,15 +104,21 @@ def verificar_integridad_datos(registros_df):
         if not all(col in registros_df.columns for col in columnas_esenciales):
             return False, "Columnas esenciales faltantes"
         
-        # CORRECCIÓN: Usar & en lugar de and para pandas
-        registros_validos = registros_df[
-            (registros_df['Cod'].notna()) & 
-            (registros_df['Cod'].astype(str).str.strip() != '') &
-            (registros_df['Cod'].astype(str).str.strip() != 'nan') &
-            (registros_df['Entidad'].notna()) & 
-            (registros_df['Entidad'].astype(str).str.strip() != '') &
-            (registros_df['Entidad'].astype(str).str.strip() != 'nan')
-        ]
+        # CORRECCIÓN: Usar evaluación separada
+        mask_cod_notna = registros_df['Cod'].notna()
+        mask_cod_not_empty = registros_df['Cod'].astype(str).str.strip() != ''
+        mask_cod_not_nan = registros_df['Cod'].astype(str).str.strip() != 'nan'
+        
+        mask_entidad_notna = registros_df['Entidad'].notna()
+        mask_entidad_not_empty = registros_df['Entidad'].astype(str).str.strip() != ''
+        mask_entidad_not_nan = registros_df['Entidad'].astype(str).str.strip() != 'nan'
+        
+        # Combinar máscaras
+        mask_cod_final = mask_cod_notna & mask_cod_not_empty & mask_cod_not_nan
+        mask_entidad_final = mask_entidad_notna & mask_entidad_not_empty & mask_entidad_not_nan
+        mask_final = mask_cod_final & mask_entidad_final
+        
+        registros_validos = registros_df[mask_final]
         
         if len(registros_validos) == 0:
             return False, "No hay registros válidos"
@@ -114,7 +126,9 @@ def verificar_integridad_datos(registros_df):
         # CORRECCIÓN: Verificar estructura correctamente
         if len(registros_df) == 1:
             primera_fila = registros_df.iloc[0]
-            if primera_fila.astype(str).str.strip().eq('').all():
+            # Verificar si toda la fila está vacía de manera segura
+            valores_vacios = primera_fila.astype(str).str.strip() == ''
+            if valores_vacios.all():
                 return False, "Solo headers sin datos"
         
         return True, f"Datos íntegros: {len(registros_validos)} registros válidos"
@@ -128,15 +142,15 @@ def restauracion_automatica_emergencia():
     CORREGIDO: Restauración automática en caso de pérdida de datos.
     """
     try:
-        st.warning("🚨 ALERTA: Datos de registros vacíos o corruptos detectados")
-        st.info("🔄 Iniciando restauración automática desde respaldo...")
+        st.warning("ALERTA: Datos de registros vacíos o corruptos detectados")
+        st.info("Iniciando restauración automática desde respaldo...")
         
         sheets_manager = get_sheets_manager()
         
         # Verificar si existe respaldo
         hojas = sheets_manager.listar_hojas()
         if "Respaldo_Registros" not in hojas:
-            st.error("❌ No hay respaldo disponible para restauración automática")
+            st.error("No hay respaldo disponible para restauración automática")
             return False, None
         
         # Leer respaldo
@@ -144,13 +158,13 @@ def restauracion_automatica_emergencia():
         
         # CORRECCIÓN: Usar .empty correctamente
         if df_respaldo.empty:
-            st.error("❌ El respaldo está vacío")
+            st.error("El respaldo está vacío")
             return False, None
         
         # Verificar integridad del respaldo
         es_valido, mensaje = verificar_integridad_datos(df_respaldo)
         if not es_valido:
-            st.error(f"❌ El respaldo no es válido: {mensaje}")
+            st.error(f"El respaldo no es válido: {mensaje}")
             return False, None
         
         # Crear backup del estado actual (corrupto)
@@ -167,7 +181,7 @@ def restauracion_automatica_emergencia():
         exito = sheets_manager.escribir_hoja(df_respaldo, "Registros", limpiar_hoja=True)
         
         if exito:
-            st.success("✅ RESTAURACIÓN AUTOMÁTICA EXITOSA")
+            st.success("RESTAURACIÓN AUTOMÁTICA EXITOSA")
             st.balloons()
             
             # Actualizar session state
@@ -179,11 +193,11 @@ def restauracion_automatica_emergencia():
             
             return True, df_respaldo
         else:
-            st.error("❌ Error en restauración automática")
+            st.error("Error en restauración automática")
             return False, None
     
     except Exception as e:
-        st.error(f"❌ Error en restauración automática de emergencia: {str(e)}")
+        st.error(f"Error en restauración automática de emergencia: {str(e)}")
         return False, None
 
 
@@ -230,20 +244,20 @@ def cargar_datos_con_respaldo():
         es_valido, mensaje = verificar_integridad_datos(registros_df)
         
         if not es_valido:
-            st.warning(f"⚠️ Problema detectado en datos: {mensaje}")
+            st.warning(f"Problema detectado en datos: {mensaje}")
             
             # RESTAURACIÓN AUTOMÁTICA
             exito_restauracion, registros_restaurados = restauracion_automatica_emergencia()
             
             if exito_restauracion:
                 registros_df = registros_restaurados
-                st.success("🔄 Datos restaurados automáticamente desde respaldo")
+                st.success("Datos restaurados automáticamente desde respaldo")
             else:
                 # Si falla la restauración automática, crear estructura mínima
-                st.error("❌ Restauración automática falló. Creando estructura mínima.")
+                st.error("Restauración automática falló. Creando estructura mínima.")
                 registros_df = crear_estructura_registros_minima()
         else:
-            st.success(f"✅ {len(registros_df)} registros cargados y verificados")
+            st.success(f"{len(registros_df)} registros cargados y verificados")
         
         # Lista de columnas requeridas
         columnas_requeridas = [
@@ -295,7 +309,7 @@ def cargar_datos_con_respaldo():
         return registros_df, meta_df
     
     except Exception as e:
-        st.error(f"❌ Error crítico cargando datos: {e}")
+        st.error(f"Error crítico cargando datos: {e}")
         
         # Último recurso: crear estructura mínima
         registros_df = crear_estructura_registros_minima()
@@ -363,13 +377,13 @@ def restaurar_desde_respaldo():
         
         # CORRECCIÓN: Usar .empty correctamente
         if df_respaldo.empty:
-            st.error("❌ El respaldo está vacío")
+            st.error("El respaldo está vacío")
             return False, None
         
         # Verificar integridad
         es_valido, mensaje = verificar_integridad_datos(df_respaldo)
         if not es_valido:
-            st.error(f"❌ El respaldo no es válido: {mensaje}")
+            st.error(f"El respaldo no es válido: {mensaje}")
             return False, None
         
         # Crear backup del estado actual
@@ -392,7 +406,7 @@ def restaurar_desde_respaldo():
             return False, None
     
     except Exception as e:
-        st.error(f"❌ Error en restauración manual: {str(e)}")
+        st.error(f"Error en restauración manual: {str(e)}")
         return False, None
 
 
@@ -412,14 +426,14 @@ def mostrar_panel_restauracion():
                 with st.spinner("Restaurando datos..."):
                     exito, df = restaurar_desde_respaldo()
                     if exito:
-                        st.success("✅ Restauración manual exitosa")
+                        st.success("Restauración manual exitosa")
                         st.balloons()
                         st.rerun()
         
         with col2:
-            st.warning("⚠️ Esto sobrescribirá los datos actuales")
+            st.warning("Esto sobrescribirá los datos actuales")
     
     elif tiene_respaldo:
-        st.error(f"❌ El respaldo existe pero no es válido: {info['mensaje']}")
+        st.error(f"El respaldo existe pero no es válido: {info['mensaje']}")
     else:
-        st.warning("⚠️ No hay respaldo disponible")
+        st.warning("No hay respaldo disponible")
