@@ -1,4 +1,4 @@
-# Validaciones_utils.py actualizado
+# validaciones_utils.py - CORREGIDO: Elimina evaluaciones ambiguas de Series
 import pandas as pd
 import numpy as np
 from data_utils import procesar_fecha, calcular_porcentaje_avance
@@ -6,91 +6,76 @@ from datetime import datetime
 
 def verificar_condiciones_estandares(row):
     """
-    MODIFICADO: Ya no se requiere validación estricta de estándares.
-    Esta función ahora es más permisiva y permite cualquier combinación de estados.
-    
-    Args:
-        row: Fila del DataFrame a verificar
-
-    Returns:
-        tuple: (True, []) - Siempre válido ya que se permite flexibilidad
+    CORREGIDO: Ya no se requiere validación estricta de estándares.
+    Elimina evaluaciones ambiguas de Series.
     """
     # Nueva lógica: siempre permitir, ya que "No aplica" es válido
     return True, []
 
-
 def verificar_condicion_publicacion(row):
     """
-    MODIFICADO: Simplificado para ser más permisivo.
-    Ya no requiere verificación previa de 'Disponer datos temáticos'.
-    
-    Args:
-        row: Fila del DataFrame a verificar
-
-    Returns:
-        bool: Siempre True ya que se actualiza automáticamente
+    CORREGIDO: Simplificado para ser más permisivo.
+    Elimina evaluaciones ambiguas de Series.
     """
     return True
 
-
 def verificar_condiciones_oficio_cierre(row):
     """
-    MODIFICADO: Simplificado drásticamente.
+    CORREGIDO: Simplificado drásticamente.
     Solo verifica que la etapa de Publicación esté completada.
-
-    Args:
-        row: Fila del DataFrame a verificar
-
-    Returns:
-        tuple: (valido, campos_incompletos)
-            - valido: True si la Publicación está completada, False en caso contrario
-            - campos_incompletos: Lista de campos que faltan (solo Publicación si aplica)
+    Elimina evaluaciones ambiguas de Series.
     """
     campos_incompletos = []
 
     # Solo verificar que la Publicación esté completada
     if 'Publicación' in row:
-        if pd.isna(row['Publicación']) or str(row['Publicación']).strip() == "":
-            campos_incompletos.append("Debe completar la etapa de Publicación (tener fecha)")
+        valor_publicacion = row['Publicación']
+        # CORRECCIÓN: Verificar que no sea Series
+        if isinstance(valor_publicacion, pd.Series):
+            if valor_publicacion.isna().all() or (valor_publicacion.astype(str).str.strip() == "").all():
+                campos_incompletos.append("Debe completar la etapa de Publicación (tener fecha)")
+        else:
+            if pd.isna(valor_publicacion) or str(valor_publicacion).strip() == "":
+                campos_incompletos.append("Debe completar la etapa de Publicación (tener fecha)")
     else:
         campos_incompletos.append("El campo Publicación no existe")
 
     return len(campos_incompletos) == 0, campos_incompletos
 
-
 def validar_reglas_negocio(df):
     """
-    MODIFICADO: Aplica nuevas reglas de negocio simplificadas:
-    1. Si suscripción acuerdo de compromiso o entrega acuerdo de compromiso no está vacío, acuerdo de compromiso = SI
-    2. Si análisis y cronograma tiene fecha, análisis de información y cronograma concertado = SI
-    3. Al introducir fecha en estándares, campos que no estén "Completo" se actualizan a "No aplica"
-    4. Si introduce fecha en publicación, disponer datos temáticos = SI automáticamente
-    5. Si oficio de cierre tiene fecha válida, actualizar estado a "Completado"
-    6. Si Estado es "Completado" pero no hay fecha de oficio de cierre, cambiar Estado a "En proceso"
+    CORREGIDO: Aplica nuevas reglas de negocio simplificadas.
+    Elimina evaluaciones ambiguas de Series.
     """
     df_actualizado = df.copy()
 
     # Iterar sobre cada fila
     for idx, row in df.iterrows():
         # Regla 1: Si suscripción o entrega acuerdo de compromiso no está vacío, acuerdo de compromiso = SI
-        if 'Suscripción acuerdo de compromiso' in row and pd.notna(row['Suscripción acuerdo de compromiso']) and str(
-                row['Suscripción acuerdo de compromiso']).strip() != '':
+        suscripcion_valor = row.get('Suscripción acuerdo de compromiso', '')
+        if (pd.notna(suscripcion_valor) and 
+            not isinstance(suscripcion_valor, pd.Series) and 
+            str(suscripcion_valor).strip() != ''):
             df_actualizado.at[idx, 'Acuerdo de compromiso'] = 'Si'
             # Recalcular porcentaje de avance
             if 'Porcentaje Avance' in df_actualizado.columns:
                 df_actualizado.at[idx, 'Porcentaje Avance'] = calcular_porcentaje_avance(df_actualizado.iloc[idx])
 
-        if 'Entrega acuerdo de compromiso' in row and pd.notna(row['Entrega acuerdo de compromiso']) and str(
-                row['Entrega acuerdo de compromiso']).strip() != '':
+        entrega_valor = row.get('Entrega acuerdo de compromiso', '')
+        if (pd.notna(entrega_valor) and 
+            not isinstance(entrega_valor, pd.Series) and 
+            str(entrega_valor).strip() != ''):
             df_actualizado.at[idx, 'Acuerdo de compromiso'] = 'Si'
             # Recalcular porcentaje de avance
             if 'Porcentaje Avance' in df_actualizado.columns:
                 df_actualizado.at[idx, 'Porcentaje Avance'] = calcular_porcentaje_avance(df_actualizado.iloc[idx])
 
         # Regla 2: Si análisis y cronograma tiene fecha, análisis de información y cronograma concertado = SI
-        if 'Análisis y cronograma' in row and pd.notna(row['Análisis y cronograma']) and str(
-                row['Análisis y cronograma']).strip() != '':
-            fecha = procesar_fecha(row['Análisis y cronograma'])
+        analisis_valor = row.get('Análisis y cronograma', '')
+        if (pd.notna(analisis_valor) and 
+            not isinstance(analisis_valor, pd.Series) and 
+            str(analisis_valor).strip() != ''):
+            fecha = procesar_fecha(analisis_valor)
             if fecha is not None:
                 if 'Análisis de información' in df_actualizado.columns:
                     df_actualizado.at[idx, 'Análisis de información'] = 'Si'
@@ -100,9 +85,12 @@ def validar_reglas_negocio(df):
                 if 'Porcentaje Avance' in df_actualizado.columns:
                     df_actualizado.at[idx, 'Porcentaje Avance'] = calcular_porcentaje_avance(df_actualizado.iloc[idx])
 
-        # Regla 3: MODIFICADA - Al introducir fecha en estándares, actualizar campos no completos a "No aplica"
-        if 'Estándares' in row and pd.notna(row['Estándares']) and str(row['Estándares']).strip() != '':
-            fecha = procesar_fecha(row['Estándares'])
+        # Regla 3: Al introducir fecha en estándares, actualizar campos no completos a "No aplica"
+        estandares_valor = row.get('Estándares', '')
+        if (pd.notna(estandares_valor) and 
+            not isinstance(estandares_valor, pd.Series) and 
+            str(estandares_valor).strip() != ''):
+            fecha = procesar_fecha(estandares_valor)
             if fecha is not None:
                 # Campos de estándares a verificar
                 campos_estandares_completo = [
@@ -120,23 +108,30 @@ def validar_reglas_negocio(df):
                 if 'Porcentaje Avance' in df_actualizado.columns:
                     df_actualizado.at[idx, 'Porcentaje Avance'] = calcular_porcentaje_avance(df_actualizado.iloc[idx])
 
-        # Regla 4: MODIFICADA - Si publicación tiene fecha, disponer datos temáticos = SI automáticamente
-        if 'Publicación' in row and pd.notna(row['Publicación']) and str(row['Publicación']).strip() != '':
-            fecha = procesar_fecha(row['Publicación'])
+        # Regla 4: Si publicación tiene fecha, disponer datos temáticos = SI automáticamente
+        publicacion_valor = row.get('Publicación', '')
+        if (pd.notna(publicacion_valor) and 
+            not isinstance(publicacion_valor, pd.Series) and 
+            str(publicacion_valor).strip() != ''):
+            fecha = procesar_fecha(publicacion_valor)
             if fecha is not None and 'Disponer datos temáticos' in df_actualizado.columns:
                 df_actualizado.at[idx, 'Disponer datos temáticos'] = 'Si'
                 # Recalcular porcentaje de avance
                 if 'Porcentaje Avance' in df_actualizado.columns:
                     df_actualizado.at[idx, 'Porcentaje Avance'] = calcular_porcentaje_avance(df_actualizado.iloc[idx])
 
-        # Regla 5: MODIFICADA - Si oficio de cierre tiene fecha, actualizar estado a "Completado" (validación simple)
-        if 'Fecha de oficio de cierre' in row and pd.notna(row['Fecha de oficio de cierre']) and str(
-                row['Fecha de oficio de cierre']).strip() != '':
-            fecha = procesar_fecha(row['Fecha de oficio de cierre'])
+        # Regla 5: Si oficio de cierre tiene fecha, actualizar estado a "Completado"
+        fecha_oficio_valor = row.get('Fecha de oficio de cierre', '')
+        if (pd.notna(fecha_oficio_valor) and 
+            not isinstance(fecha_oficio_valor, pd.Series) and 
+            str(fecha_oficio_valor).strip() != ''):
+            fecha = procesar_fecha(fecha_oficio_valor)
             if fecha is not None:
                 # Solo verificar que Publicación esté completada
-                tiene_publicacion = ('Publicación' in row and pd.notna(row['Publicación']) and 
-                                   str(row['Publicación']).strip() != '')
+                publicacion_check = row.get('Publicación', '')
+                tiene_publicacion = (pd.notna(publicacion_check) and 
+                                   not isinstance(publicacion_check, pd.Series) and
+                                   str(publicacion_check).strip() != '')
                 
                 if tiene_publicacion:
                     # Actualizar estado a "Completado"
@@ -158,7 +153,10 @@ def validar_reglas_negocio(df):
         # Regla 6: Si Estado es "Completado" pero no hay fecha de oficio de cierre, cambiar Estado a "En proceso"
         elif 'Estado' in df_actualizado.columns and df_actualizado.at[idx, 'Estado'] == 'Completado':
             # Verificar si hay fecha de oficio de cierre válida
-            if 'Fecha de oficio de cierre' not in row or pd.isna(row['Fecha de oficio de cierre']) or row['Fecha de oficio de cierre'] == '':
+            fecha_oficio_check = row.get('Fecha de oficio de cierre', '')
+            if (pd.isna(fecha_oficio_check) or 
+                isinstance(fecha_oficio_check, pd.Series) or 
+                str(fecha_oficio_check).strip() == ''):
                 df_actualizado.at[idx, 'Estado'] = 'En proceso'
                 # Recalcular porcentaje de avance
                 if 'Porcentaje Avance' in df_actualizado.columns:
@@ -166,10 +164,10 @@ def validar_reglas_negocio(df):
 
     return df_actualizado
 
-
 def mostrar_estado_validaciones(df, st_obj=None):
     """
-    MODIFICADO: Muestra el estado actual de las validaciones simplificadas.
+    CORREGIDO: Muestra el estado actual de las validaciones simplificadas.
+    Elimina evaluaciones ambiguas de Series.
     """
     resultados = []
 
@@ -178,13 +176,15 @@ def mostrar_estado_validaciones(df, st_obj=None):
                      'Nivel Información ': row.get('Nivel Información ', '')}
 
         # Validar Acuerdo de compromiso
-        tiene_entrega = ('Entrega acuerdo de compromiso' in row and
-                         pd.notna(row['Entrega acuerdo de compromiso']) and
-                         str(row['Entrega acuerdo de compromiso']).strip() != '')
+        entrega_valor = row.get('Entrega acuerdo de compromiso', '')
+        tiene_entrega = (pd.notna(entrega_valor) and
+                         not isinstance(entrega_valor, pd.Series) and
+                         str(entrega_valor).strip() != '')
 
-        tiene_acuerdo = ('Acuerdo de compromiso' in row and
-                         pd.notna(row['Acuerdo de compromiso']) and
-                         str(row['Acuerdo de compromiso']).strip().upper() in ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])
+        acuerdo_valor = row.get('Acuerdo de compromiso', '')
+        tiene_acuerdo = (pd.notna(acuerdo_valor) and
+                         not isinstance(acuerdo_valor, pd.Series) and
+                         str(acuerdo_valor).strip().upper() in ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])
 
         if tiene_entrega and not tiene_acuerdo:
             resultado['Estado Acuerdo'] = 'Inconsistente'
@@ -192,24 +192,26 @@ def mostrar_estado_validaciones(df, st_obj=None):
             resultado['Estado Acuerdo'] = 'Correcto'
 
         # Validar Análisis de información
-        tiene_fecha_analisis = ('Análisis y cronograma' in row and
-                                pd.notna(row['Análisis y cronograma']) and
-                                str(row['Análisis y cronograma']).strip() != '')
+        analisis_fecha_valor = row.get('Análisis y cronograma', '')
+        tiene_fecha_analisis = (pd.notna(analisis_fecha_valor) and
+                                not isinstance(analisis_fecha_valor, pd.Series) and
+                                str(analisis_fecha_valor).strip() != '')
 
-        tiene_analisis_info = ('Análisis de información' in row and
-                               pd.notna(row['Análisis de información']) and
-                               str(row['Análisis de información']).strip().upper() in ['SI', 'SÍ', 'S', 'YES', 'Y',
-                                                                                       'COMPLETO'])
+        analisis_info_valor = row.get('Análisis de información', '')
+        tiene_analisis_info = (pd.notna(analisis_info_valor) and
+                               not isinstance(analisis_info_valor, pd.Series) and
+                               str(analisis_info_valor).strip().upper() in ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])
 
         if tiene_fecha_analisis and not tiene_analisis_info:
             resultado['Estado Análisis'] = 'Inconsistente'
         else:
             resultado['Estado Análisis'] = 'Correcto'
 
-        # MODIFICADO: Validar Estándares (ahora más permisivo)
-        tiene_fecha_estandares = ('Estándares' in row and
-                                  pd.notna(row['Estándares']) and
-                                  str(row['Estándares']).strip() != '')
+        # Validar Estándares (ahora más permisivo)
+        estandares_fecha_valor = row.get('Estándares', '')
+        tiene_fecha_estandares = (pd.notna(estandares_fecha_valor) and
+                                  not isinstance(estandares_fecha_valor, pd.Series) and
+                                  str(estandares_fecha_valor).strip() != '')
 
         if tiene_fecha_estandares:
             resultado['Estado Estándares'] = 'Correcto'
@@ -218,20 +220,22 @@ def mostrar_estado_validaciones(df, st_obj=None):
             resultado['Estado Estándares'] = 'No aplicable'
             resultado['Campos Incompletos'] = ''
 
-        # MODIFICADO: Validar Publicación (ahora automático)
-        tiene_fecha_publicacion = ('Publicación' in row and
-                                   pd.notna(row['Publicación']) and
-                                   str(row['Publicación']).strip() != '')
+        # Validar Publicación (ahora automático)
+        publicacion_fecha_valor = row.get('Publicación', '')
+        tiene_fecha_publicacion = (pd.notna(publicacion_fecha_valor) and
+                                   not isinstance(publicacion_fecha_valor, pd.Series) and
+                                   str(publicacion_fecha_valor).strip() != '')
 
         if tiene_fecha_publicacion:
             resultado['Estado Publicación'] = 'Correcto'
         else:
             resultado['Estado Publicación'] = 'No aplicable'
 
-        # MODIFICADO: Validar Oficio de cierre (solo Publicación requerida)
-        tiene_fecha_oficio = ('Fecha de oficio de cierre' in row and
-                              pd.notna(row['Fecha de oficio de cierre']) and
-                              str(row['Fecha de oficio de cierre']).strip() != '')
+        # Validar Oficio de cierre (solo Publicación requerida)
+        oficio_fecha_valor = row.get('Fecha de oficio de cierre', '')
+        tiene_fecha_oficio = (pd.notna(oficio_fecha_valor) and
+                              not isinstance(oficio_fecha_valor, pd.Series) and
+                              str(oficio_fecha_valor).strip() != '')
 
         if tiene_fecha_oficio:
             valido, campos_incompletos = verificar_condiciones_oficio_cierre(row)
@@ -246,7 +250,10 @@ def mostrar_estado_validaciones(df, st_obj=None):
             resultado['Oficio Incompletos'] = ''
             
         # Validar Estado "Completado" sin fecha de oficio de cierre
-        tiene_estado_completado = ('Estado' in row and pd.notna(row['Estado']) and row['Estado'] == 'Completado')
+        estado_valor = row.get('Estado', '')
+        tiene_estado_completado = (pd.notna(estado_valor) and 
+                                   not isinstance(estado_valor, pd.Series) and 
+                                   str(estado_valor) == 'Completado')
         if tiene_estado_completado and not tiene_fecha_oficio:
             resultado['Estado Inconsistente'] = 'Sí (Completado sin fecha oficio)'
         else:
@@ -259,7 +266,7 @@ def mostrar_estado_validaciones(df, st_obj=None):
 
     # Si hay un objeto Streamlit, mostrar advertencias
     if st_obj is not None:
-        # MODIFICADO: Filtrar solo los registros con oficio de cierre inconsistentes
+        # Filtrar solo los registros con oficio de cierre inconsistentes
         oficio_inconsistentes = resultados_df[resultados_df['Estado Oficio Cierre'] == 'Inconsistente']
 
         if not oficio_inconsistentes.empty:
