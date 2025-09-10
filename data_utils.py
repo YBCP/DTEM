@@ -1,272 +1,224 @@
-# app1.py - VERSIÓN LIMPIA Y CORREGIDA
+# data_utils.py - FUNCIONES DE DATOS ESENCIALES
 """
-Archivo principal del sistema Ideca - Versión Limpia Corregida
-- Error "Series is ambiguous" corregido
-- Sin iconos innecesarios
-- Interfaz visual limpia
-- Funcionalidad completa mantenida
+Utilidades de datos para el sistema Ideca
+- Funciones esenciales sin iconos ni texto innecesario
+- Diseño limpio y funcional
 """
 
-import streamlit as st
 import pandas as pd
-from datetime import datetime
-
-# ===== IMPORTS DE MÓDULOS FRAGMENTADOS =====
-from dashboard import mostrar_dashboard
-from editor import mostrar_edicion_registros_con_autenticacion
-from alertas import mostrar_alertas_vencimientos
-from trimestral import mostrar_seguimiento_trimestral
-
-# ===== IMPORT CORREGIDO PARA REPORTES =====
-try:
-    from reportes import mostrar_reportes
-    REPORTES_MODULE = "disponible"
-except ImportError:
-    REPORTES_MODULE = "no_disponible"
-    
-    def mostrar_reportes(registros_df, *args, **kwargs):
-        """Función de respaldo para reportes"""
-        st.error("Módulo de reportes no disponible")
-        
-        if registros_df is not None and not registros_df.empty:
-            st.subheader("Vista Básica de Datos")
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric("Total Registros", len(registros_df))
-            
-            with col2:
-                if 'Porcentaje Avance' in registros_df.columns:
-                    avance_promedio = registros_df['Porcentaje Avance'].mean()
-                    st.metric("Avance Promedio", f"{avance_promedio:.1f}%")
-                else:
-                    st.metric("Avance Promedio", "N/A")
-            
-            with col3:
-                if 'Estado' in registros_df.columns:
-                    completados = len(registros_df[registros_df['Estado'] == 'Completado'])
-                    st.metric("Completados", completados)
-                else:
-                    st.metric("Completados", "N/A")
-            
-            st.dataframe(registros_df.head(20))
-
-# ===== IMPORTS DE UTILIDADES =====
-from data_utils import (
-    cargar_datos, calcular_porcentaje_avance, verificar_estado_fechas,
-    procesar_metas
-)
-from validaciones_utils import validar_reglas_negocio
-from fecha_utils import (
-    actualizar_plazo_analisis, actualizar_plazo_cronograma, 
-    actualizar_plazo_oficio_cierre
-)
-from auth_utils import mostrar_login, mostrar_estado_autenticacion
-from config import setup_page, load_css
-from sheets_utils import test_connection
+import numpy as np
+from datetime import datetime, timedelta, date
+import re
+import streamlit as st
 
 
-def mostrar_configuracion_limpia():
-    """Configuración limpia sin iconos"""
-    with st.sidebar.expander("Configuración", expanded=False):
-        if st.button("Probar Conexión"):
-            with st.spinner("Probando..."):
-                test_connection()
+# ===== FUNCIONES DE FECHAS =====
 
+def procesar_fecha(fecha_str):
+    """Procesa una fecha de manera segura"""
+    if pd.isna(fecha_str) or fecha_str == '' or fecha_str is None:
+        return None
 
-def mostrar_informacion_sistema_limpia():
-    """Información mínima del sistema"""
-    with st.sidebar:
-        st.markdown("---")
-        
-        # Solo información esencial
-        st.success("Sistema Activo")
-        
-        # Estado de módulos básico
-        modulos_estado = {
-            "Dashboard": "✅",
-            "Editor": "✅", 
-            "Alertas": "✅",
-            "Trimestral": "✅",
-            "Reportes": "✅" if REPORTES_MODULE == "disponible" else "❌"
-        }
-        
-        st.info(f"Módulos: {len([v for v in modulos_estado.values() if v == '✅'])}/5 activos")
+    if isinstance(fecha_str, datetime):
+        if pd.isna(fecha_str):
+            return None
+        return fecha_str
 
+    if isinstance(fecha_str, date):
+        return datetime.combine(fecha_str, datetime.min.time())
 
-def crear_filtros_reportes():
-    """Filtros para reportes"""
-    st.markdown("### Filtros")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        entidades_disponibles = ['Todas']
-        if 'registros_df' in st.session_state and not st.session_state['registros_df'].empty:
-            entidades_unicas = sorted(st.session_state['registros_df']['Entidad'].dropna().unique())
-            entidades_disponibles.extend(entidades_unicas)
-        
-        entidad_reporte = st.selectbox("Entidad:", entidades_disponibles, key="entidad_reporte")
-        tipos_dato = ['Todos', 'Actualizar', 'Nuevo']
-        tipo_dato_reporte = st.selectbox("Tipo de Dato:", tipos_dato, key="tipo_dato_reporte")
-    
-    with col2:
-        acuerdo_opciones = ['Todos', 'Completo', 'En proceso']
-        acuerdo_filtro = st.selectbox("Acuerdo:", acuerdo_opciones, key="acuerdo_filtro")
-        analisis_opciones = ['Todos', 'Completo', 'En proceso']
-        analisis_filtro = st.selectbox("Análisis:", analisis_opciones, key="analisis_filtro")
-    
-    with col3:
-        estandares_opciones = ['Todos', 'Completo', 'En proceso']
-        estandares_filtro = st.selectbox("Estándares:", estandares_opciones, key="estandares_filtro")
-        publicacion_opciones = ['Todos', 'Completo', 'En proceso']
-        publicacion_filtro = st.selectbox("Publicación:", publicacion_opciones, key="publicacion_filtro")
-    
-    with col4:
-        finalizado_opciones = ['Todos', 'Finalizados', 'No finalizados']
-        finalizado_filtro = st.selectbox("Estado:", finalizado_opciones, key="finalizado_filtro")
-        
-        mes_opciones = ['Todos', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-        mes_filtro = st.selectbox("Mes:", mes_opciones, key="mes_filtro")
-        
-        if mes_filtro != 'Todos':
-            meses_map = {
-                'Enero': '01', 'Febrero': '02', 'Marzo': '03', 'Abril': '04',
-                'Mayo': '05', 'Junio': '06', 'Julio': '07', 'Agosto': '08',
-                'Septiembre': '09', 'Octubre': '10', 'Noviembre': '11', 'Diciembre': '12'
-            }
-            mes_filtro_numero = meses_map.get(mes_filtro, mes_filtro)
-        else:
-            mes_filtro_numero = 'Todos'
-    
-    return (entidad_reporte, tipo_dato_reporte, acuerdo_filtro, 
-            analisis_filtro, estandares_filtro, publicacion_filtro, 
-            finalizado_filtro, mes_filtro_numero)
+    if isinstance(fecha_str, pd.Timestamp):
+        if pd.isna(fecha_str):
+            return None
+        return fecha_str.to_pydatetime()
 
-
-def main():
-    """Función principal limpia"""
     try:
-        # ===== SISTEMA DE AUTENTICACIÓN LIMPIO =====
-        mostrar_login()
-        mostrar_estado_autenticacion() 
-        mostrar_configuracion_limpia()
-        mostrar_informacion_sistema_limpia()
-        
-        # ===== TÍTULO PRINCIPAL LIMPIO =====
-        st.markdown('<div class="title">Tablero de Control Datos Temáticos - Ideca</div>', unsafe_allow_html=True)
-        
-        # ===== CARGA Y PROCESAMIENTO DE DATOS =====
-        with st.spinner("Cargando datos..."):
+        fecha_str = re.sub(r'[^\d/\-]', '', str(fecha_str).strip())
+        formatos = ['%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y', '%m/%d/%Y']
+
+        for formato in formatos:
             try:
-                registros_df, meta_df = cargar_datos()
-                
-                if registros_df is None or registros_df.empty:
-                    st.error("No se pudieron cargar los registros")
-                    st.stop()
-                
-                # Aplicar validaciones automáticas
-                registros_df = validar_reglas_negocio(registros_df)
-                registros_df = actualizar_plazo_analisis(registros_df)
-                registros_df = actualizar_plazo_cronograma(registros_df)  
-                registros_df = actualizar_plazo_oficio_cierre(registros_df)
-                
-                # Procesar metas
-                metas_nuevas_df, metas_actualizar_df = procesar_metas(meta_df)
-                
-                # Agregar columnas calculadas
-                registros_df['Porcentaje Avance'] = registros_df.apply(calcular_porcentaje_avance, axis=1)
-                registros_df['Estado Fechas'] = registros_df.apply(verificar_estado_fechas, axis=1)
-                
-            except Exception as e:
-                st.error(f"Error en carga de datos: {str(e)}")
-                st.stop()
-        
-        # Guardar en session_state
-        st.session_state['registros_df'] = registros_df
-        
-        # ===== NAVEGACIÓN POR PESTAÑAS LIMPIA =====
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
-            "Dashboard", 
-            "Edición", 
-            "Seguimiento Trimestral",
-            "Alertas", 
-            "Reportes"
-        ])
-        
-        # ===== TAB 1: DASHBOARD =====
-        with tab1:
-            try:
-                mostrar_dashboard(
-                    registros_df, metas_nuevas_df, metas_actualizar_df, 
-                    registros_df, 'Todas', 'Todos', 'Todos'
-                )
-            except Exception as e:
-                st.error(f"Error en Dashboard: {str(e)}")
-        
-        # ===== TAB 2: EDITOR =====
-        with tab2:
-            try:
-                registros_df = mostrar_edicion_registros_con_autenticacion(registros_df)
-            except Exception as e:
-                st.error(f"Error en Editor: {str(e)}")
-        
-        # ===== TAB 3: TRIMESTRAL =====
-        with tab3:
-            try:
-                mostrar_seguimiento_trimestral(registros_df, meta_df)
-            except Exception as e:
-                st.error(f"Error en Seguimiento Trimestral: {str(e)}")
-        
-        # ===== TAB 4: ALERTAS =====
-        with tab4:
-            try:
-                mostrar_alertas_vencimientos(registros_df)
-            except Exception as e:
-                st.error(f"Error en Alertas: {str(e)}")
-        
-        # ===== TAB 5: REPORTES =====
-        with tab5:
-            try:
-                filtros_reportes = crear_filtros_reportes()
-                
-                if registros_df is None or registros_df.empty:
-                    st.error("No hay datos disponibles")
-                else:
-                    mostrar_reportes(registros_df, *filtros_reportes)
-                    
-            except Exception as e:
-                st.error(f"Error en Reportes: {str(e)}")
-        
-        # ===== FOOTER INFORMATIVO MÍNIMO =====
-        st.markdown("---")
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.info(f"{len(registros_df)} registros")
-        
-        with col2:
-            avance_general = registros_df['Porcentaje Avance'].mean()
-            st.info(f"{avance_general:.1f}% avance promedio")
-        
-        with col3:
-            st.info(f"Actualizado: {datetime.now().strftime('%H:%M:%S')}")
+                fecha = pd.to_datetime(fecha_str, format=formato)
+                if pd.notna(fecha):
+                    resultado = fecha.to_pydatetime() if hasattr(fecha, 'to_pydatetime') else fecha
+                    if isinstance(resultado, date) and not isinstance(resultado, datetime):
+                        return datetime.combine(resultado, datetime.min.time())
+                    return resultado
+            except:
+                continue
+        return None
+    except Exception:
+        return None
+
+
+def formatear_fecha(fecha_str):
+    """Formatea una fecha en formato DD/MM/YYYY"""
+    try:
+        fecha = procesar_fecha(fecha_str)
+        if fecha is not None and pd.notna(fecha):
+            return fecha.strftime('%d/%m/%Y')
+        return ""
+    except Exception:
+        return ""
+
+
+def es_fecha_valida(fecha):
+    """Verifica si una fecha es válida"""
+    if pd.isna(fecha) or fecha == '' or fecha is None:
+        return False
     
-    except Exception as e:
-        st.error("Error crítico en la aplicación")
-        
-        with st.expander("Detalles del Error"):
-            st.error(f"Error: {str(e)}")
-            
-            import traceback
-            st.code(traceback.format_exc())
+    try:
+        fecha_procesada = procesar_fecha(fecha)
+        return fecha_procesada is not None
+    except:
+        return False
 
 
-if __name__ == "__main__":
-    main()== CONFIGURACIÓN INICIAL =====
-        setup_page()
-        load_css()
+def es_festivo(fecha):
+    """Verifica si una fecha es festivo en Colombia"""
+    FESTIVOS_2025 = [
+        datetime(2025, 1, 1), datetime(2025, 1, 6), datetime(2025, 3, 24),
+        datetime(2025, 4, 17), datetime(2025, 4, 18), datetime(2025, 5, 1),
+        datetime(2025, 5, 29), datetime(2025, 6, 19), datetime(2025, 6, 27),
+        datetime(2025, 6, 30), datetime(2025, 7, 20), datetime(2025, 8, 7),
+        datetime(2025, 8, 18), datetime(2025, 10, 13), datetime(2025, 11, 3),
+        datetime(2025, 11, 17), datetime(2025, 12, 8), datetime(2025, 12, 25)
+    ]
+    
+    try:
+        if isinstance(fecha, datetime):
+            fecha_dt = fecha
+        elif isinstance(fecha, date):
+            fecha_dt = datetime.combine(fecha, datetime.min.time())
+        else:
+            return False
         
-        # ===
+        for festivo in FESTIVOS_2025:
+            if (fecha_dt.day == festivo.day and
+                fecha_dt.month == festivo.month and
+                fecha_dt.year == festivo.year):
+                return True
+        return False
+    except Exception:
+        return False
+
+
+# ===== FUNCIONES DE CÁLCULO =====
+
+def calcular_porcentaje_avance(row):
+    """Calcula el porcentaje de avance basado en los hitos principales"""
+    try:
+        avance = 0
+        
+        # Hito 1: Acuerdo de compromiso (25%)
+        acuerdo = str(row.get('Acuerdo de compromiso', '')).strip().upper()
+        if acuerdo in ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO']:
+            avance += 25
+        
+        # Hito 2: Análisis y cronograma (25%)
+        analisis = row.get('Análisis y cronograma', '')
+        if es_fecha_valida(analisis):
+            avance += 25
+        
+        # Hito 3: Estándares (25%)
+        estandares = row.get('Estándares', '')
+        if es_fecha_valida(estandares):
+            avance += 25
+        
+        # Hito 4: Publicación (25%)
+        publicacion = row.get('Publicación', '')
+        if es_fecha_valida(publicacion):
+            avance += 25
+        
+        return min(avance, 100)
+    except Exception:
+        return 0
+
+
+def verificar_estado_fechas(row):
+    """Verifica el estado de las fechas (vencido, próximo, etc.)"""
+    try:
+        hoy = datetime.now().date()
+        
+        campos_fecha_programada = [
+            'Análisis y cronograma (fecha programada)',
+            'Estándares (fecha programada)', 
+            'Fecha de publicación programada'
+        ]
+        
+        for campo in campos_fecha_programada:
+            if campo in row and row[campo]:
+                fecha = procesar_fecha(row[campo])
+                if fecha:
+                    fecha_date = fecha.date() if isinstance(fecha, datetime) else fecha
+                    dias_diferencia = (fecha_date - hoy).days
+                    
+                    if dias_diferencia < 0:
+                        return 'vencido'
+                    elif dias_diferencia <= 7:
+                        return 'proximo'
+        
+        return 'normal'
+    except Exception:
+        return 'normal'
+
+
+def verificar_completado_por_fecha(fecha_programada, fecha_completado):
+    """Verifica si algo está completado por fecha"""
+    try:
+        if fecha_completado:
+            fecha_comp = procesar_fecha(fecha_completado)
+            if fecha_comp:
+                return True
+        
+        if fecha_programada:
+            fecha_prog = procesar_fecha(fecha_programada)
+            if fecha_prog:
+                hoy = datetime.now()
+                return fecha_prog <= hoy
+        
+        return False
+    except Exception:
+        return False
+
+
+# ===== FUNCIONES DE CARGA DE DATOS =====
+
+def cargar_datos():
+    """Carga datos desde Google Sheets"""
+    try:
+        from backup_utils import cargar_datos_con_respaldo
+        return cargar_datos_con_respaldo()
+    except ImportError:
+        return cargar_datos_basico()
+
+
+def cargar_datos_basico():
+    """Carga de datos básica"""
+    try:
+        from sheets_utils import get_sheets_manager
+        
+        sheets_manager = get_sheets_manager()
+        
+        # Cargar registros
+        registros_df = sheets_manager.leer_hoja("Registros")
+        
+        if registros_df.empty:
+            st.warning("No hay datos en la hoja Registros")
+            registros_df = crear_estructura_registros_vacia()
+        
+        # Cargar metas
+        try:
+            meta_df = sheets_manager.leer_hoja("Metas")
+            if meta_df.empty:
+                meta_df = crear_estructura_metas_inicial()
+        except Exception:
+            meta_df = crear_estructura_metas_inicial()
+        
+        # Limpiar datos
+        registros_df = limpiar_dataframe(registros_df)
+        meta_df = limpiar_dataframe(meta_df)
+        
+        return registros_df, meta_df
+        
+    except
