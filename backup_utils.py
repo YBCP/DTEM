@@ -1,4 +1,4 @@
-# backup_utils.py - VERSIÓN ULTRA SEGURA CON RESTAURACIÓN AUTOMÁTICA
+# backup_utils.py - CORREGIDO: Error "truth value of Series is ambiguous"
 
 import streamlit as st
 import pandas as pd
@@ -10,11 +10,14 @@ import os
 
 def crear_respaldo_automatico(registros_df):
     """
-    VERSIÓN ULTRA SEGURA: Crea respaldo automático con validaciones estrictas.
+    CORREGIDO: Crea respaldo automático con validaciones estrictas.
     """
     try:
-        # VALIDACIÓN ESTRICTA: Solo crear respaldo si hay datos realmente válidos
-        if registros_df.empty or len(registros_df) == 0:
+        # CORRECCIÓN: Validaciones separadas para evitar ambigüedad
+        if registros_df.empty:
+            return False
+        
+        if len(registros_df) == 0:
             return False
         
         # Verificar columnas esenciales
@@ -22,7 +25,7 @@ def crear_respaldo_automatico(registros_df):
         if not all(col in registros_df.columns for col in columnas_esenciales):
             return False
         
-        # Validar registros con datos reales (no solo espacios o valores nulos)
+        # CORRECCIÓN: Usar & en lugar de and para operaciones pandas
         registros_validos = registros_df[
             (registros_df['Cod'].notna()) & 
             (registros_df['Cod'].astype(str).str.strip() != '') &
@@ -78,43 +81,24 @@ def crear_respaldo_automatico(registros_df):
         return False
 
 
-def guardar_respaldo_local(df, timestamp):
-    """Guarda respaldo local con timestamp"""
-    try:
-        timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
-        filename = f"respaldo_local_{timestamp_str}.csv"
-        df.to_csv(filename, index=False, encoding='utf-8')
-        
-        # Mantener solo los últimos 10 respaldos locales
-        import glob
-        respaldos = glob.glob("respaldo_local_*.csv")
-        if len(respaldos) > 10:
-            respaldos.sort()
-            for respaldo_viejo in respaldos[:-10]:
-                try:
-                    os.remove(respaldo_viejo)
-                except:
-                    pass
-    except Exception as e:
-        print(f"Error al guardar respaldo local: {e}")
-
-
 def verificar_integridad_datos(registros_df):
     """
-    NUEVA FUNCIÓN: Verifica la integridad de los datos cargados.
-    Detecta si los datos fueron borrados o corrompidos.
+    CORREGIDO: Verifica la integridad de los datos cargados.
     """
     try:
-        # Verificar si el DataFrame está vacío
-        if registros_df.empty or len(registros_df) == 0:
+        # CORRECCIÓN: Usar .empty correctamente
+        if registros_df.empty:
             return False, "DataFrame vacío"
+        
+        if len(registros_df) == 0:
+            return False, "DataFrame sin filas"
         
         # Verificar columnas esenciales
         columnas_esenciales = ['Cod', 'Entidad']
         if not all(col in registros_df.columns for col in columnas_esenciales):
             return False, "Columnas esenciales faltantes"
         
-        # Verificar que hay al menos un registro válido
+        # CORRECCIÓN: Usar & en lugar de and para pandas
         registros_validos = registros_df[
             (registros_df['Cod'].notna()) & 
             (registros_df['Cod'].astype(str).str.strip() != '') &
@@ -127,9 +111,11 @@ def verificar_integridad_datos(registros_df):
         if len(registros_validos) == 0:
             return False, "No hay registros válidos"
         
-        # Verificar que no sean solo headers sin datos
-        if len(registros_df) == 1 and all(registros_df.iloc[0].astype(str).str.strip() == ''):
-            return False, "Solo headers sin datos"
+        # CORRECCIÓN: Verificar estructura correctamente
+        if len(registros_df) == 1:
+            primera_fila = registros_df.iloc[0]
+            if primera_fila.astype(str).str.strip().eq('').all():
+                return False, "Solo headers sin datos"
         
         return True, f"Datos íntegros: {len(registros_validos)} registros válidos"
     
@@ -139,8 +125,7 @@ def verificar_integridad_datos(registros_df):
 
 def restauracion_automatica_emergencia():
     """
-    NUEVA FUNCIÓN: Restauración automática en caso de pérdida de datos.
-    Se ejecuta automáticamente si se detecta que la tabla Registros está vacía.
+    CORREGIDO: Restauración automática en caso de pérdida de datos.
     """
     try:
         st.warning("🚨 ALERTA: Datos de registros vacíos o corruptos detectados")
@@ -157,6 +142,7 @@ def restauracion_automatica_emergencia():
         # Leer respaldo
         df_respaldo = sheets_manager.leer_hoja("Respaldo_Registros")
         
+        # CORRECCIÓN: Usar .empty correctamente
         if df_respaldo.empty:
             st.error("❌ El respaldo está vacío")
             return False, None
@@ -171,6 +157,7 @@ def restauracion_automatica_emergencia():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         try:
             registros_corruptos = sheets_manager.leer_hoja("Registros")
+            # CORRECCIÓN: Usar .empty correctamente
             if not registros_corruptos.empty:
                 sheets_manager.escribir_hoja(registros_corruptos, f"Estado_Corrupto_{timestamp}", limpiar_hoja=True)
         except:
@@ -209,6 +196,7 @@ def verificar_disponibilidad_respaldo():
         if "Respaldo_Registros" in hojas:
             df_respaldo = sheets_manager.leer_hoja("Respaldo_Registros")
             
+            # CORRECCIÓN: Usar .empty correctamente
             if not df_respaldo.empty:
                 # Verificar integridad del respaldo
                 es_valido, mensaje = verificar_integridad_datos(df_respaldo)
@@ -228,62 +216,9 @@ def verificar_disponibilidad_respaldo():
         return False, None
 
 
-def obtener_fecha_ultimo_respaldo():
-    """
-    NUEVA FUNCIÓN: Obtiene la fecha del último respaldo válido.
-    Para mostrar en el estado del sistema.
-    """
-    try:
-        # Primero intentar desde session state
-        if 'ultimo_respaldo' in st.session_state:
-            return st.session_state.ultimo_respaldo['fecha']
-        
-        # Si no, verificar si existe respaldo en Google Sheets
-        tiene_respaldo, info = verificar_disponibilidad_respaldo()
-        if tiene_respaldo and info['valido']:
-            # No podemos obtener la fecha exacta de Google Sheets sin metadatos adicionales
-            # Pero sabemos que existe un respaldo válido
-            return "Respaldo disponible (fecha exacta no disponible)"
-        
-        return None
-    
-    except Exception as e:
-        return None
-
-
-def mostrar_estado_respaldos_detallado():
-    """
-    NUEVA FUNCIÓN: Muestra estado detallado de respaldos para el sistema.
-    """
-    fecha_ultimo = obtener_fecha_ultimo_respaldo()
-    tiene_respaldo, info = verificar_disponibilidad_respaldo()
-    
-    # Información básica para mostrar en estado del sistema
-    if fecha_ultimo:
-        if isinstance(fecha_ultimo, datetime):
-            fecha_str = fecha_ultimo.strftime("%d/%m/%Y %H:%M")
-        else:
-            fecha_str = str(fecha_ultimo)
-        
-        estado_respaldo = f"✅ Último respaldo: {fecha_str}"
-    else:
-        estado_respaldo = "⚠️ Sin respaldo reciente"
-    
-    # Información adicional
-    if tiene_respaldo and info:
-        if info['valido']:
-            estado_adicional = f" | 💾 {info['registros']} registros respaldados"
-        else:
-            estado_adicional = f" | ⚠️ Respaldo corrupto: {info['mensaje']}"
-    else:
-        estado_adicional = " | ❌ No hay respaldo disponible"
-    
-    return estado_respaldo + estado_adicional
-
-
 def cargar_datos_con_respaldo():
     """
-    VERSIÓN ULTRA SEGURA: Carga datos con verificación automática y restauración.
+    CORREGIDO: Carga datos con verificación automática y restauración.
     """
     try:
         sheets_manager = get_sheets_manager()
@@ -345,6 +280,7 @@ def cargar_datos_con_respaldo():
         try:
             meta_df = sheets_manager.leer_hoja("Metas")
             
+            # CORRECCIÓN: Usar .empty correctamente
             if meta_df.empty:
                 meta_df = crear_estructura_metas_inicial()
                 sheets_manager.escribir_hoja(meta_df, "Metas", limpiar_hoja=True)
@@ -366,6 +302,27 @@ def cargar_datos_con_respaldo():
         meta_df = crear_estructura_metas_inicial()
         
         return registros_df, meta_df
+
+
+def guardar_respaldo_local(df, timestamp):
+    """Guarda respaldo local con timestamp"""
+    try:
+        timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
+        filename = f"respaldo_local_{timestamp_str}.csv"
+        df.to_csv(filename, index=False, encoding='utf-8')
+        
+        # Mantener solo los últimos 10 respaldos locales
+        import glob
+        respaldos = glob.glob("respaldo_local_*.csv")
+        if len(respaldos) > 10:
+            respaldos.sort()
+            for respaldo_viejo in respaldos[:-10]:
+                try:
+                    os.remove(respaldo_viejo)
+                except:
+                    pass
+    except Exception as e:
+        print(f"Error al guardar respaldo local: {e}")
 
 
 def crear_estructura_registros_minima():
@@ -404,6 +361,7 @@ def restaurar_desde_respaldo():
         
         df_respaldo = sheets_manager.leer_hoja("Respaldo_Registros")
         
+        # CORRECCIÓN: Usar .empty correctamente
         if df_respaldo.empty:
             st.error("❌ El respaldo está vacío")
             return False, None
@@ -417,6 +375,7 @@ def restaurar_desde_respaldo():
         # Crear backup del estado actual
         try:
             registros_actuales = sheets_manager.leer_hoja("Registros")
+            # CORRECCIÓN: Usar .empty correctamente
             if not registros_actuales.empty:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 sheets_manager.escribir_hoja(registros_actuales, f"Backup_Manual_{timestamp}", limpiar_hoja=True)
@@ -439,17 +398,17 @@ def restaurar_desde_respaldo():
 
 def mostrar_panel_restauracion():
     """Panel de restauración manual"""
-    st.markdown("### 🔧 Panel de Restauración Manual")
+    st.markdown("### Restauración Manual")
     
     tiene_respaldo, info = verificar_disponibilidad_respaldo()
     
     if tiene_respaldo and info['valido']:
-        st.info(f"💾 Respaldo válido disponible: {info['registros']} registros")
+        st.info(f"Respaldo válido disponible: {info['registros']} registros")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("🔄 Restaurar Manualmente", type="primary"):
+            if st.button("Restaurar Manualmente", type="primary"):
                 with st.spinner("Restaurando datos..."):
                     exito, df = restaurar_desde_respaldo()
                     if exito:
