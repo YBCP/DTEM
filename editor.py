@@ -1,8 +1,8 @@
-# editor.py - CORREGIDO: Permite agregar funcionarios y entidades nuevas
+# editor.py - CORREGIDO: Permite agregar funcionarios y entidades nuevas FUERA del form
 """
 Editor CORREGIDO - Permite agregar funcionarios y entidades nuevas:
-- Funcionarios: Selectbox + opción "Agregar nuevo" + campo texto
-- Entidades: Selectbox + opción "Agregar nueva" + campo texto  
+- Funcionarios: Selectbox + opción "Agregar nuevo" + campo texto FUERA del form
+- Entidades: Selectbox + opción "Agregar nueva" + campo texto FUERA del form  
 - Diseño limpio sin iconos innecesarios
 - Todas las funcionalidades mantenidas
 """
@@ -260,14 +260,12 @@ def generar_codigo(df):
     except:
         return "001"
 
-def mostrar_formulario(row, indice, es_nuevo=False, df=None):
+def mostrar_formulario(row, indice, es_nuevo=False, df=None, funcionario_final="", entidad_final=""):
     """
-    CORREGIDO: Formulario que permite agregar funcionarios y entidades nuevas
+    CORREGIDO: Formulario que usa valores EXTERNOS de funcionario y entidad
     """
     
     # Obtener listas únicas para desplegables
-    funcionarios_existentes = obtener_funcionarios_unicos(df) if df is not None else []
-    entidades_existentes = obtener_entidades_unicas(df) if df is not None else []
     frecuencias_existentes = obtener_frecuencias_unicas(df) if df is not None else []
     seguimientos_existentes = obtener_seguimientos_unicos(df) if df is not None else []
     
@@ -281,76 +279,18 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
             disabled=es_nuevo,
             key=f"cod_{indice}")
         
-        # FUNCIONARIO - CORREGIDO: Con opción de agregar nuevo
-        funcionario_actual = get_safe_value(row, 'Funcionario')
-        
-        # Crear opciones para el selectbox
-        opciones_funcionario = ["-- Seleccionar --"]
-        if funcionarios_existentes:
-            opciones_funcionario.extend(funcionarios_existentes)
-        opciones_funcionario.append("✏️ Escribir nuevo funcionario")
-        
-        # Determinar índice seleccionado
-        if funcionario_actual and funcionario_actual in funcionarios_existentes:
-            funcionario_index = funcionarios_existentes.index(funcionario_actual) + 1
-        else:
-            funcionario_index = 0
-        
-        funcionario_seleccion = st.selectbox(
-            "Funcionario:",
-            options=opciones_funcionario,
-            index=funcionario_index,
-            key=f"funcionario_select_{indice}"
-        )
-        
-        # Campo para nuevo funcionario o valor seleccionado
-        if funcionario_seleccion == "✏️ Escribir nuevo funcionario":
-            funcionario = st.text_input(
-                "Escriba el nombre del nuevo funcionario:",
-                value="",
-                placeholder="Nombre completo del funcionario",
-                key=f"funcionario_nuevo_{indice}"
-            )
-        elif funcionario_seleccion == "-- Seleccionar --":
-            funcionario = ""
-        else:
-            funcionario = funcionario_seleccion
+        # FUNCIONARIO - Mostrar valor final (ya seleccionado externamente)
+        funcionario = st.text_input("Funcionario:",
+            value=funcionario_final,
+            disabled=True,
+            key=f"funcionario_readonly_{indice}")
     
     with col2:
-        # ENTIDAD - CORREGIDO: Con opción de agregar nueva
-        entidad_actual = get_safe_value(row, 'Entidad')
-        
-        # Crear opciones para el selectbox
-        opciones_entidad = ["-- Seleccionar --"]
-        if entidades_existentes:
-            opciones_entidad.extend(entidades_existentes)
-        opciones_entidad.append("✏️ Escribir nueva entidad")
-        
-        # Determinar índice seleccionado
-        if entidad_actual and entidad_actual in entidades_existentes:
-            entidad_index = entidades_existentes.index(entidad_actual) + 1
-        else:
-            entidad_index = 0
-        
-        entidad_seleccion = st.selectbox(
-            "Entidad:",
-            options=opciones_entidad,
-            index=entidad_index,
-            key=f"entidad_select_{indice}"
-        )
-        
-        # Campo para nueva entidad o valor seleccionado
-        if entidad_seleccion == "✏️ Escribir nueva entidad":
-            entidad = st.text_input(
-                "Escriba el nombre de la nueva entidad:",
-                value="",
-                placeholder="Nombre completo de la entidad",
-                key=f"entidad_nueva_{indice}"
-            )
-        elif entidad_seleccion == "-- Seleccionar --":
-            entidad = ""
-        else:
-            entidad = entidad_seleccion
+        # ENTIDAD - Mostrar valor final (ya seleccionada externamente)
+        entidad = st.text_input("Entidad:",
+            value=entidad_final,
+            disabled=True,
+            key=f"entidad_readonly_{indice}")
         
         nivel_info = st.text_input("Nivel de Información",
             value=get_safe_value(row, 'Nivel Información '),
@@ -377,11 +317,11 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
     
     frecuencia_index = todas_frecuencias.index(frecuencia_actual) if frecuencia_actual in todas_frecuencias else 0
     frecuencia = st.selectbox("Frecuencia",
-        options=["-- Seleccionar --"] + todas_frecuencias[1:] + ["✏️ Escribir otra"],
+        options=["-- Seleccionar --"] + todas_frecuencias[1:] + ["Escribir otra"],
         index=frecuencia_index if frecuencia_actual in todas_frecuencias[1:] else 0,
         key=f"freq_{indice}")
     
-    if frecuencia == "✏️ Escribir otra":
+    if frecuencia == "Escribir otra":
         frecuencia = st.text_input("Nueva frecuencia:",
             placeholder="Ej: Quincenal, Bimestral, etc.",
             key=f"freq_nueva_{indice}")
@@ -502,11 +442,11 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
         
         seguimiento_index = todos_seguimientos.index(seguimiento_actual) if seguimiento_actual in todos_seguimientos else 0
         seguimiento = st.selectbox("Seguimiento acuerdos",
-            options=["-- Seleccionar --"] + todos_seguimientos[1:] + ["✏️ Escribir otro"],
+            options=["-- Seleccionar --"] + todos_seguimientos[1:] + ["Escribir otro"],
             index=seguimiento_index if seguimiento_actual in todos_seguimientos[1:] else 0,
             key=f"seguimiento_select_{indice}")
         
-        if seguimiento == "✏️ Escribir otro":
+        if seguimiento == "Escribir otro":
             seguimiento = st.text_area("Otro seguimiento:",
                 height=80,
                 key=f"seguimiento_otro_{indice}")
@@ -723,8 +663,8 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None):
     # Retornar valores del formulario
     return {
         'Cod': codigo,
-        'Funcionario': funcionario,
-        'Entidad': entidad,
+        'Funcionario': funcionario_final,  # Usar valor externo
+        'Entidad': entidad_final,  # Usar valor externo
         'Nivel Información ': nivel_info,
         'Frecuencia actualizacion ': frecuencia,
         'TipoDato': tipo_dato,
@@ -896,10 +836,90 @@ def mostrar_edicion_registros(registros_df):
                         del st.session_state.registro_a_borrar
                     st.rerun()
         
-        # Formulario de edición (solo mostrar si no está en modo confirmación)
+        # SELECCIÓN DE FUNCIONARIO Y ENTIDAD - FUERA DEL FORM
         if not st.session_state.get('confirmar_borrado', False):
+            st.markdown("---")
+            st.subheader("Asignar Funcionario y Entidad")
+            
+            # Obtener listas únicas
+            funcionarios_existentes = obtener_funcionarios_unicos(registros_df)
+            entidades_existentes = obtener_entidades_unicas(registros_df)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # FUNCIONARIO - FUERA DEL FORM
+                funcionario_actual = get_safe_value(row_seleccionada, 'Funcionario')
+                
+                opciones_funcionario = ["-- Seleccionar --"]
+                if funcionarios_existentes:
+                    opciones_funcionario.extend(funcionarios_existentes)
+                opciones_funcionario.append("Escribir nuevo funcionario")
+                
+                # Determinar índice seleccionado
+                if funcionario_actual and funcionario_actual in funcionarios_existentes:
+                    funcionario_index = funcionarios_existentes.index(funcionario_actual) + 1
+                else:
+                    funcionario_index = 0
+                
+                funcionario_seleccion = st.selectbox(
+                    "Funcionario:",
+                    options=opciones_funcionario,
+                    index=funcionario_index,
+                    key=f"funcionario_select_edit_{indice_real}"
+                )
+                
+                # Campo para nuevo funcionario
+                if funcionario_seleccion == "Escribir nuevo funcionario":
+                    funcionario_final = st.text_input(
+                        "Escriba el nombre del nuevo funcionario:",
+                        value="",
+                        placeholder="Nombre completo del funcionario",
+                        key=f"funcionario_nuevo_edit_{indice_real}"
+                    )
+                elif funcionario_seleccion == "-- Seleccionar --":
+                    funcionario_final = ""
+                else:
+                    funcionario_final = funcionario_seleccion
+            
+            with col2:
+                # ENTIDAD - FUERA DEL FORM
+                entidad_actual = get_safe_value(row_seleccionada, 'Entidad')
+                
+                opciones_entidad = ["-- Seleccionar --"]
+                if entidades_existentes:
+                    opciones_entidad.extend(entidades_existentes)
+                opciones_entidad.append("Escribir nueva entidad")
+                
+                # Determinar índice seleccionado
+                if entidad_actual and entidad_actual in entidades_existentes:
+                    entidad_index = entidades_existentes.index(entidad_actual) + 1
+                else:
+                    entidad_index = 0
+                
+                entidad_seleccion = st.selectbox(
+                    "Entidad:",
+                    options=opciones_entidad,
+                    index=entidad_index,
+                    key=f"entidad_select_edit_{indice_real}"
+                )
+                
+                # Campo para nueva entidad
+                if entidad_seleccion == "Escribir nueva entidad":
+                    entidad_final = st.text_input(
+                        "Escriba el nombre de la nueva entidad:",
+                        value="",
+                        placeholder="Nombre completo de la entidad",
+                        key=f"entidad_nueva_edit_{indice_real}"
+                    )
+                elif entidad_seleccion == "-- Seleccionar --":
+                    entidad_final = ""
+                else:
+                    entidad_final = entidad_seleccion
+            
+            # Formulario de edición
             with st.form("form_editar"):
-                valores = mostrar_formulario(row_seleccionada, indice_real, False, registros_df)
+                valores = mostrar_formulario(row_seleccionada, indice_real, False, registros_df, funcionario_final, entidad_final)
                 
                 if st.form_submit_button("Guardar Cambios", type="primary"):
                     try:
@@ -935,12 +955,74 @@ def mostrar_edicion_registros(registros_df):
         nuevo_codigo = generar_codigo(registros_df)
         st.info(f"Código asignado: {nuevo_codigo}")
         
+        # SELECCIÓN DE FUNCIONARIO Y ENTIDAD - FUERA DEL FORM PARA NUEVO
+        st.subheader("Asignar Funcionario y Entidad")
+        
+        funcionarios_existentes = obtener_funcionarios_unicos(registros_df)
+        entidades_existentes = obtener_entidades_unicas(registros_df)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # FUNCIONARIO - FUERA DEL FORM
+            opciones_funcionario = ["-- Seleccionar --"]
+            if funcionarios_existentes:
+                opciones_funcionario.extend(funcionarios_existentes)
+            opciones_funcionario.append("Escribir nuevo funcionario")
+            
+            funcionario_seleccion_nuevo = st.selectbox(
+                "Funcionario:",
+                options=opciones_funcionario,
+                index=0,
+                key="funcionario_select_nuevo"
+            )
+            
+            # Campo para nuevo funcionario
+            if funcionario_seleccion_nuevo == "Escribir nuevo funcionario":
+                funcionario_final_nuevo = st.text_input(
+                    "Escriba el nombre del nuevo funcionario:",
+                    value="",
+                    placeholder="Nombre completo del funcionario",
+                    key="funcionario_nuevo_nuevo"
+                )
+            elif funcionario_seleccion_nuevo == "-- Seleccionar --":
+                funcionario_final_nuevo = ""
+            else:
+                funcionario_final_nuevo = funcionario_seleccion_nuevo
+        
+        with col2:
+            # ENTIDAD - FUERA DEL FORM
+            opciones_entidad = ["-- Seleccionar --"]
+            if entidades_existentes:
+                opciones_entidad.extend(entidades_existentes)
+            opciones_entidad.append("Escribir nueva entidad")
+            
+            entidad_seleccion_nuevo = st.selectbox(
+                "Entidad:",
+                options=opciones_entidad,
+                index=0,
+                key="entidad_select_nuevo"
+            )
+            
+            # Campo para nueva entidad
+            if entidad_seleccion_nuevo == "Escribir nueva entidad":
+                entidad_final_nuevo = st.text_input(
+                    "Escriba el nombre de la nueva entidad:",
+                    value="",
+                    placeholder="Nombre completo de la entidad",
+                    key="entidad_nueva_nuevo"
+                )
+            elif entidad_seleccion_nuevo == "-- Seleccionar --":
+                entidad_final_nuevo = ""
+            else:
+                entidad_final_nuevo = entidad_seleccion_nuevo
+        
         # Crear registro vacío
         registro_vacio = pd.Series({col: '' for col in registros_df.columns})
         registro_vacio['Cod'] = nuevo_codigo
         
         with st.form("form_nuevo"):
-            valores_nuevo = mostrar_formulario(registro_vacio, "nuevo", True, registros_df)
+            valores_nuevo = mostrar_formulario(registro_vacio, "nuevo", True, registros_df, funcionario_final_nuevo, entidad_final_nuevo)
             
             if st.form_submit_button("Crear Registro", type="primary"):
                 try:
