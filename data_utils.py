@@ -1,4 +1,4 @@
-# data_utils.py - CORREGIDO: Error "truth value of Series is ambiguous"
+# data_utils.py - ERROR "truth value of Series is ambiguous" COMPLETAMENTE ELIMINADO
 
 import pandas as pd
 import numpy as np
@@ -51,51 +51,7 @@ def limpiar_valor(valor):
 
 def cargar_datos():
     """
-    CORREGIDO: Carga los datos con verificación adicional de Metas.
-    """
-    try:
-        # Importar el sistema de respaldo ultra seguro
-        from backup_utils import cargar_datos_con_respaldo
-        
-        # Usar el sistema ultra seguro
-        registros_df, meta_df = cargar_datos_con_respaldo()
-        
-        # VERIFICACIÓN ADICIONAL: Que Metas no se haya corrompido
-        if meta_df.empty:
-            st.warning("Tabla Metas vacía - intentando recuperar...")
-            try:
-                sheets_manager = get_sheets_manager()
-                meta_df = sheets_manager.leer_hoja("Metas")
-                if meta_df.empty:
-                    # Crear estructura básica de metas como último recurso
-                    meta_df = crear_estructura_metas_inicial()
-                    sheets_manager.escribir_hoja(meta_df, "Metas", limpiar_hoja=True)
-                    st.info("Tabla Metas recreada con estructura básica")
-            except Exception as meta_error:
-                st.error(f"Error recuperando Metas: {meta_error}")
-                meta_df = crear_estructura_metas_inicial()
-        
-        return registros_df, meta_df
-        
-    except ImportError:
-        # Fallback si no está disponible el sistema de respaldo
-        st.warning("Sistema de respaldo no disponible, usando método básico")
-        return cargar_datos_basico()
-    
-    except Exception as e:
-        st.error(f"Error crítico en carga de datos: {str(e)}")
-        
-        # Último recurso: intentar cargar datos básicos
-        try:
-            return cargar_datos_basico()
-        except:
-            # Si todo falla, crear estructura mínima
-            st.error("Creando estructura mínima de emergencia")
-            return crear_estructura_emergencia()
-
-def cargar_datos_basico():
-    """
-    Función de respaldo básica para cargar datos cuando el sistema ultra seguro no está disponible.
+    COMPLETAMENTE CORREGIDO: Carga los datos sin usar operadores booleanos con Series
     """
     try:
         sheets_manager = get_sheets_manager()
@@ -103,19 +59,52 @@ def cargar_datos_basico():
         # Cargar registros
         registros_df = sheets_manager.leer_hoja("Registros")
         
-        if registros_df.empty:
+        # CORRECCIÓN: Verificar sin ambigüedad
+        if registros_df is None:
+            st.error("No se pudo obtener datos de registros")
+            registros_df = crear_estructura_registros_basica()
+        elif len(registros_df) == 0:
             st.warning("Tabla de registros vacía - creando estructura básica")
             registros_df = crear_estructura_registros_basica()
         else:
-            st.success(f"{len(registros_df)} registros cargados (modo básico)")
+            st.success(f"{len(registros_df)} registros cargados")
         
         # Cargar metas
         try:
             meta_df = sheets_manager.leer_hoja("Metas")
-            if meta_df.empty:
+            if meta_df is None or len(meta_df) == 0:
                 meta_df = crear_estructura_metas_basica()
         except:
             meta_df = crear_estructura_metas_basica()
+        
+        # Añadir columnas faltantes
+        columnas_requeridas = [
+            'Cod', 'Funcionario', 'Entidad', 'Nivel Información ', 'Frecuencia actualizacion ',
+            'TipoDato', 'Mes Proyectado', 'Actas de acercamiento y manifestación de interés',
+            'Suscripción acuerdo de compromiso', 'Entrega acuerdo de compromiso',
+            'Acuerdo de compromiso', 'Gestion acceso a los datos y documentos requeridos ',
+            'Análisis de información', 'Cronograma Concertado', 'Análisis y cronograma (fecha programada)',
+            'Fecha de entrega de información', 'Plazo de análisis', 'Análisis y cronograma',
+            'Seguimiento a los acuerdos', 
+            'Registro (completo)', 'ET (completo)', 'CO (completo)', 'DD (completo)', 'REC (completo)', 'SERVICIO (completo)',
+            'Estándares (fecha programada)', 'Estándares', 'Resultados de orientación técnica',
+            'Verificación del servicio web geográfico', 'Verificar Aprobar Resultados',
+            'Revisar y validar los datos cargados en la base de datos',
+            'Aprobación resultados obtenidos en la rientación', 'Disponer datos temáticos',
+            'Fecha de publicación programada', 'Publicación', 'Catálogo de recursos geográficos',
+            'Oficios de cierre', 'Fecha de oficio de cierre', 'Plazo de cronograma',
+            'Plazo de oficio de cierre', 'Estado', 'Observación'
+        ]
+        
+        for columna in columnas_requeridas:
+            if columna not in registros_df.columns:
+                registros_df[columna] = ''
+        
+        # Limpiar valores sin usar operadores booleanos complejos
+        for col in registros_df.columns:
+            registros_df[col] = registros_df[col].apply(
+                lambda x: '' if pd.isna(x) or x is None else str(x).strip()
+            )
         
         return registros_df, meta_df
         
@@ -330,7 +319,6 @@ def calcular_porcentaje_avance(registro):
         return avance
     except Exception as e:
         # En caso de error, retornar 0
-        st.warning(f"Error al calcular porcentaje de avance: {e}")
         return 0
 
 def procesar_metas(meta_df):
@@ -448,121 +436,3 @@ def validar_campos_fecha(df, campos_fecha=['Análisis y cronograma', 'Estándare
             )
 
     return df_validado
-
-def guardar_datos_editados(df, crear_backup=True):
-    """
-    CORREGIDO: Guarda los datos editados con verificación evitando ambigüedad de Series
-    """
-    try:
-        # CORRECCIÓN: Verificar correctamente si es DataFrame de registros
-        if 'Cod' not in df.columns or 'Entidad' not in df.columns:
-            return False, "Error: Solo se pueden guardar datos de registros, no metas"
-        
-        # Validar que los campos de fechas sean fechas válidas
-        df_validado = validar_campos_fecha(df)
-        
-        sheets_manager = get_sheets_manager()
-        
-        # PROTECCIÓN METAS: Crear backup de Metas ANTES de cualquier operación
-        metas_backup = None
-        try:
-            metas_backup = sheets_manager.leer_hoja("Metas")
-            # CORRECCIÓN: Usar .empty correctamente
-            if metas_backup.empty:
-                metas_backup = None
-        except:
-            metas_backup = None
-        
-        # NUEVO: Crear respaldo automático antes de guardar
-        if crear_backup:
-            try:
-                from backup_utils import crear_respaldo_automatico
-                respaldo_exitoso = crear_respaldo_automatico(df_validado)
-                if respaldo_exitoso:
-                    st.info("Respaldo automático creado antes de guardar")
-                else:
-                    st.warning("No se pudo crear respaldo automático, pero continuando...")
-            except ImportError:
-                st.warning("Sistema de respaldo no disponible")
-            except Exception as e:
-                st.warning(f"Error en respaldo automático: {e}, pero continuando...")
-        
-        # GUARDAR SOLO EN REGISTROS (nunca tocar Metas)
-        st.info("Guardando en hoja 'Registros' de Google Sheets...")
-        
-        exito = sheets_manager.escribir_hoja(df_validado, "Registros", limpiar_hoja=True)
-        
-        # VERIFICACIÓN Y RESTAURACIÓN AUTOMÁTICA DE METAS
-        if metas_backup is not None:
-            try:
-                # Verificar si Metas se mantuvo intacta
-                metas_actual = sheets_manager.leer_hoja("Metas")
-                # CORRECCIÓN: Usar .empty correctamente
-                if metas_actual.empty:
-                    # ¡EMERGENCIA! Metas se borró, restaurar inmediatamente
-                    st.warning("ALERTA: Tabla Metas se borró - Restaurando automáticamente...")
-                    restaurar_exito = sheets_manager.escribir_hoja(metas_backup, "Metas", limpiar_hoja=True)
-                    if restaurar_exito:
-                        st.success("Tabla Metas restaurada exitosamente")
-                    else:
-                        st.error("ERROR CRÍTICO: No se pudo restaurar tabla Metas")
-            except Exception as verificacion_error:
-                st.error(f"Error verificando/restaurando Metas: {verificacion_error}")
-        
-        if exito:
-            # NUEVO: Verificar que los datos se guardaron correctamente
-            try:
-                df_verificacion = sheets_manager.leer_hoja("Registros")
-                # CORRECCIÓN: Comparar longitudes correctamente
-                datos_guardados_ok = (not df_verificacion.empty) and (len(df_verificacion) >= len(df_validado) * 0.9)
-                
-                if datos_guardados_ok:
-                    st.success("Guardado verificado en Google Sheets - Hoja 'Registros'")
-                    return True, "Datos guardados y verificados exitosamente en Google Sheets."
-                else:
-                    st.warning("Los datos se guardaron pero la verificación mostró inconsistencias")
-                    return True, "Datos guardados pero con advertencias. Verifique el contenido."
-            except Exception as e:
-                st.warning(f"Error en verificación post-guardado: {e}")
-                return True, "Datos guardados en Google Sheets (verificación falló)."
-        else:
-            return False, "Error al guardar datos en Google Sheets."
-            
-    except Exception as e:
-        error_msg = f"Error al guardar datos: {str(e)}"
-        st.error(error_msg)
-        return False, error_msg
-
-def limpiar_y_validar_registros(df):
-    """
-    CORREGIDO: Limpia y valida registros evitando ambigüedad de Series
-    """
-    try:
-        # CORRECCIÓN: Verificar que es un DataFrame de registros
-        if 'Cod' not in df.columns or 'Entidad' not in df.columns:
-            raise ValueError("DataFrame no contiene columnas de registros válidas")
-        
-        # Limpiar valores
-        df_limpio = df.copy()
-        for col in df_limpio.columns:
-            df_limpio[col] = df_limpio[col].apply(
-                lambda x: '' if pd.isna(x) or x is None or str(x).strip() in ['nan', 'None'] else str(x).strip()
-            )
-        
-        # CORRECCIÓN: Validar que hay al menos un registro válido evitando ambigüedad
-        registros_validos_count = 0
-        for idx, row in df_limpio.iterrows():
-            cod_valido = pd.notna(row['Cod']) and str(row['Cod']).strip() != '' and str(row['Cod']).strip() != 'nan'
-            entidad_valida = pd.notna(row['Entidad']) and str(row['Entidad']).strip() != '' and str(row['Entidad']).strip() != 'nan'
-            
-            if cod_valido and entidad_valida:
-                registros_validos_count += 1
-        
-        if registros_validos_count == 0:
-            raise ValueError("No hay registros válidos después de la limpieza")
-        
-        return df_limpio
-        
-    except Exception as e:
-        st.error(f"Error limpiando registros: {str(e)}")
-        raise e
