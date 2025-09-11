@@ -29,7 +29,7 @@ def normalizar_csv(contenido, separador=';'):
             # Añadir campos vacíos faltantes
             linea = linea + separador * (columnas - len(campos))
         elif len(campos) > columnas:
-            # Recortar campos excedentes
+            # Truncar campos excedentes
             linea = separador.join(campos[:columnas])
 
         lineas_normalizadas.append(linea)
@@ -451,11 +451,11 @@ def validar_campos_fecha(df, campos_fecha=['Análisis y cronograma', 'Estándare
 
 def guardar_datos_editados(df, crear_backup=True):
     """
-    CORREGIDO: Guarda los datos editados con verificación
+    CORREGIDO: Guarda los datos editados con verificación evitando ambigüedad de Series
     """
     try:
         # CORRECCIÓN: Verificar correctamente si es DataFrame de registros
-        if ('Cod' not in df.columns) or ('Entidad' not in df.columns):
+        if 'Cod' not in df.columns or 'Entidad' not in df.columns:
             return False, "Error: Solo se pueden guardar datos de registros, no metas"
         
         # Validar que los campos de fechas sean fechas válidas
@@ -513,7 +513,7 @@ def guardar_datos_editados(df, crear_backup=True):
             # NUEVO: Verificar que los datos se guardaron correctamente
             try:
                 df_verificacion = sheets_manager.leer_hoja("Registros")
-                # CORRECCIÓN: Comparar longitudes correctamente usando len()
+                # CORRECCIÓN: Comparar longitudes correctamente
                 datos_guardados_ok = (not df_verificacion.empty) and (len(df_verificacion) >= len(df_validado) * 0.9)
                 
                 if datos_guardados_ok:
@@ -533,155 +533,13 @@ def guardar_datos_editados(df, crear_backup=True):
         st.error(error_msg)
         return False, error_msg
 
-def guardar_datos_editados_rapido(df, numero_fila=None):
-    """
-    Versión rápida para guardar cambios individuales sin reescribir toda la hoja.
-    INCLUYE verificaciones de seguridad básicas y protección de Metas.
-    """
-    try:
-        # CORRECCIÓN: Verificar correctamente si es DataFrame de registros
-        if ('Cod' not in df.columns) or ('Entidad' not in df.columns):
-            return False, "Error: Solo se pueden guardar datos de registros"
-        
-        sheets_manager = get_sheets_manager()
-        
-        # PROTECCIÓN METAS: Backup rápido de Metas
-        metas_backup = None
-        try:
-            metas_backup = sheets_manager.leer_hoja("Metas")
-            # CORRECCIÓN: Usar .empty correctamente
-            if metas_backup.empty:
-                metas_backup = None
-        except:
-            metas_backup = None
-        
-        # NUEVO: Verificación básica antes de guardar
-        if df.empty:
-            st.error("No se puede guardar: DataFrame vacío")
-            return False, "Error: Datos vacíos"
-        
-        if numero_fila is not None:
-            # Actualizar solo una fila específica
-            exito = sheets_manager.actualizar_fila(df, numero_fila, "Registros")
-        else:
-            # Guardar todo el DataFrame
-            exito = sheets_manager.escribir_hoja(df, "Registros", limpiar_hoja=True)
-        
-        # VERIFICACIÓN RÁPIDA DE METAS
-        if metas_backup is not None:
-            try:
-                metas_actual = sheets_manager.leer_hoja("Metas")
-                # CORRECCIÓN: Usar .empty correctamente
-                if metas_actual.empty:
-                    # Restaurar Metas si se borró
-                    sheets_manager.escribir_hoja(metas_backup, "Metas", limpiar_hoja=True)
-                    st.info("Tabla Metas restaurada automáticamente")
-            except:
-                pass  # En modo rápido, no mostrar errores de verificación
-        
-        if exito:
-            return True, "Datos guardados."
-        else:
-            return False, "Error al guardar."
-            
-    except Exception as e:
-        return False, f"Error: {str(e)}"
-
-def contar_registros_completados_por_fecha(df, columna_fecha_programada, columna_fecha_completado):
-    """
-    CORRECCIÓN CRÍTICA: Cuenta los registros que tienen una fecha de completado o cuya fecha programada ya pasó.
-    Uso correcto de procesar_fecha()
-    """
-    count = 0
-    
-    for _, row in df.iterrows():
-        try:
-            if columna_fecha_programada in row and pd.notna(row[columna_fecha_programada]) and str(row[columna_fecha_programada]).strip() != '':
-                fecha_programada = row[columna_fecha_programada]
-
-                # Verificar si hay una fecha de completado VÁLIDA
-                fecha_completado = None
-                if columna_fecha_completado in row:
-                    if es_fecha_valida(row[columna_fecha_completado]):
-                        fecha_completado = procesar_fecha(row[columna_fecha_completado])  # datetime o None
-
-                if verificar_completado_por_fecha(fecha_programada, fecha_completado):
-                    count += 1
-        except Exception as e:
-            # Ignorar errores en filas individuales y continuar
-            continue
-
-    return count
-
-def verificar_integridad_metas():
-    """
-    NUEVA FUNCIÓN: Verifica específicamente la integridad de la tabla Metas
-    """
-    try:
-        sheets_manager = get_sheets_manager()
-        metas_df = sheets_manager.leer_hoja("Metas")
-        
-        # CORRECCIÓN: Usar .empty correctamente
-        if metas_df.empty:
-            return False, "Tabla Metas está vacía"
-        
-        # Verificar estructura básica de metas
-        if len(metas_df.columns) < 5:
-            return False, "Tabla Metas tiene muy pocas columnas"
-        
-        if len(metas_df) < 3:
-            return False, "Tabla Metas tiene muy pocas filas"
-        
-        return True, f"Tabla Metas OK: {len(metas_df)} filas, {len(metas_df.columns)} columnas"
-        
-    except Exception as e:
-        return False, f"Error verificando Metas: {str(e)}"
-
-def proteger_metas_durante_operacion(funcion_operacion, *args, **kwargs):
-    """
-    NUEVA FUNCIÓN: Wrapper para proteger Metas durante cualquier operación crítica
-    """
-    try:
-        sheets_manager = get_sheets_manager()
-        
-        # Crear backup de Metas antes de la operación
-        metas_backup = None
-        try:
-            metas_backup = sheets_manager.leer_hoja("Metas")
-            # CORRECCIÓN: Usar .empty correctamente
-            if metas_backup.empty:
-                metas_backup = None
-        except:
-            metas_backup = None
-        
-        # Ejecutar la operación
-        resultado = funcion_operacion(*args, **kwargs)
-        
-        # Verificar Metas después de la operación
-        if metas_backup is not None:
-            try:
-                metas_actual = sheets_manager.leer_hoja("Metas")
-                # CORRECCIÓN: Usar .empty correctamente
-                if metas_actual.empty:
-                    # Restaurar Metas si se borró
-                    sheets_manager.escribir_hoja(metas_backup, "Metas", limpiar_hoja=True)
-                    st.warning("Tabla Metas restaurada automáticamente después de operación")
-            except Exception as restore_error:
-                st.error(f"Error restaurando Metas: {restore_error}")
-        
-        return resultado
-        
-    except Exception as e:
-        st.error(f"Error en operación protegida: {str(e)}")
-        return None
-
 def limpiar_y_validar_registros(df):
     """
-    NUEVA FUNCIÓN: Limpia y valida registros antes de cualquier operación
+    CORREGIDO: Limpia y valida registros evitando ambigüedad de Series
     """
     try:
         # CORRECCIÓN: Verificar que es un DataFrame de registros
-        if ('Cod' not in df.columns) or ('Entidad' not in df.columns):
+        if 'Cod' not in df.columns or 'Entidad' not in df.columns:
             raise ValueError("DataFrame no contiene columnas de registros válidas")
         
         # Limpiar valores
@@ -691,18 +549,16 @@ def limpiar_y_validar_registros(df):
                 lambda x: '' if pd.isna(x) or x is None or str(x).strip() in ['nan', 'None'] else str(x).strip()
             )
         
-        # CORRECCIÓN: Validar que hay al menos un registro válido usando evaluación separada
-        mask_cod = df_limpio['Cod'].notna()
-        mask_cod_not_empty = df_limpio['Cod'].astype(str).str.strip() != ''
-        mask_entidad = df_limpio['Entidad'].notna()
-        mask_entidad_not_empty = df_limpio['Entidad'].astype(str).str.strip() != ''
+        # CORRECCIÓN: Validar que hay al menos un registro válido evitando ambigüedad
+        registros_validos_count = 0
+        for idx, row in df_limpio.iterrows():
+            cod_valido = pd.notna(row['Cod']) and str(row['Cod']).strip() != '' and str(row['Cod']).strip() != 'nan'
+            entidad_valida = pd.notna(row['Entidad']) and str(row['Entidad']).strip() != '' and str(row['Entidad']).strip() != 'nan'
+            
+            if cod_valido and entidad_valida:
+                registros_validos_count += 1
         
-        # Combinar todas las máscaras
-        mask_final = mask_cod & mask_cod_not_empty & mask_entidad & mask_entidad_not_empty
-        
-        registros_validos = df_limpio[mask_final]
-        
-        if registros_validos.empty:
+        if registros_validos_count == 0:
             raise ValueError("No hay registros válidos después de la limpieza")
         
         return df_limpio
@@ -710,113 +566,3 @@ def limpiar_y_validar_registros(df):
     except Exception as e:
         st.error(f"Error limpiando registros: {str(e)}")
         raise e
-
-def sincronizar_con_google_sheets(df, hoja="Registros", crear_backup=True):
-    """
-    NUEVA FUNCIÓN: Sincronización segura con Google Sheets con protección de Metas
-    """
-    try:
-        # CORRECCIÓN: Validar que solo son registros
-        if hoja == "Registros" and (('Cod' not in df.columns) or ('Entidad' not in df.columns)):
-            return False, "Error: Solo se pueden sincronizar datos de registros"
-        
-        # Limpiar y validar datos
-        df_validado = limpiar_y_validar_registros(df)
-        
-        # Usar protección de Metas
-        def operacion_sincronizacion():
-            sheets_manager = get_sheets_manager()
-            return sheets_manager.escribir_hoja(df_validado, hoja, limpiar_hoja=True)
-        
-        # Ejecutar con protección
-        exito = proteger_metas_durante_operacion(operacion_sincronizacion)
-        
-        if exito:
-            # Crear respaldo si se solicita
-            if crear_backup and hoja == "Registros":
-                try:
-                    from backup_utils import crear_respaldo_automatico
-                    crear_respaldo_automatico(df_validado)
-                except:
-                    pass  # No fallar si el respaldo falla
-            
-            return True, f"Sincronización exitosa con {hoja}"
-        else:
-            return False, f"Error en sincronización con {hoja}"
-            
-    except Exception as e:
-        return False, f"Error en sincronización: {str(e)}"
-
-def obtener_estado_sistema():
-    """
-    NUEVA FUNCIÓN: Obtiene el estado completo del sistema de datos
-    """
-    try:
-        sheets_manager = get_sheets_manager()
-        
-        estado = {
-            'registros': {'existe': False, 'filas': 0, 'columnas': 0, 'valido': False},
-            'metas': {'existe': False, 'filas': 0, 'columnas': 0, 'valido': False},
-            'respaldo': {'existe': False, 'filas': 0, 'valido': False},
-            'hojas_disponibles': [],
-            'errores': []
-        }
-        
-        # Verificar hojas disponibles
-        try:
-            estado['hojas_disponibles'] = sheets_manager.listar_hojas()
-        except Exception as e:
-            estado['errores'].append(f"Error listando hojas: {str(e)}")
-        
-        # Verificar Registros
-        try:
-            registros_df = sheets_manager.leer_hoja("Registros")
-            estado['registros']['existe'] = True
-            estado['registros']['filas'] = len(registros_df)
-            estado['registros']['columnas'] = len(registros_df.columns)
-            
-            # CORRECCIÓN: Validar registros usando evaluación separada
-            if ('Cod' in registros_df.columns) and ('Entidad' in registros_df.columns):
-                mask_cod = registros_df['Cod'].notna()
-                mask_cod_not_empty = registros_df['Cod'].astype(str).str.strip() != ''
-                mask_entidad = registros_df['Entidad'].notna()
-                mask_entidad_not_empty = registros_df['Entidad'].astype(str).str.strip() != ''
-                
-                mask_final = mask_cod & mask_cod_not_empty & mask_entidad & mask_entidad_not_empty
-                registros_validos = registros_df[mask_final]
-                
-                estado['registros']['valido'] = len(registros_validos) > 0
-        except Exception as e:
-            estado['errores'].append(f"Error verificando Registros: {str(e)}")
-        
-        # Verificar Metas
-        try:
-            metas_df = sheets_manager.leer_hoja("Metas")
-            estado['metas']['existe'] = True
-            estado['metas']['filas'] = len(metas_df)
-            estado['metas']['columnas'] = len(metas_df.columns)
-            # CORRECCIÓN: Evaluación separada para evitar ambigüedad
-            tiene_filas = len(metas_df) > 0
-            tiene_columnas = len(metas_df.columns) >= 5
-            estado['metas']['valido'] = tiene_filas and tiene_columnas
-        except Exception as e:
-            estado['errores'].append(f"Error verificando Metas: {str(e)}")
-        
-        # Verificar Respaldo
-        try:
-            respaldo_df = sheets_manager.leer_hoja("Respaldo_Registros")
-            estado['respaldo']['existe'] = True
-            estado['respaldo']['filas'] = len(respaldo_df)
-            estado['respaldo']['valido'] = len(respaldo_df) > 0
-        except Exception as e:
-            estado['errores'].append(f"Error verificando Respaldo: {str(e)}")
-        
-        return estado
-        
-    except Exception as e:
-        return {
-            'error_critico': str(e),
-            'registros': {'existe': False, 'valido': False},
-            'metas': {'existe': False, 'valido': False},
-            'respaldo': {'existe': False, 'valido': False}
-        }
