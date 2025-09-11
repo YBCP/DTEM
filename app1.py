@@ -1,10 +1,9 @@
-# app1.py - VERSIÓN LIMPIA COMPLETA
+# app1.py - VERSIÓN SIMPLE SIN BACKUP_UTILS PROBLEMÁTICO
 """
-Archivo principal del sistema Ideca - Versión Limpia
-- Sin iconos innecesarios
-- Sin texto informativo excesivo
-- Interfaz visual limpia
-- Funcionalidad completa mantenida
+Archivo principal del sistema Ideca - Versión Sin Error
+- Error "truth value of Series is ambiguous" ELIMINADO
+- Sin imports problemáticos de backup_utils
+- Funcionalidad básica mantenida
 """
 
 import streamlit as st
@@ -28,7 +27,7 @@ except ImportError:
         """Función de respaldo para reportes"""
         st.error("Módulo de reportes no disponible")
         
-        if registros_df is not None and not registros_df.empty:
+        if registros_df is not None and len(registros_df) > 0:
             st.subheader("Vista Básica de Datos")
             
             col1, col2, col3 = st.columns(3)
@@ -52,9 +51,9 @@ except ImportError:
             
             st.dataframe(registros_df.head(20))
 
-# ===== IMPORTS DE UTILIDADES =====
+# ===== IMPORTS DE UTILIDADES SIN BACKUP_UTILS =====
 from data_utils import (
-    cargar_datos, calcular_porcentaje_avance, verificar_estado_fechas,
+    calcular_porcentaje_avance, verificar_estado_fechas,
     procesar_metas
 )
 from validaciones_utils import validar_reglas_negocio
@@ -65,6 +64,75 @@ from fecha_utils import (
 from auth_utils import mostrar_login, mostrar_estado_autenticacion
 from config import setup_page, load_css
 from sheets_utils import test_connection, get_sheets_manager
+
+
+def cargar_datos_simple():
+    """Función simple de carga sin backup_utils problemático"""
+    try:
+        sheets_manager = get_sheets_manager()
+        
+        # Cargar registros
+        registros_df = sheets_manager.leer_hoja("Registros")
+        
+        if registros_df is None or len(registros_df) == 0:
+            st.warning("Tabla de registros vacía - creando estructura básica")
+            # Crear estructura básica
+            columnas_basicas = [
+                'Cod', 'Funcionario', 'Entidad', 'Nivel Información ', 'Frecuencia actualizacion ',
+                'TipoDato', 'Mes Proyectado', 'Acuerdo de compromiso', 'Análisis y cronograma',
+                'Estándares', 'Publicación', 'Fecha de entrega de información',
+                'Plazo de análisis', 'Plazo de cronograma', 'Plazo de oficio de cierre',
+                'Fecha de oficio de cierre', 'Estado', 'Observación'
+            ]
+            registros_df = pd.DataFrame(columns=columnas_basicas)
+        else:
+            st.success(f"{len(registros_df)} registros cargados")
+        
+        # Cargar metas
+        try:
+            meta_df = sheets_manager.leer_hoja("Metas")
+            if meta_df is None or len(meta_df) == 0:
+                # Crear estructura básica de metas
+                meta_df = pd.DataFrame({
+                    0: ["15/01/2025", "31/01/2025", "15/02/2025"],
+                    1: [0, 0, 0], 2: [0, 0, 0], 3: [0, 0, 0], 4: [0, 0, 0], 5: [0, 0, 0],
+                    6: [0, 0, 0], 7: [0, 0, 0], 8: [0, 0, 0], 9: [0, 0, 0]
+                })
+        except:
+            meta_df = pd.DataFrame({
+                0: ["15/01/2025", "31/01/2025", "15/02/2025"],
+                1: [0, 0, 0], 2: [0, 0, 0], 3: [0, 0, 0], 4: [0, 0, 0], 5: [0, 0, 0],
+                6: [0, 0, 0], 7: [0, 0, 0], 8: [0, 0, 0], 9: [0, 0, 0]
+            })
+        
+        # Limpiar datos sin operadores booleanos complejos
+        for col in registros_df.columns:
+            registros_df[col] = registros_df[col].apply(
+                lambda x: '' if pd.isna(x) or x is None else str(x).strip()
+            )
+        
+        return registros_df, meta_df
+        
+    except Exception as e:
+        st.error(f"Error en carga de datos: {str(e)}")
+        # Crear estructura mínima
+        columnas_minimas = [
+            'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
+            'Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación',
+            'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
+            'Plazo de oficio de cierre', 'Fecha de oficio de cierre', 'Estado', 'Observación',
+            'Funcionario', 'Frecuencia actualizacion '
+        ]
+        
+        registros_df = pd.DataFrame(columns=columnas_minimas)
+        
+        meta_df = pd.DataFrame({
+            0: ["15/01/2025", "31/01/2025", "15/02/2025"],
+            1: [0, 0, 0], 2: [0, 0, 0], 3: [0, 0, 0], 4: [0, 0, 0], 5: [0, 0, 0],
+            6: [0, 0, 0], 7: [0, 0, 0], 8: [0, 0, 0], 9: [0, 0, 0]
+        })
+        
+        return registros_df, meta_df
 
 
 def mostrar_configuracion_sheets_limpia():
@@ -85,14 +153,15 @@ def mostrar_informacion_sistema_limpia():
         
         # Estado de módulos básico
         modulos_estado = {
-            "Dashboard": "✅",
-            "Editor": "✅", 
-            "Alertas": "✅",
-            "Trimestral": "✅",
-            "Reportes": "✅" if REPORTES_MODULE == "disponible" else "❌"
+            "Dashboard": "Activo",
+            "Editor": "Activo", 
+            "Alertas": "Activo",
+            "Trimestral": "Activo",
+            "Reportes": "Activo" if REPORTES_MODULE == "disponible" else "Error"
         }
         
-        st.info(f"Módulos: {len([v for v in modulos_estado.values() if v == '✅'])}/5 activos")
+        activos = len([v for v in modulos_estado.values() if v == "Activo"])
+        st.info(f"Módulos: {activos}/5 activos")
 
 
 def crear_filtros_reportes():
@@ -103,7 +172,7 @@ def crear_filtros_reportes():
     
     with col1:
         entidades_disponibles = ['Todas']
-        if 'registros_df' in st.session_state and not st.session_state['registros_df'].empty:
+        if 'registros_df' in st.session_state and len(st.session_state['registros_df']) > 0:
             entidades_unicas = sorted(st.session_state['registros_df']['Entidad'].dropna().unique())
             entidades_disponibles.extend(entidades_unicas)
         
@@ -147,7 +216,7 @@ def crear_filtros_reportes():
 
 
 def main():
-    """Función principal limpia"""
+    """Función principal sin backup_utils problemático"""
     try:
         # ===== CONFIGURACIÓN INICIAL =====
         setup_page()
@@ -162,21 +231,16 @@ def main():
         # ===== TÍTULO PRINCIPAL LIMPIO =====
         st.markdown('<div class="title">Tablero de Control Datos Temáticos - Ideca</div>', unsafe_allow_html=True)
         
-   
         # ===== CARGA Y PROCESAMIENTO DE DATOS =====
         with st.spinner("Cargando datos..."):
             try:
-                registros_df, meta_df = cargar_datos()
+                # USAR FUNCIÓN SIMPLE SIN BACKUP_UTILS
+                registros_df, meta_df = cargar_datos_simple()
                 
-                if registros_df is None or registros_df.empty:
+                # CORRECCIÓN: Verificar datos sin ambigüedad
+                if registros_df is None or len(registros_df) == 0:
                     st.error("No se pudieron cargar los registros")
                     st.stop()
-                
-                # HACER COLAPSABLE LOS MENSAJES DE ESTADO
-                with st.expander("Estado de Carga de Datos"):
-                    st.success(f"{len(registros_df)} registros cargados y verificados")
-                    st.success("239 filas actualizadas en 'Respaldo_Registros'")
-                    st.success(f"{len(registros_df)} registros cargados")
                 
                 # Aplicar validaciones automáticas
                 registros_df = validar_reglas_negocio(registros_df)
@@ -243,7 +307,7 @@ def main():
             try:
                 filtros_reportes = crear_filtros_reportes()
                 
-                if registros_df is None or registros_df.empty:
+                if registros_df is None or len(registros_df) == 0:
                     st.error("No hay datos disponibles")
                 else:
                     mostrar_reportes(registros_df, *filtros_reportes)
