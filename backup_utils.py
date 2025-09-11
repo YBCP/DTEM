@@ -25,23 +25,24 @@ def crear_respaldo_automatico(registros_df):
         if not all(col in registros_df.columns for col in columnas_esenciales):
             return False
         
-        # CORRECCIÓN: Usar evaluación separada en lugar de operadores booleanos complejos
-        mask_cod_notna = registros_df['Cod'].notna()
-        mask_cod_not_empty = registros_df['Cod'].astype(str).str.strip() != ''
-        mask_cod_not_nan = registros_df['Cod'].astype(str).str.strip() != 'nan'
-        mask_cod_not_none = registros_df['Cod'].astype(str).str.strip() != 'None'
+        # CORRECCIÓN: Crear máscara de registros válidos evitando operadores & complejos
+        registros_validos_mask = []
+        for idx, row in registros_df.iterrows():
+            cod_notna = pd.notna(row['Cod'])
+            cod_not_empty = str(row['Cod']).strip() != ''
+            cod_not_nan = str(row['Cod']).strip() != 'nan'
+            cod_not_none = str(row['Cod']).strip() != 'None'
+            cod_valido = cod_notna and cod_not_empty and cod_not_nan and cod_not_none
+            
+            entidad_notna = pd.notna(row['Entidad'])
+            entidad_not_empty = str(row['Entidad']).strip() != ''
+            entidad_not_nan = str(row['Entidad']).strip() != 'nan'
+            entidad_not_none = str(row['Entidad']).strip() != 'None'
+            entidad_valida = entidad_notna and entidad_not_empty and entidad_not_nan and entidad_not_none
+            
+            registros_validos_mask.append(cod_valido and entidad_valida)
         
-        mask_entidad_notna = registros_df['Entidad'].notna()
-        mask_entidad_not_empty = registros_df['Entidad'].astype(str).str.strip() != ''
-        mask_entidad_not_nan = registros_df['Entidad'].astype(str).str.strip() != 'nan'
-        mask_entidad_not_none = registros_df['Entidad'].astype(str).str.strip() != 'None'
-        
-        # Combinar todas las máscaras paso a paso
-        mask_cod_completa = mask_cod_notna & mask_cod_not_empty & mask_cod_not_nan & mask_cod_not_none
-        mask_entidad_completa = mask_entidad_notna & mask_entidad_not_empty & mask_entidad_not_nan & mask_entidad_not_none
-        mask_final = mask_cod_completa & mask_entidad_completa
-        
-        registros_validos = registros_df[mask_final]
+        registros_validos = registros_df[registros_validos_mask]
         
         # REQUISITO MÍNIMO: Al menos 1 registro válido
         if len(registros_validos) == 0:
@@ -104,34 +105,38 @@ def verificar_integridad_datos(registros_df):
         if not all(col in registros_df.columns for col in columnas_esenciales):
             return False, "Columnas esenciales faltantes"
         
-        # CORRECCIÓN: Usar evaluación separada
-        mask_cod_notna = registros_df['Cod'].notna()
-        mask_cod_not_empty = registros_df['Cod'].astype(str).str.strip() != ''
-        mask_cod_not_nan = registros_df['Cod'].astype(str).str.strip() != 'nan'
+        # CORRECCIÓN: Contar registros válidos evitando operadores & complejos
+        registros_validos_count = 0
+        for idx, row in registros_df.iterrows():
+            cod_notna = pd.notna(row['Cod'])
+            cod_not_empty = str(row['Cod']).strip() != ''
+            cod_not_nan = str(row['Cod']).strip() != 'nan'
+            cod_valido = cod_notna and cod_not_empty and cod_not_nan
+            
+            entidad_notna = pd.notna(row['Entidad'])
+            entidad_not_empty = str(row['Entidad']).strip() != ''
+            entidad_not_nan = str(row['Entidad']).strip() != 'nan'
+            entidad_valida = entidad_notna and entidad_not_empty and entidad_not_nan
+            
+            if cod_valido and entidad_valida:
+                registros_validos_count += 1
         
-        mask_entidad_notna = registros_df['Entidad'].notna()
-        mask_entidad_not_empty = registros_df['Entidad'].astype(str).str.strip() != ''
-        mask_entidad_not_nan = registros_df['Entidad'].astype(str).str.strip() != 'nan'
-        
-        # Combinar máscaras
-        mask_cod_final = mask_cod_notna & mask_cod_not_empty & mask_cod_not_nan
-        mask_entidad_final = mask_entidad_notna & mask_entidad_not_empty & mask_entidad_not_nan
-        mask_final = mask_cod_final & mask_entidad_final
-        
-        registros_validos = registros_df[mask_final]
-        
-        if len(registros_validos) == 0:
+        if registros_validos_count == 0:
             return False, "No hay registros válidos"
         
         # CORRECCIÓN: Verificar estructura correctamente
         if len(registros_df) == 1:
             primera_fila = registros_df.iloc[0]
             # Verificar si toda la fila está vacía de manera segura
-            valores_vacios = primera_fila.astype(str).str.strip() == ''
-            if valores_vacios.all():
+            valores_no_vacios = 0
+            for valor in primera_fila:
+                if pd.notna(valor) and str(valor).strip() != '':
+                    valores_no_vacios += 1
+            
+            if valores_no_vacios == 0:
                 return False, "Solo headers sin datos"
         
-        return True, f"Datos íntegros: {len(registros_validos)} registros válidos"
+        return True, f"Datos íntegros: {registros_validos_count} registros válidos"
     
     except Exception as e:
         return False, f"Error verificando integridad: {str(e)}"
