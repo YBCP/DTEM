@@ -1,11 +1,11 @@
-# reportes_simplificado.py - VERSIÓN LIMPIA SIN GRÁFICOS
+# reportes.py - CORREGIDO: Botones únicos y diseño ultra limpio
 """
-Módulo de Reportes SIMPLIFICADO:
-- Solo métricas generales
+Módulo de Reportes CORREGIDO:
+- Botones con keys únicos
+- Diseño limpio sin iconos ni texto innecesario
+- Solo métricas esenciales
 - Tabla de datos filtrados
 - Descarga Excel/CSV
-- Sin gráficos, iconos o información innecesaria
-- Filtros corregidos según Google Sheets
 """
 
 import streamlit as st
@@ -48,7 +48,7 @@ except ImportError:
 def aplicar_filtros(registros_df, entidad_reporte, tipo_dato_reporte, acuerdo_filtro, 
                    analisis_filtro, estandares_filtro, publicacion_filtro, 
                    finalizado_filtro, mes_filtro):
-    """Aplica filtros según los datos de Google Sheets - CORREGIDO para fechas"""
+    """Aplica filtros según los datos de Google Sheets"""
     
     df_filtrado = registros_df.copy()
     
@@ -56,41 +56,41 @@ def aplicar_filtros(registros_df, entidad_reporte, tipo_dato_reporte, acuerdo_fi
     if entidad_reporte != 'Todas':
         df_filtrado = df_filtrado[df_filtrado['Entidad'] == entidad_reporte]
     
-    # Filtro por tipo de dato (TipoDato en Google Sheets)
+    # Filtro por tipo de dato
     if tipo_dato_reporte != 'Todos':
         df_filtrado = df_filtrado[df_filtrado['TipoDato'].str.upper() == tipo_dato_reporte.upper()]
     
-    # CORREGIDO: Filtro por acuerdo de compromiso - basado en fecha de entrega
+    # Filtro por acuerdo de compromiso
     if acuerdo_filtro == 'Completo':
         df_filtrado = df_filtrado[df_filtrado['Entrega acuerdo de compromiso'].apply(es_fecha_valida)]
     elif acuerdo_filtro == 'En proceso':
         df_filtrado = df_filtrado[~df_filtrado['Entrega acuerdo de compromiso'].apply(es_fecha_valida)]
     
-    # Filtro por análisis y cronograma - basado en fecha real
+    # Filtro por análisis y cronograma
     if analisis_filtro == 'Completo':
         df_filtrado = df_filtrado[df_filtrado['Análisis y cronograma'].apply(es_fecha_valida)]
     elif analisis_filtro == 'En proceso':
         df_filtrado = df_filtrado[~df_filtrado['Análisis y cronograma'].apply(es_fecha_valida)]
     
-    # Filtro por estándares - basado en fecha real
+    # Filtro por estándares
     if estandares_filtro == 'Completo':
         df_filtrado = df_filtrado[df_filtrado['Estándares'].apply(es_fecha_valida)]
     elif estandares_filtro == 'En proceso':
         df_filtrado = df_filtrado[~df_filtrado['Estándares'].apply(es_fecha_valida)]
     
-    # Filtro por publicación - basado en fecha real
+    # Filtro por publicación
     if publicacion_filtro == 'Completo':
         df_filtrado = df_filtrado[df_filtrado['Publicación'].apply(es_fecha_valida)]
     elif publicacion_filtro == 'En proceso':
         df_filtrado = df_filtrado[~df_filtrado['Publicación'].apply(es_fecha_valida)]
     
-    # Filtro por estado (finalizado)
+    # Filtro por estado
     if finalizado_filtro == 'Finalizados':
         df_filtrado = df_filtrado[df_filtrado['Estado'].astype(str).str.upper() == 'COMPLETADO']
     elif finalizado_filtro == 'No finalizados':
         df_filtrado = df_filtrado[df_filtrado['Estado'].astype(str).str.upper() != 'COMPLETADO']
     
-    # Filtro por mes proyectado (corregido)
+    # Filtro por mes proyectado
     if mes_filtro != 'Todos':
         meses_nombres = {
             '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
@@ -102,16 +102,16 @@ def aplicar_filtros(registros_df, entidad_reporte, tipo_dato_reporte, acuerdo_fi
     
     return df_filtrado
 
-def mostrar_reportes_simplificado(registros_df, entidad_reporte, tipo_dato_reporte,
-                                acuerdo_filtro, analisis_filtro, estandares_filtro,
-                                publicacion_filtro, finalizado_filtro, mes_filtro):
-    """Función principal de reportes simplificada"""
+def mostrar_reportes_limpio(registros_df, entidad_reporte, tipo_dato_reporte,
+                           acuerdo_filtro, analisis_filtro, estandares_filtro,
+                           publicacion_filtro, finalizado_filtro, mes_filtro):
+    """Función principal de reportes ultra limpia"""
     
-    st.markdown('<div class="subtitle">Reportes</div>', unsafe_allow_html=True)
+    st.subheader("Reportes")
     
     # Verificación de datos
     if registros_df is None or registros_df.empty:
-        st.error("No hay datos disponibles para generar reportes")
+        st.error("No hay datos disponibles")
         return
     
     # Aplicar filtros
@@ -125,27 +125,26 @@ def mostrar_reportes_simplificado(registros_df, entidad_reporte, tipo_dato_repor
     if 'Porcentaje Avance' not in df_filtrado.columns:
         df_filtrado['Porcentaje Avance'] = df_filtrado.apply(calcular_porcentaje_avance, axis=1)
     
-    # MÉTRICAS GENERALES
-    st.subheader("Métricas Generales")
+    # MÉTRICAS ESENCIALES
+    st.markdown("### Métricas")
     
     if df_filtrado.empty:
-        st.warning("No hay registros que coincidan con los filtros seleccionados")
+        st.warning("No hay registros que coincidan con los filtros")
         return
     
     total_filtrados = len(df_filtrado)
     avance_promedio = df_filtrado['Porcentaje Avance'].mean()
     completados = len(df_filtrado[df_filtrado['Porcentaje Avance'] == 100])
-    sin_avance = len(df_filtrado[df_filtrado['Porcentaje Avance'] == 0])
-    # NUEVA MÉTRICA: Publicados
     publicados = len(df_filtrado[df_filtrado['Publicación'].apply(es_fecha_valida)])
+    sin_avance = len(df_filtrado[df_filtrado['Porcentaje Avance'] == 0])
     
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        st.metric("Total Registros", total_filtrados)
+        st.metric("Total", total_filtrados)
     
     with col2:
-        st.metric("Avance Promedio", f"{avance_promedio:.1f}%")
+        st.metric("Avance", f"{avance_promedio:.1f}%")
     
     with col3:
         st.metric("Completados", completados)
@@ -157,9 +156,9 @@ def mostrar_reportes_simplificado(registros_df, entidad_reporte, tipo_dato_repor
         st.metric("Sin Iniciar", sin_avance)
     
     # TABLA DE REGISTROS
-    st.subheader("Registros")
+    st.markdown("### Registros")
     
-    # Seleccionar columnas importantes para mostrar
+    # Seleccionar columnas importantes
     columnas_mostrar = []
     columnas_disponibles = [
         'Cod', 'Entidad', 'TipoDato', 'Funcionario', 'Estado',
@@ -194,42 +193,46 @@ def mostrar_reportes_simplificado(registros_df, entidad_reporte, tipo_dato_repor
     except Exception:
         st.dataframe(df_mostrar, use_container_width=True)
     
-    # DESCARGA DE DATOS
-    st.subheader("Exportar Datos")
+    # DESCARGA CORREGIDA - Keys únicos
+    st.markdown("### Exportar")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("Descargar Excel"):
+        # BOTÓN EXCEL - Key único
+        if st.button("Excel", key="btn_excel_reportes"):
             try:
                 output = io.BytesIO()
                 with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                    df_filtrado.to_excel(writer, sheet_name='Registros Filtrados', index=False)
+                    df_filtrado.to_excel(writer, sheet_name='Registros', index=False)
                 
                 excel_data = output.getvalue()
                 st.download_button(
-                    label="Archivo Excel",
+                    label="Descargar",
                     data=excel_data,
                     file_name=f"registros_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="download_excel_reportes"
                 )
                 
             except Exception as e:
-                st.error(f"Error generando Excel: {str(e)}")
+                st.error(f"Error: {str(e)}")
     
     with col2:
-        if st.button("Descargar CSV"):
+        # BOTÓN CSV - Key único
+        if st.button("CSV", key="btn_csv_reportes"):
             try:
                 csv_data = df_filtrado.to_csv(index=False)
                 st.download_button(
-                    label="Archivo CSV",
+                    label="Descargar",
                     data=csv_data,
                     file_name=f"registros_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                    mime="text/csv"
+                    mime="text/csv",
+                    key="download_csv_reportes"
                 )
                 
             except Exception as e:
-                st.error(f"Error generando CSV: {str(e)}")
+                st.error(f"Error: {str(e)}")
 
 def mostrar_reportes(registros_df, entidad_reporte, tipo_dato_reporte, 
                     acuerdo_filtro, analisis_filtro, estandares_filtro, 
@@ -237,48 +240,43 @@ def mostrar_reportes(registros_df, entidad_reporte, tipo_dato_reporte,
     """Función principal compatible con app1.py"""
     
     try:
-        mostrar_reportes_simplificado(
+        mostrar_reportes_limpio(
             registros_df, entidad_reporte, tipo_dato_reporte,
             acuerdo_filtro, analisis_filtro, estandares_filtro,
             publicacion_filtro, finalizado_filtro, mes_filtro
         )
         
     except Exception as e:
-        st.error(f"Error en módulo de reportes: {str(e)}")
+        st.error(f"Error en reportes: {str(e)}")
         
-        # Mostrar datos básicos como respaldo
+        # Vista básica como respaldo
         if registros_df is not None and not registros_df.empty:
-            st.subheader("Vista Básica de Datos")
+            st.subheader("Vista Básica")
             
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                st.metric("Total Registros", len(registros_df))
+                st.metric("Total", len(registros_df))
             
             with col2:
                 if 'Porcentaje Avance' in registros_df.columns:
-                    avance_promedio = registros_df['Porcentaje Avance'].mean()
-                    st.metric("Avance Promedio", f"{avance_promedio:.1f}%")
-                else:
-                    st.metric("Avance Promedio", "N/A")
+                    avance = registros_df['Porcentaje Avance'].mean()
+                    st.metric("Avance", f"{avance:.1f}%")
             
             with col3:
                 if 'Estado' in registros_df.columns:
                     completados = len(registros_df[registros_df['Estado'] == 'Completado'])
                     st.metric("Completados", completados)
-                else:
-                    st.metric("Completados", "N/A")
             
             st.dataframe(registros_df.head(20))
         else:
-            st.warning("No hay datos disponibles para mostrar")
+            st.warning("No hay datos disponibles")
 
-# Función de prueba
-def test_reportes_simplificado():
-    """Función de test para verificar que el módulo funciona"""
-    print("Probando módulo de reportes simplificado...")
+# Test de funcionamiento
+def test_reportes():
+    """Test básico del módulo"""
+    print("Probando módulo reportes corregido...")
     
-    # Crear datos de prueba
     test_data = {
         'Cod': ['1', '2', '3'],
         'Entidad': ['Entidad A', 'Entidad B', 'Entidad A'],
@@ -295,19 +293,15 @@ def test_reportes_simplificado():
     df_test = pd.DataFrame(test_data)
     df_test['Porcentaje Avance'] = df_test.apply(calcular_porcentaje_avance, axis=1)
     
-    print(f"Datos de prueba creados: {len(df_test)} registros")
-    print(f"Columnas disponibles: {list(df_test.columns)}")
-    
+    print(f"Test completado: {len(df_test)} registros")
     return df_test
 
 if __name__ == "__main__":
-    print("Módulo de Reportes Simplificado")
-    print("Características:")
-    print("- Solo métricas generales")
-    print("- Tabla de datos filtrados")
-    print("- Descarga Excel/CSV")
-    print("- Sin gráficos ni iconos")
-    print("- Filtros corregidos según Google Sheets")
+    print("Módulo Reportes - CORREGIDO:")
+    print("- Botones con keys únicos")
+    print("- Diseño ultra limpio")
+    print("- Sin iconos ni texto innecesario")
+    print("- Solo métricas esenciales")
     
-    df_test = test_reportes_simplificado()
-    print(f"Test completado: {len(df_test)} registros de prueba")
+    df_test = test_reportes()
+    print(f"Funcionalidad verificada con {len(df_test)} registros de prueba")
