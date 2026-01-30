@@ -33,18 +33,19 @@ def crear_metrica_card(titulo, valor, color="blue", delta=None):
 
 
 def crear_barras_cumplimiento_optimizado(df_comparacion, titulo):
-    """Función para crear barras de cumplimiento"""
+    """Función para crear barras de cumplimiento - MODIFICADO para mostrar Total y 2026"""
     if df_comparacion.empty:
         st.warning(f"No hay datos para {titulo}")
         return
-    
+
     st.markdown(f"#### {titulo}")
-    
+
     for hito in df_comparacion.index:
-        completados = df_comparacion.loc[hito, 'Completados']
+        total = df_comparacion.loc[hito, 'Total'] if 'Total' in df_comparacion.columns else 0
+        completados_2026 = df_comparacion.loc[hito, 'Completados 2026'] if 'Completados 2026' in df_comparacion.columns else df_comparacion.loc[hito, 'Completados'] if 'Completados' in df_comparacion.columns else 0
         meta = df_comparacion.loc[hito, 'Meta']
         porcentaje = df_comparacion.loc[hito, 'Porcentaje']
-        
+
         # Determinar color según porcentaje
         if porcentaje < 50:
             color = '#dc2626'
@@ -52,16 +53,16 @@ def crear_barras_cumplimiento_optimizado(df_comparacion, titulo):
             color = '#f59e0b'
         else:
             color = '#16a34a'
-        
-        # HTML para barra de progreso
+
+        # HTML para barra de progreso - MODIFICADO para mostrar ambos números
         st.markdown(f"""
         <div style="margin-bottom: 15px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <span style="font-weight: 600; font-size: 14px;">{hito}</span>
-                <span style="font-size: 12px; color: #64748b;">{completados}/{meta}</span>
+                <span style="font-size: 12px; color: #64748b;">Total: {total} | 2026: {completados_2026}/{meta}</span>
             </div>
             <div style="background-color: #e5e7eb; height: 32px; border-radius: 6px; overflow: hidden;">
-                <div style="width: {min(porcentaje, 100)}%; height: 100%; background-color: {color}; 
+                <div style="width: {min(porcentaje, 100)}%; height: 100%; background-color: {color};
                            position: relative; display: flex; align-items: center; justify-content: center;">
                     <span style="color: white; font-weight: bold; font-size: 12px;">{porcentaje:.1f}%</span>
                 </div>
@@ -300,7 +301,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
         
         with col1:
             st.markdown("### Registros Nuevos")
-            # Tabla con gradiente personalizado
+            # Tabla con gradiente personalizado - MODIFICADO para nuevas columnas
             def crear_gradiente_personalizado(df_comp):
                 def aplicar_color(val):
                     try:
@@ -313,9 +314,9 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
                         else: return 'background-color: #166534; color: white'
                     except:
                         return ''
-                
+
                 return df_comp.style.format({'Porcentaje': '{:.2f}%'}).map(aplicar_color, subset=['Porcentaje'])
-            
+
             st.dataframe(crear_gradiente_personalizado(comparacion_nuevos))
             crear_barras_cumplimiento_optimizado(comparacion_nuevos, "")
 

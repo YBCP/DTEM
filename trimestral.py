@@ -1,9 +1,9 @@
-# trimestral.py - CORREGIDO: Resumen sobre meta total de publicados al 31 diciembre
+# trimestral.py - MODIFICADO: Seguimiento por hito con avance 2026
 """
-Módulo Seguimiento Trimestral - CORREGIDO
-- Resumen calculado sobre meta total de publicados al 31 diciembre (no total registros)
-- Métricas clave corregidas
-- Diseño limpio sin iconos innecesarios
+Módulo Seguimiento Trimestral - MODIFICADO
+- Muestra avance por cada hito (Acuerdo, Análisis, Estándares, Publicación)
+- Para cada hito: Total histórico + Metas y Avances 2026 por trimestre
+- Diseño limpio y claro
 """
 
 import streamlit as st
@@ -13,491 +13,367 @@ from datetime import datetime, date
 from data_utils import es_fecha_valida, procesar_fecha, procesar_metas
 
 
-def crear_metricas_trimestrales(registros_df, meta_df):
-    """
-    CORREGIDO: Crea métricas clave trimestrales calculadas sobre meta total al 31 diciembre
-    """
+def es_fecha_2026(fecha_valor):
+    """Verifica si una fecha es del año 2026"""
     try:
-        # Calcular métricas generales
-        total_registros = len(registros_df) if not registros_df.empty else 0
-        
-        # Registros con publicación
-        registros_publicados = 0
-        if 'Publicación' in registros_df.columns:
-            registros_publicados = len(registros_df[registros_df['Publicación'].apply(es_fecha_valida)])
-        
-        # Extraer metas del año
-        metas_trimestrales = extraer_metas_desde_google_sheets(meta_df)
-        
-        # CORRECCIÓN: Calcular sobre meta total al 31 diciembre (no sobre total registros)
-        total_meta_nuevos = metas_trimestrales['nuevos']['Q4']  # Meta al 31 diciembre
-        total_meta_actualizar = metas_trimestrales['actualizar']['Q4']  # Meta al 31 diciembre
-        total_metas_diciembre = total_meta_nuevos + total_meta_actualizar
-        
-        # Avance actual
-        avance_nuevos = calcular_avance_publicaciones_corregido(registros_df, 'NUEVO')
-        avance_actualizar = calcular_avance_publicaciones_corregido(registros_df, 'ACTUALIZAR')
-        
-        # Avance total hasta la fecha (Q4 = acumulado hasta 31 diciembre)
-        total_avance_nuevos = avance_nuevos.get('Q4', 0)
-        total_avance_actualizar = avance_actualizar.get('Q4', 0)
-        total_avance = total_avance_nuevos + total_avance_actualizar
-        
-        # CORRECCIÓN: Porcentaje sobre meta total al 31 diciembre
-        porcentaje_meta = (total_avance / total_metas_diciembre * 100) if total_metas_diciembre > 0 else 0
-        
-        # Porcentaje de registros con publicación (métrica adicional)
-        porcentaje_publicados = (registros_publicados / total_registros * 100) if total_registros > 0 else 0
-        
-        # Trimestre actual
-        mes_actual = datetime.now().month
-        if mes_actual <= 3:
-            trimestre_actual = "Q1"
-        elif mes_actual <= 6:
-            trimestre_actual = "Q2"
-        elif mes_actual <= 9:
-            trimestre_actual = "Q3"
+        fecha = procesar_fecha(fecha_valor)
+        if fecha and isinstance(fecha, datetime):
+            return fecha.year == 2026
+        return False
+    except:
+        return False
+
+
+def es_fecha_trimestre_2026(fecha_valor, trimestre):
+    """Verifica si una fecha está en el trimestre especificado de 2026"""
+    try:
+        fecha = procesar_fecha(fecha_valor)
+        if fecha and isinstance(fecha, datetime) and fecha.year == 2026:
+            mes = fecha.month
+            if trimestre == 'Q1' and mes <= 3:
+                return True
+            elif trimestre == 'Q2' and mes <= 6:
+                return True
+            elif trimestre == 'Q3' and mes <= 9:
+                return True
+            elif trimestre == 'Q4' and mes <= 12:
+                return True
+        return False
+    except:
+        return False
+
+
+def calcular_avance_por_hito_2026(registros_df, tipo_dato):
+    """
+    NUEVA FUNCIÓN: Calcula el avance por hito para 2026
+    Retorna Total histórico y avances acumulados por trimestre de 2026
+    """
+    resultados = {
+        'Acuerdo de compromiso': {'total': 0, 'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+        'Análisis y cronograma': {'total': 0, 'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+        'Estándares': {'total': 0, 'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+        'Publicación': {'total': 0, 'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
+    }
+
+    try:
+        # Filtrar por tipo de dato
+        if 'TipoDato' in registros_df.columns:
+            registros_tipo = registros_df[registros_df['TipoDato'].astype(str).str.upper() == tipo_dato.upper()]
         else:
-            trimestre_actual = "Q4"
-        
-        return {
-            'total_registros': total_registros,
-            'registros_publicados': registros_publicados,
-            'porcentaje_publicados': porcentaje_publicados,
-            'total_metas_diciembre': total_metas_diciembre,  # CORREGIDO: Meta al 31 dic
-            'total_avance': total_avance,
-            'porcentaje_meta': porcentaje_meta,  # CORREGIDO: % sobre meta 31 dic
-            'trimestre_actual': trimestre_actual,
-            'total_meta_nuevos': total_meta_nuevos,
-            'total_meta_actualizar': total_meta_actualizar,
-            'total_avance_nuevos': total_avance_nuevos,
-            'total_avance_actualizar': total_avance_actualizar
-        }
-        
+            registros_tipo = registros_df
+
+        if registros_tipo.empty:
+            return resultados
+
+        # ACUERDO DE COMPROMISO
+        # Total histórico
+        if 'Acuerdo de compromiso' in registros_tipo.columns:
+            resultados['Acuerdo de compromiso']['total'] = len(registros_tipo[
+                registros_tipo['Acuerdo de compromiso'].astype(str).str.upper().isin(
+                    ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])
+            ])
+
+        # Avance 2026 por trimestre (acumulado)
+        if 'Suscripción acuerdo de compromiso' in registros_tipo.columns:
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                resultados['Acuerdo de compromiso'][trimestre] = len(registros_tipo[
+                    (registros_tipo['Acuerdo de compromiso'].astype(str).str.upper().isin(['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])) &
+                    (registros_tipo['Suscripción acuerdo de compromiso'].apply(lambda x: es_fecha_trimestre_2026(x, trimestre)))
+                ])
+
+        # ANÁLISIS Y CRONOGRAMA
+        if 'Análisis y cronograma' in registros_tipo.columns:
+            # Total histórico
+            resultados['Análisis y cronograma']['total'] = len(registros_tipo[
+                registros_tipo['Análisis y cronograma'].apply(lambda x: es_fecha_valida(x))
+            ])
+
+            # Avance 2026 por trimestre (acumulado)
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                resultados['Análisis y cronograma'][trimestre] = len(registros_tipo[
+                    registros_tipo['Análisis y cronograma'].apply(lambda x: es_fecha_trimestre_2026(x, trimestre))
+                ])
+
+        # ESTÁNDARES
+        if 'Estándares' in registros_tipo.columns:
+            # Total histórico
+            resultados['Estándares']['total'] = len(registros_tipo[
+                registros_tipo['Estándares'].apply(lambda x: es_fecha_valida(x))
+            ])
+
+            # Avance 2026 por trimestre (acumulado)
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                resultados['Estándares'][trimestre] = len(registros_tipo[
+                    registros_tipo['Estándares'].apply(lambda x: es_fecha_trimestre_2026(x, trimestre))
+                ])
+
+        # PUBLICACIÓN
+        if 'Publicación' in registros_tipo.columns:
+            # Total histórico
+            resultados['Publicación']['total'] = len(registros_tipo[
+                registros_tipo['Publicación'].apply(lambda x: es_fecha_valida(x))
+            ])
+
+            # Avance 2026 por trimestre (acumulado)
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                resultados['Publicación'][trimestre] = len(registros_tipo[
+                    registros_tipo['Publicación'].apply(lambda x: es_fecha_trimestre_2026(x, trimestre))
+                ])
+
+        return resultados
+
     except Exception as e:
-        st.warning(f"Error calculando métricas: {e}")
-        return {
-            'total_registros': 0,
-            'registros_publicados': 0,
-            'porcentaje_publicados': 0,
-            'total_metas_diciembre': 0,
-            'total_avance': 0,
-            'porcentaje_meta': 0,
-            'trimestre_actual': 'Q1',
-            'total_meta_nuevos': 0,
-            'total_meta_actualizar': 0,
-            'total_avance_nuevos': 0,
-            'total_avance_actualizar': 0
-        }
+        st.error(f"Error calculando avance por hito: {e}")
+        return resultados
 
 
-def mostrar_tarjetas_metricas_clave(metricas):
+def extraer_metas_por_hito_2026(meta_df):
     """
-    CORREGIDO: Tarjetas con métricas calculadas sobre meta al 31 diciembre
-    """
-    st.markdown("### Métricas Clave del Año")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric(
-            "Total Registros",
-            metricas['total_registros']
-        )
-        
-        st.metric(
-            "Publicados",
-            metricas['registros_publicados'],
-            delta=f"{metricas['porcentaje_publicados']:.1f}%"
-        )
-    
-    with col2:
-        # CORREGIDO: Meta al 31 diciembre
-        st.metric(
-            "Meta 31 Diciembre",
-            metricas['total_metas_diciembre']
-        )
-        
-        # CORREGIDO: Porcentaje sobre meta al 31 diciembre
-        st.metric(
-            "Avance vs Meta",
-            metricas['total_avance'],
-            delta=f"{metricas['porcentaje_meta']:.1f}%"
-        )
-    
-    with col3:
-        st.metric(
-            "Meta Nuevos (31 Dic)",
-            metricas['total_meta_nuevos']
-        )
-        
-        st.metric(
-            "Avance Nuevos",
-            metricas['total_avance_nuevos'],
-            delta=f"{(metricas['total_avance_nuevos']/metricas['total_meta_nuevos']*100) if metricas['total_meta_nuevos'] > 0 else 0:.1f}%"
-        )
-    
-    with col4:
-        st.metric(
-            "Meta Actualizar (31 Dic)",
-            metricas['total_meta_actualizar']
-        )
-        
-        st.metric(
-            "Avance Actualizar", 
-            metricas['total_avance_actualizar'],
-            delta=f"{(metricas['total_avance_actualizar']/metricas['total_meta_actualizar']*100) if metricas['total_meta_actualizar'] > 0 else 0:.1f}%"
-        )
-
-
-def mostrar_indicadores_trimestre_actual(metricas, avance_nuevos, avance_actualizar, metas_trimestrales):
-    """
-    Muestra indicadores específicos del trimestre actual
-    """
-    trimestre = metricas['trimestre_actual']
-    
-    st.markdown(f"### Indicadores {trimestre} 2025")
-    
-    # Métricas del trimestre actual
-    meta_nuevos_q = metas_trimestrales['nuevos'][trimestre]
-    meta_actualizar_q = metas_trimestrales['actualizar'][trimestre]
-    avance_nuevos_q = avance_nuevos[trimestre]
-    avance_actualizar_q = avance_actualizar[trimestre]
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        cumplimiento_nuevos = (avance_nuevos_q/meta_nuevos_q*100) if meta_nuevos_q > 0 else 0
-        st.info(f"""
-        **Registros Nuevos - {trimestre}**
-        - Meta: {meta_nuevos_q}
-        - Avance: {avance_nuevos_q}
-        - Cumplimiento: {cumplimiento_nuevos:.1f}%
-        """)
-    
-    with col2:
-        cumplimiento_actualizar = (avance_actualizar_q/meta_actualizar_q*100) if meta_actualizar_q > 0 else 0
-        st.info(f"""
-        **Registros Actualizar - {trimestre}**
-        - Meta: {meta_actualizar_q}
-        - Avance: {avance_actualizar_q}
-        - Cumplimiento: {cumplimiento_actualizar:.1f}%
-        """)
-    
-    with col3:
-        total_meta_q = meta_nuevos_q + meta_actualizar_q
-        total_avance_q = avance_nuevos_q + avance_actualizar_q
-        cumplimiento_total_q = (total_avance_q/total_meta_q*100) if total_meta_q > 0 else 0
-        
-        st.info(f"""
-        **Total {trimestre}**
-        - Meta: {total_meta_q}
-        - Avance: {total_avance_q}
-        - Cumplimiento: {cumplimiento_total_q:.1f}%
-        """)
-
-
-def extraer_metas_desde_google_sheets(meta_df):
-    """
-    Extrae las metas trimestrales desde la hoja METAS de Google Sheets
-    Q1 = 31 marzo, Q2 = 30 junio, Q3 = 30 septiembre, Q4 = 31 diciembre
+    NUEVA FUNCIÓN: Extrae las metas trimestrales de 2026 por hito
+    Retorna metas acumuladas para cada trimestre
     """
     try:
         # Procesar metas para obtener estructura usable
         metas_nuevas_df, metas_actualizar_df = procesar_metas(meta_df)
-        
-        # Fechas EXACTAS por trimestre
+
+        # Fechas objetivo por trimestre de 2026
         fechas_objetivo = {
-            'Q1': ['31/03/2025'],
-            'Q2': ['30/06/2025'], 
-            'Q3': ['30/09/2025'],
-            'Q4': ['31/12/2025']
+            'Q1': ['31/03/2026'],
+            'Q2': ['30/06/2026'],
+            'Q3': ['30/09/2026'],
+            'Q4': ['31/12/2026']
         }
-        
-        metas_trimestrales = {
-            'nuevos': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
-            'actualizar': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
+
+        # Estructura de metas por hito y trimestre
+        metas_hitos = {
+            'nuevos': {
+                'Acuerdo de compromiso': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Análisis y cronograma': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Estándares': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Publicación': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
+            },
+            'actualizar': {
+                'Acuerdo de compromiso': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Análisis y cronograma': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Estándares': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Publicación': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
+            }
         }
-        
-        # Buscar metas por fecha EXACTA
+
+        # Buscar metas por fecha
         for trimestre, fechas_candidatas in fechas_objetivo.items():
-            meta_nueva_encontrada = 0
-            meta_actualizar_encontrada = 0
-            
             for fecha_str in fechas_candidatas:
                 try:
                     fecha_buscar = procesar_fecha(fecha_str)
                     if fecha_buscar is not None:
-                        # Buscar coincidencia EXACTA por fecha
+                        # Buscar en metas_nuevas_df
                         for fecha_disponible in metas_nuevas_df.index:
                             fecha_disponible_date = fecha_disponible.date() if hasattr(fecha_disponible, 'date') else fecha_disponible
                             fecha_buscar_date = fecha_buscar.date() if hasattr(fecha_buscar, 'date') else fecha_buscar
-                            
+
                             if fecha_disponible_date == fecha_buscar_date:
-                                meta_nueva_encontrada = metas_nuevas_df.loc[fecha_disponible, 'Publicación']
+                                for hito in ['Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación']:
+                                    if hito in metas_nuevas_df.columns:
+                                        valor = metas_nuevas_df.loc[fecha_disponible, hito]
+                                        metas_hitos['nuevos'][hito][trimestre] = int(float(valor)) if pd.notna(valor) else 0
                                 break
-                        
-                        # Mismo proceso para metas_actualizar_df
+
+                        # Buscar en metas_actualizar_df
                         for fecha_disponible in metas_actualizar_df.index:
                             fecha_disponible_date = fecha_disponible.date() if hasattr(fecha_disponible, 'date') else fecha_disponible
                             fecha_buscar_date = fecha_buscar.date() if hasattr(fecha_buscar, 'date') else fecha_buscar
-                            
+
                             if fecha_disponible_date == fecha_buscar_date:
-                                meta_actualizar_encontrada = metas_actualizar_df.loc[fecha_disponible, 'Publicación']
+                                for hito in ['Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación']:
+                                    if hito in metas_actualizar_df.columns:
+                                        valor = metas_actualizar_df.loc[fecha_disponible, hito]
+                                        metas_hitos['actualizar'][hito][trimestre] = int(float(valor)) if pd.notna(valor) else 0
                                 break
-                        
-                        # Si encontramos coincidencia exacta, parar
-                        if meta_nueva_encontrada > 0 or meta_actualizar_encontrada > 0:
-                            break
                 except:
                     continue
-            
-            # Convertir a entero de forma segura
-            try:
-                metas_trimestrales['nuevos'][trimestre] = int(float(meta_nueva_encontrada)) if pd.notna(meta_nueva_encontrada) else 0
-                metas_trimestrales['actualizar'][trimestre] = int(float(meta_actualizar_encontrada)) if pd.notna(meta_actualizar_encontrada) else 0
-            except (ValueError, TypeError):
-                metas_trimestrales['nuevos'][trimestre] = 0
-                metas_trimestrales['actualizar'][trimestre] = 0
-        
-        return metas_trimestrales
-        
+
+        return metas_hitos
+
     except Exception as e:
-        st.warning(f"Error extrayendo metas: {e}")
+        st.warning(f"Error extrayendo metas por hito: {e}")
         return {
-            'nuevos': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
-            'actualizar': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
+            'nuevos': {
+                'Acuerdo de compromiso': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Análisis y cronograma': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Estándares': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Publicación': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
+            },
+            'actualizar': {
+                'Acuerdo de compromiso': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Análisis y cronograma': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Estándares': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Publicación': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
+            }
         }
 
 
-def calcular_avance_publicaciones_corregido(registros_df, tipo_dato):
+def mostrar_tabla_por_hito(hito_nombre, avances, metas, tipo):
     """
-    Calcula el avance de publicaciones CORREGIDO - sin errores de datetime
+    NUEVA FUNCIÓN: Muestra tabla con Total, Meta y Avance por trimestre para un hito
     """
-    avance_trimestral = {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
-    
-    try:
-        # Filtrar por tipo de dato
-        if 'TipoDato' in registros_df.columns:
-            registros_tipo = registros_df[registros_df['TipoDato'].str.upper() == tipo_dato.upper()]
-        else:
-            st.warning(f"Columna TipoDato no encontrada, usando todos los registros")
-            registros_tipo = registros_df
-        
-        if registros_tipo.empty:
-            return avance_trimestral
-        
-        # Fechas límite EXACTAS para cada trimestre
-        fechas_limite = {
-            'Q1': datetime(2025, 3, 31),
-            'Q2': datetime(2025, 6, 30),
-            'Q3': datetime(2025, 9, 30),
-            'Q4': datetime(2025, 12, 31)
-        }
-        
-        # Obtener registros publicados con manejo seguro de fechas
-        registros_publicados = []
-        if 'Publicación' in registros_tipo.columns:
-            for idx, row in registros_tipo.iterrows():
-                fecha_pub_str = row.get('Publicación', '')
-                if es_fecha_valida(fecha_pub_str):
-                    try:
-                        fecha_pub = procesar_fecha(fecha_pub_str)
-                        if fecha_pub is not None:
-                            # Asegurar que siempre trabajamos con datetime
-                            if hasattr(fecha_pub, 'date'):
-                                fecha_pub_dt = datetime.combine(fecha_pub.date(), datetime.min.time())
-                            else:
-                                fecha_pub_dt = datetime.combine(fecha_pub, datetime.min.time())
-                            
-                            registros_publicados.append(fecha_pub_dt)
-                    except Exception as e:
-                        continue
-        
-        # Calcular avance por trimestre (acumulativo)
-        for trimestre, fecha_limite in fechas_limite.items():
-            try:
-                count = 0
-                for fecha_pub_dt in registros_publicados:
-                    if fecha_pub_dt <= fecha_limite:
-                        count += 1
-                
-                avance_trimestral[trimestre] = count
-            except Exception as e:
-                st.warning(f"Error calculando {trimestre}: {e}")
-                avance_trimestral[trimestre] = 0
-        
-        return avance_trimestral
-        
-    except Exception as e:
-        st.error(f"Error general calculando avance: {e}")
-        return avance_trimestral
+    st.markdown(f"### {hito_nombre} - {tipo}")
+
+    # Crear datos para la tabla
+    datos_tabla = []
+
+    # Fila de Total
+    datos_tabla.append({
+        'Concepto': 'Total Histórico',
+        'Q1 2026': avances['total'],
+        'Q2 2026': '',
+        'Q3 2026': '',
+        'Q4 2026': ''
+    })
+
+    # Fila de Meta Acumulada
+    meta_row = {'Concepto': 'Meta Acumulada 2026'}
+    for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+        meta_row[f'{trimestre} 2026'] = metas[trimestre]
+    datos_tabla.append(meta_row)
+
+    # Fila de Avance Acumulado 2026
+    avance_row = {'Concepto': 'Avance Acumulado 2026'}
+    for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+        avance_row[f'{trimestre} 2026'] = avances[trimestre]
+    datos_tabla.append(avance_row)
+
+    # Fila de Porcentaje de Cumplimiento
+    porcentaje_row = {'Concepto': '% Cumplimiento'}
+    for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+        meta_val = metas[trimestre]
+        avance_val = avances[trimestre]
+        porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
+        porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
+    datos_tabla.append(porcentaje_row)
+
+    # Crear DataFrame y mostrar
+    df_tabla = pd.DataFrame(datos_tabla)
+
+    # Aplicar estilos
+    def aplicar_estilos(row):
+        if row['Concepto'] == 'Total Histórico':
+            return ['background-color: #e3f2fd'] * len(row)
+        elif row['Concepto'] == 'Meta Acumulada 2026':
+            return ['background-color: #fff3e0'] * len(row)
+        elif row['Concepto'] == 'Avance Acumulado 2026':
+            return ['background-color: #e8f5e9'] * len(row)
+        elif row['Concepto'] == '% Cumplimiento':
+            return ['background-color: #f3e5f5'] * len(row)
+        return [''] * len(row)
+
+    st.dataframe(
+        df_tabla.style.apply(aplicar_estilos, axis=1),
+        use_container_width=True,
+        hide_index=True
+    )
 
 
 def mostrar_seguimiento_trimestral(registros_df, meta_df):
     """
-    CORREGIDO: Seguimiento trimestral con resumen sobre meta total al 31 diciembre
+    MODIFICADO: Seguimiento trimestral por hito con avance 2026
     """
-    st.subheader("Seguimiento Trimestral")
-    
+    st.subheader("Seguimiento Trimestral 2026 por Hito")
+
     if registros_df.empty:
         st.warning("No hay registros disponibles")
         return
-    
+
     if meta_df.empty:
         st.warning("No hay datos de metas disponibles")
         return
-    
-    # Calcular métricas corregidas
-    with st.spinner("Calculando métricas..."):
-        metricas = crear_metricas_trimestrales(registros_df, meta_df)
-        metas_trimestrales = extraer_metas_desde_google_sheets(meta_df)
-        avance_nuevos = calcular_avance_publicaciones_corregido(registros_df, 'NUEVO')
-        avance_actualizar = calcular_avance_publicaciones_corregido(registros_df, 'ACTUALIZAR')
-    
-    # MOSTRAR TARJETAS CON MÉTRICAS CORREGIDAS
-    mostrar_tarjetas_metricas_clave(metricas)
-    
-    st.markdown("---")
-    
-    # INDICADORES DEL TRIMESTRE ACTUAL
-    mostrar_indicadores_trimestre_actual(metricas, avance_nuevos, avance_actualizar, metas_trimestrales)
-    
-    st.markdown("---")
-    
-    # Preparar datos para gráficos
-    def crear_datos_graficos(metas, avance, titulo):
-        trimestres = ['Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025']
-        
-        metas_valores = [metas['Q1'], metas['Q2'], metas['Q3'], metas['Q4']]
-        avance_valores = [avance['Q1'], avance['Q2'], avance['Q3'], avance['Q4']]
-        
+
+    # Calcular avances y metas
+    with st.spinner("Calculando avances por hito..."):
+        avances_nuevos = calcular_avance_por_hito_2026(registros_df, 'NUEVO')
+        avances_actualizar = calcular_avance_por_hito_2026(registros_df, 'ACTUALIZAR')
+        metas_hitos = extraer_metas_por_hito_2026(meta_df)
+
+    # Crear tabs para Nuevos y Actualizar
+    tab1, tab2 = st.tabs(["Registros NUEVOS", "Registros a ACTUALIZAR"])
+
+    with tab1:
+        st.markdown("## Registros NUEVOS")
+
+        # Mostrar tabla para cada hito
+        for hito in ['Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación']:
+            with st.expander(f"📊 {hito}", expanded=True):
+                mostrar_tabla_por_hito(
+                    hito,
+                    avances_nuevos[hito],
+                    metas_hitos['nuevos'][hito],
+                    'NUEVOS'
+                )
+
+        # Gráfico resumen
+        st.markdown("---")
+        st.markdown("### Gráfico Resumen - NUEVOS")
+
         fig = go.Figure()
-        
-        # Línea de metas
-        fig.add_trace(go.Scatter(
-            x=trimestres,
-            y=metas_valores,
-            mode='lines+markers',
-            name='Meta',
-            line=dict(color='#ff7f0e', width=4, dash='dash'),
-            marker=dict(size=12, symbol='diamond'),
-            hovertemplate='<b>Meta</b><br>%{x}: %{y}<extra></extra>'
-        ))
-        
-        # Línea de avance
-        fig.add_trace(go.Scatter(
-            x=trimestres,
-            y=avance_valores,
-            mode='lines+markers',
-            name='Avance',
-            line=dict(color='#2ca02c', width=4),
-            marker=dict(size=12, symbol='circle'),
-            hovertemplate='<b>Avance</b><br>%{x}: %{y}<extra></extra>'
-        ))
-        
+
+        for hito in ['Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación']:
+            avances_valores = [avances_nuevos[hito][q] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
+            fig.add_trace(go.Bar(
+                name=hito,
+                x=['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'],
+                y=avances_valores,
+                text=avances_valores,
+                textposition='auto'
+            ))
+
         fig.update_layout(
-            title={'text': titulo, 'x': 0.5, 'xanchor': 'center'},
+            barmode='group',
+            title='Avance Acumulado 2026 por Hito - NUEVOS',
             xaxis_title='Trimestre',
-            yaxis_title='Cantidad de Publicaciones',
-            height=500,
-            plot_bgcolor='white',
-            paper_bgcolor='white'
+            yaxis_title='Cantidad',
+            height=500
         )
-        
-        return fig
-    
-    # Verificar si hay datos para mostrar
-    hay_metas_nuevos = any(metas_trimestrales['nuevos'][q] > 0 for q in ['Q1', 'Q2', 'Q3', 'Q4'])
-    hay_metas_actualizar = any(metas_trimestrales['actualizar'][q] > 0 for q in ['Q1', 'Q2', 'Q3', 'Q4'])
-    
-    if not hay_metas_nuevos and not hay_metas_actualizar:
-        st.warning("No se encontraron metas en la hoja METAS")
-        return
-    
-    # Mostrar gráficos y tablas
-    if hay_metas_nuevos:
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    with tab2:
+        st.markdown("## Registros a ACTUALIZAR")
+
+        # Mostrar tabla para cada hito
+        for hito in ['Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación']:
+            with st.expander(f"📊 {hito}", expanded=True):
+                mostrar_tabla_por_hito(
+                    hito,
+                    avances_actualizar[hito],
+                    metas_hitos['actualizar'][hito],
+                    'ACTUALIZAR'
+                )
+
+        # Gráfico resumen
         st.markdown("---")
-        fig_nuevos = crear_datos_graficos(
-            metas_trimestrales['nuevos'],
-            avance_nuevos,
-            "Registros NUEVOS - Meta vs Avance"
+        st.markdown("### Gráfico Resumen - ACTUALIZAR")
+
+        fig = go.Figure()
+
+        for hito in ['Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación']:
+            avances_valores = [avances_actualizar[hito][q] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
+            fig.add_trace(go.Bar(
+                name=hito,
+                x=['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'],
+                y=avances_valores,
+                text=avances_valores,
+                textposition='auto'
+            ))
+
+        fig.update_layout(
+            barmode='group',
+            title='Avance Acumulado 2026 por Hito - ACTUALIZAR',
+            xaxis_title='Trimestre',
+            yaxis_title='Cantidad',
+            height=500
         )
-        st.plotly_chart(fig_nuevos, use_container_width=True)
-        
-        with st.expander("Datos Detallados - Registros NUEVOS"):
-            datos_tabla_nuevos = []
-            for q in ['Q1', 'Q2', 'Q3', 'Q4']:
-                meta = metas_trimestrales['nuevos'][q]
-                avance = avance_nuevos[q]
-                porcentaje = (avance / meta * 100) if meta > 0 else 0
-                
-                datos_tabla_nuevos.append({
-                    'Trimestre': q,
-                    'Meta': meta,
-                    'Avance': avance,
-                    'Cumplimiento': f"{porcentaje:.1f}%"
-                })
-            
-            df_tabla_nuevos = pd.DataFrame(datos_tabla_nuevos)
-            st.dataframe(df_tabla_nuevos, use_container_width=True)
-    
-    if hay_metas_actualizar:
-        st.markdown("---")
-        fig_actualizar = crear_datos_graficos(
-            metas_trimestrales['actualizar'],
-            avance_actualizar,
-            "Registros a ACTUALIZAR - Meta vs Avance"
-        )
-        st.plotly_chart(fig_actualizar, use_container_width=True)
-        
-        with st.expander("Datos Detallados - Registros a ACTUALIZAR"):
-            datos_tabla_actualizar = []
-            for q in ['Q1', 'Q2', 'Q3', 'Q4']:
-                meta = metas_trimestrales['actualizar'][q]
-                avance = avance_actualizar[q]
-                porcentaje = (avance / meta * 100) if meta > 0 else 0
-                
-                datos_tabla_actualizar.append({
-                    'Trimestre': q,
-                    'Meta': meta,
-                    'Avance': avance,
-                    'Cumplimiento': f"{porcentaje:.1f}%"
-                })
-            
-            df_tabla_actualizar = pd.DataFrame(datos_tabla_actualizar)
-            st.dataframe(df_tabla_actualizar, use_container_width=True)
-    
-    # RESUMEN EJECUTIVO CORREGIDO
-    st.markdown("---")
-    st.markdown("### Resumen Ejecutivo")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if hay_metas_nuevos:
-            total_meta_nuevos = metas_trimestrales['nuevos']['Q4']  # Meta al 31 diciembre
-            total_avance_nuevos = avance_nuevos['Q4']
-            eficiencia_nuevos = (total_avance_nuevos / total_meta_nuevos * 100) if total_meta_nuevos > 0 else 0
-            
-            st.metric(
-                "NUEVOS (Meta 31 Dic)",
-                f"{total_avance_nuevos}/{total_meta_nuevos}",
-                f"{eficiencia_nuevos:.1f}% cumplimiento"
-            )
-    
-    with col2:
-        if hay_metas_actualizar:
-            total_meta_actualizar = metas_trimestrales['actualizar']['Q4']  # Meta al 31 diciembre
-            total_avance_actualizar = avance_actualizar['Q4']
-            eficiencia_actualizar = (total_avance_actualizar / total_meta_actualizar * 100) if total_meta_actualizar > 0 else 0
-            
-            st.metric(
-                "ACTUALIZAR (Meta 31 Dic)",
-                f"{total_avance_actualizar}/{total_meta_actualizar}",
-                f"{eficiencia_actualizar:.1f}% cumplimiento"
-            )
+
+        st.plotly_chart(fig, use_container_width=True)
 
 
 if __name__ == "__main__":
-    print("Módulo Seguimiento Trimestral - CORREGIDO: Cálculo sobre meta 31 diciembre")
+    print("Módulo Seguimiento Trimestral - MODIFICADO: Seguimiento por hito 2026")

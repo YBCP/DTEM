@@ -243,7 +243,8 @@ def crear_gantt(df):
 
 def comparar_avance_metas(df, metas_nuevas_df, metas_actualizar_df):
     """
-    CORREGIDO: Compara el avance actual con las metas establecidas.
+    MODIFICADO: Compara el avance actual con las metas establecidas.
+    Ahora muestra Total histórico, Completados 2026 y calcula porcentaje solo sobre 2026.
     GARANTÍA: Usa solo datetime para comparaciones seguras
     """
     try:
@@ -273,59 +274,140 @@ def comparar_avance_metas(df, metas_nuevas_df, metas_actualizar_df):
         registros_nuevos = df[df['TipoDato'].str.upper() == 'NUEVO']
         registros_actualizar = df[df['TipoDato'].str.upper() == 'ACTUALIZAR']
 
-        # Para registros nuevos - contar directamente las fechas reales
-        completados_nuevos = {
-            'Acuerdo de compromiso': len(registros_nuevos[
-                registros_nuevos['Acuerdo de compromiso'].astype(str).str.upper().isin(
-                    ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])
-            ]) if 'Acuerdo de compromiso' in registros_nuevos.columns else 0,
-            'Análisis y cronograma': len(registros_nuevos[
-                registros_nuevos['Análisis y cronograma'].apply(lambda x: es_fecha_valida(x))
-            ]) if 'Análisis y cronograma' in registros_nuevos.columns else 0,
-            'Estándares': len(registros_nuevos[
-                registros_nuevos['Estándares'].apply(lambda x: es_fecha_valida(x))
-            ]) if 'Estándares' in registros_nuevos.columns else 0,
-            'Publicación': len(registros_nuevos[
-                registros_nuevos['Publicación'].apply(lambda x: es_fecha_valida(x))
-            ]) if 'Publicación' in registros_nuevos.columns else 0
-        }
+        # NUEVA FUNCIÓN: Verificar si una fecha es de 2026
+        def es_fecha_2026(fecha_valor):
+            """Verifica si una fecha es del año 2026"""
+            try:
+                fecha = procesar_fecha(fecha_valor)
+                if fecha and isinstance(fecha, datetime):
+                    return fecha.year == 2026
+                return False
+            except:
+                return False
 
-        # Para registros a actualizar - contar directamente las fechas reales
-        completados_actualizar = {
-            'Acuerdo de compromiso': len(registros_actualizar[
-                registros_actualizar['Acuerdo de compromiso'].astype(str).str.upper().isin(
-                    ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])
-            ]) if 'Acuerdo de compromiso' in registros_actualizar.columns else 0,
-            'Análisis y cronograma': len(registros_actualizar[
-                registros_actualizar['Análisis y cronograma'].apply(lambda x: es_fecha_valida(x))
-            ]) if 'Análisis y cronograma' in registros_actualizar.columns else 0,
-            'Estándares': len(registros_actualizar[
-                registros_actualizar['Estándares'].apply(lambda x: es_fecha_valida(x))
-            ]) if 'Estándares' in registros_actualizar.columns else 0,
-            'Publicación': len(registros_actualizar[
-                registros_actualizar['Publicación'].apply(lambda x: es_fecha_valida(x))
-            ]) if 'Publicación' in registros_actualizar.columns else 0
-        }
+        # Para registros nuevos - contar TOTAL y 2026 por separado
+        # ACUERDO DE COMPROMISO
+        total_acuerdo_nuevos = len(registros_nuevos[
+            registros_nuevos['Acuerdo de compromiso'].astype(str).str.upper().isin(
+                ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])
+        ]) if 'Acuerdo de compromiso' in registros_nuevos.columns else 0
 
-        # Crear dataframes para la comparación
+        acuerdo_2026_nuevos = 0
+        if 'Suscripción acuerdo de compromiso' in registros_nuevos.columns:
+            acuerdo_2026_nuevos = len(registros_nuevos[
+                (registros_nuevos['Acuerdo de compromiso'].astype(str).str.upper().isin(['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])) &
+                (registros_nuevos['Suscripción acuerdo de compromiso'].apply(es_fecha_2026))
+            ])
+
+        # ANÁLISIS Y CRONOGRAMA
+        total_analisis_nuevos = len(registros_nuevos[
+            registros_nuevos['Análisis y cronograma'].apply(lambda x: es_fecha_valida(x))
+        ]) if 'Análisis y cronograma' in registros_nuevos.columns else 0
+
+        analisis_2026_nuevos = len(registros_nuevos[
+            registros_nuevos['Análisis y cronograma'].apply(es_fecha_2026)
+        ]) if 'Análisis y cronograma' in registros_nuevos.columns else 0
+
+        # ESTÁNDARES
+        total_estandares_nuevos = len(registros_nuevos[
+            registros_nuevos['Estándares'].apply(lambda x: es_fecha_valida(x))
+        ]) if 'Estándares' in registros_nuevos.columns else 0
+
+        estandares_2026_nuevos = len(registros_nuevos[
+            registros_nuevos['Estándares'].apply(es_fecha_2026)
+        ]) if 'Estándares' in registros_nuevos.columns else 0
+
+        # PUBLICACIÓN
+        total_publicacion_nuevos = len(registros_nuevos[
+            registros_nuevos['Publicación'].apply(lambda x: es_fecha_valida(x))
+        ]) if 'Publicación' in registros_nuevos.columns else 0
+
+        publicacion_2026_nuevos = len(registros_nuevos[
+            registros_nuevos['Publicación'].apply(es_fecha_2026)
+        ]) if 'Publicación' in registros_nuevos.columns else 0
+
+        # Para registros a actualizar - contar TOTAL y 2026 por separado
+        # ACUERDO DE COMPROMISO
+        total_acuerdo_actualizar = len(registros_actualizar[
+            registros_actualizar['Acuerdo de compromiso'].astype(str).str.upper().isin(
+                ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])
+        ]) if 'Acuerdo de compromiso' in registros_actualizar.columns else 0
+
+        acuerdo_2026_actualizar = 0
+        if 'Suscripción acuerdo de compromiso' in registros_actualizar.columns:
+            acuerdo_2026_actualizar = len(registros_actualizar[
+                (registros_actualizar['Acuerdo de compromiso'].astype(str).str.upper().isin(['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])) &
+                (registros_actualizar['Suscripción acuerdo de compromiso'].apply(es_fecha_2026))
+            ])
+
+        # ANÁLISIS Y CRONOGRAMA
+        total_analisis_actualizar = len(registros_actualizar[
+            registros_actualizar['Análisis y cronograma'].apply(lambda x: es_fecha_valida(x))
+        ]) if 'Análisis y cronograma' in registros_actualizar.columns else 0
+
+        analisis_2026_actualizar = len(registros_actualizar[
+            registros_actualizar['Análisis y cronograma'].apply(es_fecha_2026)
+        ]) if 'Análisis y cronograma' in registros_actualizar.columns else 0
+
+        # ESTÁNDARES
+        total_estandares_actualizar = len(registros_actualizar[
+            registros_actualizar['Estándares'].apply(lambda x: es_fecha_valida(x))
+        ]) if 'Estándares' in registros_actualizar.columns else 0
+
+        estandares_2026_actualizar = len(registros_actualizar[
+            registros_actualizar['Estándares'].apply(es_fecha_2026)
+        ]) if 'Estándares' in registros_actualizar.columns else 0
+
+        # PUBLICACIÓN
+        total_publicacion_actualizar = len(registros_actualizar[
+            registros_actualizar['Publicación'].apply(lambda x: es_fecha_valida(x))
+        ]) if 'Publicación' in registros_actualizar.columns else 0
+
+        publicacion_2026_actualizar = len(registros_actualizar[
+            registros_actualizar['Publicación'].apply(es_fecha_2026)
+        ]) if 'Publicación' in registros_actualizar.columns else 0
+
+        # Crear dataframes para la comparación con NUEVAS COLUMNAS
         comparacion_nuevos = pd.DataFrame({
-            'Completados': completados_nuevos,
+            'Total': {
+                'Acuerdo de compromiso': total_acuerdo_nuevos,
+                'Análisis y cronograma': total_analisis_nuevos,
+                'Estándares': total_estandares_nuevos,
+                'Publicación': total_publicacion_nuevos
+            },
+            'Completados 2026': {
+                'Acuerdo de compromiso': acuerdo_2026_nuevos,
+                'Análisis y cronograma': analisis_2026_nuevos,
+                'Estándares': estandares_2026_nuevos,
+                'Publicación': publicacion_2026_nuevos
+            },
             'Meta': metas_nuevas_actual
         })
 
         comparacion_actualizar = pd.DataFrame({
-            'Completados': completados_actualizar,
+            'Total': {
+                'Acuerdo de compromiso': total_acuerdo_actualizar,
+                'Análisis y cronograma': total_analisis_actualizar,
+                'Estándares': total_estandares_actualizar,
+                'Publicación': total_publicacion_actualizar
+            },
+            'Completados 2026': {
+                'Acuerdo de compromiso': acuerdo_2026_actualizar,
+                'Análisis y cronograma': analisis_2026_actualizar,
+                'Estándares': estandares_2026_actualizar,
+                'Publicación': publicacion_2026_actualizar
+            },
             'Meta': metas_actualizar_actual
         })
 
-        # Calcular porcentajes de cumplimiento (manejando divisiones por cero)
+        # MODIFICADO: Calcular porcentajes basados SOLO en Completados 2026 / Meta
         comparacion_nuevos['Porcentaje'] = comparacion_nuevos.apply(
-            lambda row: (row['Completados'] / row['Meta'] * 100) if row['Meta'] > 0 else 0, 
+            lambda row: (row['Completados 2026'] / row['Meta'] * 100) if row['Meta'] > 0 else 0,
             axis=1
         ).fillna(0).round(2)
-        
+
         comparacion_actualizar['Porcentaje'] = comparacion_actualizar.apply(
-            lambda row: (row['Completados'] / row['Meta'] * 100) if row['Meta'] > 0 else 0, 
+            lambda row: (row['Completados 2026'] / row['Meta'] * 100) if row['Meta'] > 0 else 0,
             axis=1
         ).fillna(0).round(2)
 
