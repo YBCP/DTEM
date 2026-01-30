@@ -1,0 +1,79 @@
+# Credenciales de Google Sheets - NUNCA SUBIR
+credentials.json
+config.json
+service-account-key.json
+
+# Archivos CSV locales (ya no se usan, pero por seguridad)
+registros.csv
+meta.csv
+*.csv
+
+# Archivos de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Entornos virtuales
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code
+.claude/
+
+# Sistema operativo
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Archivos temporales
+*.tmp
+*.temp
+*.bak
+*.backup
+nul
+
+# Streamlit - Solo secretos, permitir config.toml
+.streamlit/secrets.toml
+
+# Archivos de respaldo
+backup_*.xlsx
+backup_*.csv
