@@ -12,6 +12,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, date
 from data_utils import es_fecha_valida, procesar_fecha, procesar_metas
+from io import BytesIO
 
 
 def es_fecha_2026(fecha_valor):
@@ -369,11 +370,114 @@ def mostrar_tarjeta_trimestre(trimestre, avances_dict, metas_dict, registros_df,
                 st.info(f"No hay registros programados para {trimestre}")
 
 
+def generar_excel_seguimiento(registros_df):
+    """
+    Genera un archivo Excel con los datos de seguimiento trimestral
+    Columnas: Trimestre, Cod, Nivel de Información, % Acuerdo, % Análisis, % Estándares, % Publicación, % Avance Total
+    """
+    datos_excel = []
+
+    # Filtrar solo registros 2026
+    registros_2026 = registros_df.copy()
+    if 'Trabajar2026' in registros_2026.columns:
+        registros_2026 = registros_2026[registros_2026['Trabajar2026'].astype(str).str.strip() == '1']
+
+    # Procesar cada registro
+    for _, row in registros_2026.iterrows():
+        # Obtener trimestre proyectado
+        trimestre = ''
+        if 'Trimestre proyectado' in row.index:
+            trimestre_val = str(row['Trimestre proyectado']).strip()
+            if trimestre_val in ['1', '2', '3', '4']:
+                trimestre = f'Q{trimestre_val}'
+
+        # Si no tiene trimestre proyectado, omitir
+        if not trimestre:
+            continue
+
+        # Cod
+        cod = str(row['Cod']) if 'Cod' in row.index else ''
+
+        # Nivel de Información
+        nivel = ''
+        posibles_nombres = ['Nivel Información ', 'Nivel de Información', 'Nivel Información',
+                           'nivel información ', 'nivel de información', 'Nivel informacion']
+        for nombre in posibles_nombres:
+            if nombre in row.index:
+                nivel = str(row[nombre]) if pd.notna(row[nombre]) else ''
+                if nivel and nivel not in ['', 'nan', 'None']:
+                    break
+
+        # Entidad
+        entidad = str(row['Entidad']) if 'Entidad' in row.index and pd.notna(row['Entidad']) else ''
+
+        # Calcular porcentajes por hito
+        pct_acuerdo = calcular_porcentaje_hito(row, 'Acuerdo de compromiso')
+        pct_analisis = calcular_porcentaje_hito(row, 'Análisis y cronograma')
+        pct_estandares = calcular_porcentaje_hito(row, 'Estándares')
+        pct_publicacion = calcular_porcentaje_hito(row, 'Publicación')
+
+        # % Avance Total
+        pct_total = row['Porcentaje Avance'] if 'Porcentaje Avance' in row.index else 0
+
+        datos_excel.append({
+            'Trimestre': trimestre,
+            'Cod': cod,
+            'Entidad': entidad,
+            'Nivel de Información': nivel,
+            '% Acuerdo de compromiso': pct_acuerdo,
+            '% Análisis y cronograma': pct_analisis,
+            '% Estándares': pct_estandares,
+            '% Publicación': pct_publicacion,
+            '% Avance Total': pct_total
+        })
+
+    # Crear DataFrame
+    df_excel = pd.DataFrame(datos_excel)
+
+    # Ordenar por trimestre y entidad
+    df_excel = df_excel.sort_values(['Trimestre', 'Entidad', 'Cod'])
+
+    # Convertir a Excel en memoria
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_excel.to_excel(writer, index=False, sheet_name='Seguimiento Trimestral')
+
+        # Ajustar ancho de columnas
+        worksheet = writer.sheets['Seguimiento Trimestral']
+        for idx, col in enumerate(df_excel.columns):
+            max_length = max(
+                df_excel[col].astype(str).apply(len).max(),
+                len(col)
+            )
+            worksheet.column_dimensions[chr(65 + idx)].width = min(max_length + 2, 50)
+
+    output.seek(0)
+    return output
+
+
 def mostrar_seguimiento_trimestral(registros_df, meta_df):
     """
     REORGANIZADO: Muestra primero el gráfico resumen, luego las 4 tarjetas por trimestre
     """
-    st.subheader("Seguimiento Trimestral 2026 por Hito")
+    # Encabezado con botón de exportación
+    col_titulo, col_boton = st.columns([3, 1])
+
+    with col_titulo:
+        st.subheader("Seguimiento Trimestral 2026 por Hito")
+
+    with col_boton:
+        if not registros_df.empty:
+            try:
+                excel_data = generar_excel_seguimiento(registros_df)
+                st.download_button(
+                    label="📥 Exportar a Excel",
+                    data=excel_data,
+                    file_name=f"seguimiento_trimestral_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            except Exception as e:
+                st.error(f"Error generando Excel: {str(e)}")
 
     if registros_df.empty:
         st.warning("No hay registros disponibles")
@@ -444,52 +548,130 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
             mostrar_tarjeta_trimestre(trimestre, avances_nuevos, metas_hitos['nuevos'], registros_df, 'NUEVO')
             st.markdown("---")
 
-        # DETALLE SOLO PARA PUBLICACIÓN
+        # DETALLE POR HITO
         st.markdown("---")
-        st.markdown("### Detalle de Publicación por Trimestre")
-
-        # Crear datos para la tabla solo de Publicación
-        datos_tabla = []
-
-        # Fila de Meta
-        meta_row = {'Concepto': 'Meta'}
-        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
-            meta_row[f'{trimestre} 2026'] = metas_hitos['nuevos']['Publicación'][trimestre]
-        datos_tabla.append(meta_row)
-
-        # Fila de Publicados
-        avance_row = {'Concepto': 'Publicados'}
-        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
-            avance_row[f'{trimestre} 2026'] = avances_nuevos['Publicación'][trimestre]
-        datos_tabla.append(avance_row)
-
-        # Fila de Porcentaje
-        porcentaje_row = {'Concepto': '% Cumplimiento'}
-        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
-            meta_val = metas_hitos['nuevos']['Publicación'][trimestre]
-            avance_val = avances_nuevos['Publicación'][trimestre]
-            porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
-            porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
-        datos_tabla.append(porcentaje_row)
-
-        # Crear DataFrame y mostrar
-        df_tabla = pd.DataFrame(datos_tabla)
+        st.markdown("### Detalle por Trimestre y Hito")
 
         # Aplicar estilos
         def aplicar_estilos(row):
             if row['Concepto'] == 'Meta':
                 return ['background-color: #fff3e0'] * len(row)
-            elif row['Concepto'] == 'Publicados':
+            elif row['Concepto'] == 'Completados':
                 return ['background-color: #e8f5e9'] * len(row)
             elif row['Concepto'] == '% Cumplimiento':
                 return ['background-color: #f3e5f5'] * len(row)
             return [''] * len(row)
 
-        st.dataframe(
-            df_tabla.style.apply(aplicar_estilos, axis=1),
-            use_container_width=True,
-            hide_index=True
-        )
+        # Crear tabs por hito
+        tab_acuerdo, tab_analisis, tab_estandares, tab_publicacion = st.tabs([
+            "Acuerdo de compromiso",
+            "Análisis y cronograma",
+            "Estándares",
+            "Publicación"
+        ])
+
+        # Tab Acuerdo de compromiso
+        with tab_acuerdo:
+            datos_tabla = []
+
+            # Fila de Meta
+            meta_row = {'Concepto': 'Meta'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_row[f'{trimestre} 2026'] = metas_hitos['nuevos']['Acuerdo de compromiso'][trimestre]
+            datos_tabla.append(meta_row)
+
+            # Fila de Completados
+            avance_row = {'Concepto': 'Completados'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                avance_row[f'{trimestre} 2026'] = avances_nuevos['Acuerdo de compromiso'][trimestre]
+            datos_tabla.append(avance_row)
+
+            # Fila de Porcentaje
+            porcentaje_row = {'Concepto': '% Cumplimiento'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_val = metas_hitos['nuevos']['Acuerdo de compromiso'][trimestre]
+                avance_val = avances_nuevos['Acuerdo de compromiso'][trimestre]
+                porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
+                porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
+            datos_tabla.append(porcentaje_row)
+
+            df_tabla = pd.DataFrame(datos_tabla)
+            st.dataframe(df_tabla.style.apply(aplicar_estilos, axis=1), use_container_width=True, hide_index=True)
+
+        # Tab Análisis y cronograma
+        with tab_analisis:
+            datos_tabla = []
+
+            meta_row = {'Concepto': 'Meta'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_row[f'{trimestre} 2026'] = metas_hitos['nuevos']['Análisis y cronograma'][trimestre]
+            datos_tabla.append(meta_row)
+
+            avance_row = {'Concepto': 'Completados'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                avance_row[f'{trimestre} 2026'] = avances_nuevos['Análisis y cronograma'][trimestre]
+            datos_tabla.append(avance_row)
+
+            porcentaje_row = {'Concepto': '% Cumplimiento'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_val = metas_hitos['nuevos']['Análisis y cronograma'][trimestre]
+                avance_val = avances_nuevos['Análisis y cronograma'][trimestre]
+                porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
+                porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
+            datos_tabla.append(porcentaje_row)
+
+            df_tabla = pd.DataFrame(datos_tabla)
+            st.dataframe(df_tabla.style.apply(aplicar_estilos, axis=1), use_container_width=True, hide_index=True)
+
+        # Tab Estándares
+        with tab_estandares:
+            datos_tabla = []
+
+            meta_row = {'Concepto': 'Meta'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_row[f'{trimestre} 2026'] = metas_hitos['nuevos']['Estándares'][trimestre]
+            datos_tabla.append(meta_row)
+
+            avance_row = {'Concepto': 'Completados'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                avance_row[f'{trimestre} 2026'] = avances_nuevos['Estándares'][trimestre]
+            datos_tabla.append(avance_row)
+
+            porcentaje_row = {'Concepto': '% Cumplimiento'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_val = metas_hitos['nuevos']['Estándares'][trimestre]
+                avance_val = avances_nuevos['Estándares'][trimestre]
+                porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
+                porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
+            datos_tabla.append(porcentaje_row)
+
+            df_tabla = pd.DataFrame(datos_tabla)
+            st.dataframe(df_tabla.style.apply(aplicar_estilos, axis=1), use_container_width=True, hide_index=True)
+
+        # Tab Publicación
+        with tab_publicacion:
+            datos_tabla = []
+
+            meta_row = {'Concepto': 'Meta'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_row[f'{trimestre} 2026'] = metas_hitos['nuevos']['Publicación'][trimestre]
+            datos_tabla.append(meta_row)
+
+            avance_row = {'Concepto': 'Completados'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                avance_row[f'{trimestre} 2026'] = avances_nuevos['Publicación'][trimestre]
+            datos_tabla.append(avance_row)
+
+            porcentaje_row = {'Concepto': '% Cumplimiento'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_val = metas_hitos['nuevos']['Publicación'][trimestre]
+                avance_val = avances_nuevos['Publicación'][trimestre]
+                porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
+                porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
+            datos_tabla.append(porcentaje_row)
+
+            df_tabla = pd.DataFrame(datos_tabla)
+            st.dataframe(df_tabla.style.apply(aplicar_estilos, axis=1), use_container_width=True, hide_index=True)
 
     with tab2:
         st.markdown("## Registros a ACTUALIZAR")
@@ -543,42 +725,127 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
             mostrar_tarjeta_trimestre(trimestre, avances_actualizar, metas_hitos['actualizar'], registros_df, 'ACTUALIZAR')
             st.markdown("---")
 
-        # DETALLE SOLO PARA PUBLICACIÓN
+        # DETALLE POR HITO
         st.markdown("---")
-        st.markdown("### Detalle de Publicación por Trimestre")
+        st.markdown("### Detalle por Trimestre y Hito")
 
-        # Crear datos para la tabla solo de Publicación
-        datos_tabla = []
+        # Aplicar estilos
+        def aplicar_estilos(row):
+            if row['Concepto'] == 'Meta':
+                return ['background-color: #fff3e0'] * len(row)
+            elif row['Concepto'] == 'Completados':
+                return ['background-color: #e8f5e9'] * len(row)
+            elif row['Concepto'] == '% Cumplimiento':
+                return ['background-color: #f3e5f5'] * len(row)
+            return [''] * len(row)
 
-        # Fila de Meta
-        meta_row = {'Concepto': 'Meta'}
-        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
-            meta_row[f'{trimestre} 2026'] = metas_hitos['actualizar']['Publicación'][trimestre]
-        datos_tabla.append(meta_row)
+        # Crear tabs por hito
+        tab_acuerdo, tab_analisis, tab_estandares, tab_publicacion = st.tabs([
+            "Acuerdo de compromiso",
+            "Análisis y cronograma",
+            "Estándares",
+            "Publicación"
+        ])
 
-        # Fila de Publicados
-        avance_row = {'Concepto': 'Publicados'}
-        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
-            avance_row[f'{trimestre} 2026'] = avances_actualizar['Publicación'][trimestre]
-        datos_tabla.append(avance_row)
+        # Tab Acuerdo de compromiso
+        with tab_acuerdo:
+            datos_tabla = []
 
-        # Fila de Porcentaje
-        porcentaje_row = {'Concepto': '% Cumplimiento'}
-        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
-            meta_val = metas_hitos['actualizar']['Publicación'][trimestre]
-            avance_val = avances_actualizar['Publicación'][trimestre]
-            porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
-            porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
-        datos_tabla.append(porcentaje_row)
+            meta_row = {'Concepto': 'Meta'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_row[f'{trimestre} 2026'] = metas_hitos['actualizar']['Acuerdo de compromiso'][trimestre]
+            datos_tabla.append(meta_row)
 
-        # Crear DataFrame y mostrar
-        df_tabla = pd.DataFrame(datos_tabla)
+            avance_row = {'Concepto': 'Completados'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                avance_row[f'{trimestre} 2026'] = avances_actualizar['Acuerdo de compromiso'][trimestre]
+            datos_tabla.append(avance_row)
 
-        st.dataframe(
-            df_tabla.style.apply(aplicar_estilos, axis=1),
-            use_container_width=True,
-            hide_index=True
-        )
+            porcentaje_row = {'Concepto': '% Cumplimiento'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_val = metas_hitos['actualizar']['Acuerdo de compromiso'][trimestre]
+                avance_val = avances_actualizar['Acuerdo de compromiso'][trimestre]
+                porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
+                porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
+            datos_tabla.append(porcentaje_row)
+
+            df_tabla = pd.DataFrame(datos_tabla)
+            st.dataframe(df_tabla.style.apply(aplicar_estilos, axis=1), use_container_width=True, hide_index=True)
+
+        # Tab Análisis y cronograma
+        with tab_analisis:
+            datos_tabla = []
+
+            meta_row = {'Concepto': 'Meta'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_row[f'{trimestre} 2026'] = metas_hitos['actualizar']['Análisis y cronograma'][trimestre]
+            datos_tabla.append(meta_row)
+
+            avance_row = {'Concepto': 'Completados'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                avance_row[f'{trimestre} 2026'] = avances_actualizar['Análisis y cronograma'][trimestre]
+            datos_tabla.append(avance_row)
+
+            porcentaje_row = {'Concepto': '% Cumplimiento'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_val = metas_hitos['actualizar']['Análisis y cronograma'][trimestre]
+                avance_val = avances_actualizar['Análisis y cronograma'][trimestre]
+                porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
+                porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
+            datos_tabla.append(porcentaje_row)
+
+            df_tabla = pd.DataFrame(datos_tabla)
+            st.dataframe(df_tabla.style.apply(aplicar_estilos, axis=1), use_container_width=True, hide_index=True)
+
+        # Tab Estándares
+        with tab_estandares:
+            datos_tabla = []
+
+            meta_row = {'Concepto': 'Meta'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_row[f'{trimestre} 2026'] = metas_hitos['actualizar']['Estándares'][trimestre]
+            datos_tabla.append(meta_row)
+
+            avance_row = {'Concepto': 'Completados'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                avance_row[f'{trimestre} 2026'] = avances_actualizar['Estándares'][trimestre]
+            datos_tabla.append(avance_row)
+
+            porcentaje_row = {'Concepto': '% Cumplimiento'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_val = metas_hitos['actualizar']['Estándares'][trimestre]
+                avance_val = avances_actualizar['Estándares'][trimestre]
+                porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
+                porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
+            datos_tabla.append(porcentaje_row)
+
+            df_tabla = pd.DataFrame(datos_tabla)
+            st.dataframe(df_tabla.style.apply(aplicar_estilos, axis=1), use_container_width=True, hide_index=True)
+
+        # Tab Publicación
+        with tab_publicacion:
+            datos_tabla = []
+
+            meta_row = {'Concepto': 'Meta'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_row[f'{trimestre} 2026'] = metas_hitos['actualizar']['Publicación'][trimestre]
+            datos_tabla.append(meta_row)
+
+            avance_row = {'Concepto': 'Completados'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                avance_row[f'{trimestre} 2026'] = avances_actualizar['Publicación'][trimestre]
+            datos_tabla.append(avance_row)
+
+            porcentaje_row = {'Concepto': '% Cumplimiento'}
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                meta_val = metas_hitos['actualizar']['Publicación'][trimestre]
+                avance_val = avances_actualizar['Publicación'][trimestre]
+                porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
+                porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
+            datos_tabla.append(porcentaje_row)
+
+            df_tabla = pd.DataFrame(datos_tabla)
+            st.dataframe(df_tabla.style.apply(aplicar_estilos, axis=1), use_container_width=True, hide_index=True)
 
 
 if __name__ == "__main__":
