@@ -550,7 +550,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
 
         # DETALLE POR HITO
         st.markdown("---")
-        st.markdown("### Detalle por Trimestre y Hito")
+        st.markdown("### Detalle trimestral por hito")
 
         # Aplicar estilos
         def aplicar_estilos(row):
@@ -727,7 +727,7 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
 
         # DETALLE POR HITO
         st.markdown("---")
-        st.markdown("### Detalle por Trimestre y Hito")
+        st.markdown("### Detalle trimestral por hito")
 
         # Aplicar estilos
         def aplicar_estilos(row):
