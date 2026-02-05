@@ -45,66 +45,64 @@ except ImportError:
             avance += 25
         return avance
 
-def aplicar_filtros(registros_df, entidad_reporte, tipo_dato_reporte, acuerdo_filtro, 
-                   analisis_filtro, estandares_filtro, publicacion_filtro, 
-                   finalizado_filtro, mes_filtro):
+def aplicar_filtros(registros_df, entidad_reporte, tipo_dato_reporte, acuerdo_filtro,
+                   analisis_filtro, estandares_filtro, publicacion_filtro,
+                   finalizado_filtro, trimestre_filtro):
     """Aplica filtros según los datos de Google Sheets"""
-    
+
     df_filtrado = registros_df.copy()
-    
+
     # Filtro por entidad
     if entidad_reporte != 'Todas':
         df_filtrado = df_filtrado[df_filtrado['Entidad'] == entidad_reporte]
-    
+
     # Filtro por tipo de dato
     if tipo_dato_reporte != 'Todos':
         df_filtrado = df_filtrado[df_filtrado['TipoDato'].str.upper() == tipo_dato_reporte.upper()]
-    
+
     # Filtro por acuerdo de compromiso
     if acuerdo_filtro == 'Completo':
         df_filtrado = df_filtrado[df_filtrado['Entrega acuerdo de compromiso'].apply(es_fecha_valida)]
     elif acuerdo_filtro == 'En proceso':
         df_filtrado = df_filtrado[~df_filtrado['Entrega acuerdo de compromiso'].apply(es_fecha_valida)]
-    
+
     # Filtro por análisis y cronograma
     if analisis_filtro == 'Completo':
         df_filtrado = df_filtrado[df_filtrado['Análisis y cronograma'].apply(es_fecha_valida)]
     elif analisis_filtro == 'En proceso':
         df_filtrado = df_filtrado[~df_filtrado['Análisis y cronograma'].apply(es_fecha_valida)]
-    
+
     # Filtro por estándares
     if estandares_filtro == 'Completo':
         df_filtrado = df_filtrado[df_filtrado['Estándares'].apply(es_fecha_valida)]
     elif estandares_filtro == 'En proceso':
         df_filtrado = df_filtrado[~df_filtrado['Estándares'].apply(es_fecha_valida)]
-    
+
     # Filtro por publicación
     if publicacion_filtro == 'Completo':
         df_filtrado = df_filtrado[df_filtrado['Publicación'].apply(es_fecha_valida)]
     elif publicacion_filtro == 'En proceso':
         df_filtrado = df_filtrado[~df_filtrado['Publicación'].apply(es_fecha_valida)]
-    
+
     # Filtro por estado
     if finalizado_filtro == 'Finalizados':
         df_filtrado = df_filtrado[df_filtrado['Estado'].astype(str).str.upper() == 'COMPLETADO']
     elif finalizado_filtro == 'No finalizados':
         df_filtrado = df_filtrado[df_filtrado['Estado'].astype(str).str.upper() != 'COMPLETADO']
-    
-    # Filtro por mes proyectado
-    if mes_filtro != 'Todos':
-        meses_nombres = {
-            '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
-            '05': 'Mayo', '06': 'Junio', '07': 'Julio', '08': 'Agosto',
-            '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
-        }
-        mes_nombre = meses_nombres.get(mes_filtro, mes_filtro)
-        df_filtrado = df_filtrado[df_filtrado['Mes Proyectado'].astype(str).str.upper() == mes_nombre.upper()]
-    
+
+    # Filtro por trimestre proyectado
+    if trimestre_filtro != 'Todos':
+        if 'Trimestre proyectado' in df_filtrado.columns:
+            # Mapear Q1->1, Q2->2, Q3->3, Q4->4
+            trimestre_map = {'Q1': '1', 'Q2': '2', 'Q3': '3', 'Q4': '4'}
+            trimestre_numero = trimestre_map.get(trimestre_filtro, trimestre_filtro)
+            df_filtrado = df_filtrado[df_filtrado['Trimestre proyectado'].astype(str).str.strip() == trimestre_numero]
+
     return df_filtrado
 
 def mostrar_reportes_limpio(registros_df, entidad_reporte, tipo_dato_reporte,
                            acuerdo_filtro, analisis_filtro, estandares_filtro,
-                           publicacion_filtro, finalizado_filtro, mes_filtro):
+                           publicacion_filtro, finalizado_filtro, trimestre_filtro):
     """Función principal de reportes ultra limpia"""
     
     st.subheader("Reportes")
@@ -118,7 +116,7 @@ def mostrar_reportes_limpio(registros_df, entidad_reporte, tipo_dato_reporte,
     df_filtrado = aplicar_filtros(
         registros_df, entidad_reporte, tipo_dato_reporte, acuerdo_filtro,
         analisis_filtro, estandares_filtro, publicacion_filtro, 
-        finalizado_filtro, mes_filtro
+        finalizado_filtro, trimestre_filtro
     )
     
     # Calcular porcentajes de avance si no existe la columna
@@ -164,7 +162,7 @@ def mostrar_reportes_limpio(registros_df, entidad_reporte, tipo_dato_reporte,
         'Cod', 'Entidad', 'TipoDato', 'Funcionario', 'Estado',
         'Porcentaje Avance', 'Acuerdo de compromiso',
         'Análisis y cronograma', 'Estándares', 'Publicación',
-        'Fecha de oficio de cierre', 'Mes Proyectado', 'Nivel Información '
+        'Fecha de oficio de cierre', 'Trimestre proyectado', 'Nivel Información '
     ]
     
     for col in columnas_disponibles:
@@ -236,14 +234,14 @@ def mostrar_reportes_limpio(registros_df, entidad_reporte, tipo_dato_reporte,
 
 def mostrar_reportes(registros_df, entidad_reporte, tipo_dato_reporte, 
                     acuerdo_filtro, analisis_filtro, estandares_filtro, 
-                    publicacion_filtro, finalizado_filtro, mes_filtro):
+                    publicacion_filtro, finalizado_filtro, trimestre_filtro):
     """Función principal compatible con app1.py"""
     
     try:
         mostrar_reportes_limpio(
             registros_df, entidad_reporte, tipo_dato_reporte,
             acuerdo_filtro, analisis_filtro, estandares_filtro,
-            publicacion_filtro, finalizado_filtro, mes_filtro
+            publicacion_filtro, finalizado_filtro, trimestre_filtro
         )
         
     except Exception as e:
@@ -287,7 +285,7 @@ def test_reportes():
         'Publicación': ['15/01/2024', '', '20/02/2024'],
         'Estado': ['En proceso', 'Completado', 'En proceso'],
         'Funcionario': ['Juan Pérez', 'María García', 'Juan Pérez'],
-        'Mes Proyectado': ['Enero', 'Febrero', 'Marzo']
+        'Trimestre proyectado': ['Q1', 'Q2', 'Q1']
     }
     
     df_test = pd.DataFrame(test_data)

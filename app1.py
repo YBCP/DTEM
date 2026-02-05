@@ -98,52 +98,41 @@ def mostrar_informacion_sistema_limpia():
 def crear_filtros_reportes():
     """Filtros para reportes"""
     st.markdown("### Filtros")
-    
+
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
         entidades_disponibles = ['Todas']
         if 'registros_df' in st.session_state and not st.session_state['registros_df'].empty:
             entidades_unicas = sorted(st.session_state['registros_df']['Entidad'].dropna().unique())
             entidades_disponibles.extend(entidades_unicas)
-        
+
         entidad_reporte = st.selectbox("Entidad:", entidades_disponibles, key="entidad_reporte")
         tipos_dato = ['Todos', 'Actualizar', 'Nuevo']
         tipo_dato_reporte = st.selectbox("Tipo de Dato:", tipos_dato, key="tipo_dato_reporte")
-    
+
     with col2:
         acuerdo_opciones = ['Todos', 'Completo', 'En proceso']
         acuerdo_filtro = st.selectbox("Acuerdo:", acuerdo_opciones, key="acuerdo_filtro")
         analisis_opciones = ['Todos', 'Completo', 'En proceso']
         analisis_filtro = st.selectbox("Análisis:", analisis_opciones, key="analisis_filtro")
-    
+
     with col3:
         estandares_opciones = ['Todos', 'Completo', 'En proceso']
         estandares_filtro = st.selectbox("Estándares:", estandares_opciones, key="estandares_filtro")
         publicacion_opciones = ['Todos', 'Completo', 'En proceso']
         publicacion_filtro = st.selectbox("Publicación:", publicacion_opciones, key="publicacion_filtro")
-    
+
     with col4:
         finalizado_opciones = ['Todos', 'Finalizados', 'No finalizados']
         finalizado_filtro = st.selectbox("Estado:", finalizado_opciones, key="finalizado_filtro")
-        
-        mes_opciones = ['Todos', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-        mes_filtro = st.selectbox("Mes:", mes_opciones, key="mes_filtro")
-        
-        if mes_filtro != 'Todos':
-            meses_map = {
-                'Enero': '01', 'Febrero': '02', 'Marzo': '03', 'Abril': '04',
-                'Mayo': '05', 'Junio': '06', 'Julio': '07', 'Agosto': '08',
-                'Septiembre': '09', 'Octubre': '10', 'Noviembre': '11', 'Diciembre': '12'
-            }
-            mes_filtro_numero = meses_map.get(mes_filtro, mes_filtro)
-        else:
-            mes_filtro_numero = 'Todos'
-    
-    return (entidad_reporte, tipo_dato_reporte, acuerdo_filtro, 
-            analisis_filtro, estandares_filtro, publicacion_filtro, 
-            finalizado_filtro, mes_filtro_numero)
+
+        trimestre_opciones = ['Todos', 'Q1', 'Q2', 'Q3', 'Q4']
+        trimestre_filtro = st.selectbox("Trimestre:", trimestre_opciones, key="trimestre_filtro")
+
+    return (entidad_reporte, tipo_dato_reporte, acuerdo_filtro,
+            analisis_filtro, estandares_filtro, publicacion_filtro,
+            finalizado_filtro, trimestre_filtro)
 
 
 def main():
@@ -181,9 +170,9 @@ def main():
                 # Aplicar validaciones automáticas
                 registros_df = validar_reglas_negocio(registros_df)
                 registros_df = actualizar_plazo_analisis(registros_df)
-                registros_df = actualizar_plazo_cronograma(registros_df)  
+                registros_df = actualizar_plazo_cronograma(registros_df)
                 registros_df = actualizar_plazo_oficio_cierre(registros_df)
-                
+
                 # Procesar metas
                 metas_nuevas_df, metas_actualizar_df = procesar_metas(meta_df)
                 

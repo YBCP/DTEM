@@ -132,7 +132,7 @@ def crear_estructura_emergencia():
     
     # Estructura mínima de registros
     columnas_minimas = [
-        'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
+        'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Trimestre proyectado',
         'Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación',
         'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
         'Plazo de oficio de cierre', 'Fecha de oficio de cierre', 'Estado', 'Observación',
@@ -154,7 +154,7 @@ def crear_estructura_registros_basica():
     """Crea estructura básica de registros"""
     columnas_basicas = [
         'Cod', 'Funcionario', 'Entidad', 'Nivel Información ', 'Frecuencia actualizacion ',
-        'TipoDato', 'Mes Proyectado', 'Actas de acercamiento y manifestación de interés',
+        'TipoDato', 'Trimestre proyectado', 'Actas de acercamiento y manifestación de interés',
         'Suscripción acuerdo de compromiso', 'Entrega acuerdo de compromiso',
         'Acuerdo de compromiso', 'Gestion acceso a los datos y documentos requeridos ',
         'Análisis de información', 'Cronograma Concertado', 'Análisis y cronograma (fecha programada)',
@@ -864,7 +864,7 @@ def reparar_sistema_automatico():
         try:
             registros_df = sheets_manager.leer_hoja("Registros")
             columnas_requeridas = [
-                'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Mes Proyectado',
+                'Cod', 'Entidad', 'TipoDato', 'Nivel Información ', 'Trimestre proyectado',
                 'Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación',
                 'Fecha de entrega de información', 'Plazo de análisis', 'Plazo de cronograma',
                 'Plazo de oficio de cierre', 'Fecha de oficio de cierre', 'Estado', 'Observación',

@@ -55,7 +55,7 @@ COLUMNAS_REALES = {
     'Estado': 'Estado',
     'Observación': 'Observación',
     'Porcentaje Avance': 'Porcentaje Avance',
-    'Mes Proyectado': 'Mes Proyectado',
+    'Trimestre proyectado': 'Trimestre proyectado',
     'Plazo de análisis': 'Plazo de análisis',
     'Registro': 'Registro',
     'ET': 'ET',
@@ -67,9 +67,8 @@ COLUMNAS_REALES = {
 }
 
 # LISTAS DE MESES
-MESES = [
-    "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+TRIMESTRES = [
+    "", "Q1", "Q2", "Q3", "Q4"
 ]
 
 # LISTAS DE FRECUENCIA
@@ -328,15 +327,6 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None, funcionario_final="
     elif frecuencia == "-- Seleccionar --":
         frecuencia = ""
     
-    # MES PROYECTADO - Lista desplegable de meses
-    mes_actual = get_safe_value(row, 'Mes Proyectado')
-    mes_index = MESES.index(mes_actual) if mes_actual in MESES else 0
-    
-    mes_proyectado = st.selectbox("Mes Proyectado",
-        options=MESES,
-        index=mes_index,
-        key=f"mes_{indice}")
-    
     # ACUERDOS
     st.subheader("Acuerdos y Compromisos")
     col1, col2 = st.columns(2)
@@ -566,24 +556,33 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None, funcionario_final="
     # PUBLICACIÓN
     st.subheader("Publicación")
     col1, col2 = st.columns(2)
-    
+
     with col1:
         pub_prog_date = string_a_fecha(get_safe_value(row, 'Fecha de publicación programada'))
         pub_programada = st.date_input("Publicación programada",
             value=pub_prog_date,
             key=f"pub_prog_{indice}")
-        
+
         if st.checkbox(f"Borrar fecha publicación programada", key=f"borrar_pub_prog_{indice}"):
             pub_programada = None
-        
+
         pub_real_date = string_a_fecha(get_safe_value(row, 'Publicación'))
         publicacion = st.date_input("Publicación real",
             value=pub_real_date,
             key=f"publicacion_{indice}")
-        
+
         if st.checkbox(f"Borrar fecha publicación real", key=f"borrar_publicacion_{indice}"):
             publicacion = None
-    
+
+        # TRIMESTRE PROYECTADO
+        trimestre_actual = get_safe_value(row, 'Trimestre proyectado')
+        trimestre_index = TRIMESTRES.index(trimestre_actual) if trimestre_actual in TRIMESTRES else 0
+
+        trimestre_proyectado = st.selectbox("Trimestre proyectado",
+            options=TRIMESTRES,
+            index=trimestre_index,
+            key=f"trimestre_{indice}")
+
     with col2:
         disponer_datos = st.selectbox("Disponer datos temáticos",
             options=["", "Si", "No"],
@@ -700,7 +699,7 @@ def mostrar_formulario(row, indice, es_nuevo=False, df=None, funcionario_final="
         'Fecha de oficio de cierre': fecha_a_string(fecha_oficio) if fecha_oficio else "",
         'Estado': estado,
         'Observación': observacion,
-        'Mes Proyectado': mes_proyectado
+        'Trimestre proyectado': trimestre_proyectado
     }
 
 def mostrar_edicion_registros(registros_df):
@@ -1084,11 +1083,25 @@ def mostrar_edicion_registros_con_autenticacion(registros_df):
                             st.error(f"Error de conexión: {str(e)}")
                     else:
                         st.error("GoogleSheetsManager no disponible")
-            
+
+            # Link para editar directamente en Google Sheets
+            st.markdown("---")
+            try:
+                import json
+                with open('config.json', 'r') as f:
+                    config = json.load(f)
+                    spreadsheet_id = config.get('spreadsheet_id', '')
+                    if spreadsheet_id:
+                        google_sheets_url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit"
+                        st.markdown(f"[Editar desde Google Sheets]({google_sheets_url})")
+            except Exception:
+                pass
+            st.markdown("---")
+
             # Usar datos de session_state si están disponibles
             if 'registros_df' in st.session_state:
                 registros_df = st.session_state['registros_df']
-            
+
             return mostrar_edicion_registros(registros_df)
         else:
             st.subheader("Acceso Restringido")

@@ -1,9 +1,10 @@
-# trimestral.py - MODIFICADO: Seguimiento por hito con avance 2026
+# trimestral.py - REORGANIZADO: Gráfico primero, luego tarjetas por trimestre
 """
-Módulo Seguimiento Trimestral - MODIFICADO
-- Muestra avance por cada hito (Acuerdo, Análisis, Estándares, Publicación)
-- Para cada hito: Total histórico + Metas y Avances 2026 por trimestre
-- Diseño limpio y claro
+Módulo Seguimiento Trimestral - REORGANIZADO
+- Gráfico resumen primero
+- 4 tarjetas por trimestre (clickeables)
+- Al hacer clic: muestra registros del campo "Trimestre proyectado"
+- Orden de pestañas: Publicación, Estándares, Análisis y cronograma, Acuerdos de compromiso
 """
 
 import streamlit as st
@@ -45,14 +46,15 @@ def es_fecha_trimestre_2026(fecha_valor, trimestre):
 
 def calcular_avance_por_hito_2026(registros_df, tipo_dato):
     """
-    NUEVA FUNCIÓN: Calcula el avance por hito para 2026
+    Calcula el avance por hito para 2026
     Retorna Total histórico y avances acumulados por trimestre de 2026
+    FILTRADO: Solo registros con Trabajar2026 = 1
     """
     resultados = {
-        'Acuerdo de compromiso': {'total': 0, 'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
-        'Análisis y cronograma': {'total': 0, 'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+        'Publicación': {'total': 0, 'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
         'Estándares': {'total': 0, 'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
-        'Publicación': {'total': 0, 'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
+        'Análisis y cronograma': {'total': 0, 'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+        'Acuerdo de compromiso': {'total': 0, 'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
     }
 
     try:
@@ -62,63 +64,62 @@ def calcular_avance_por_hito_2026(registros_df, tipo_dato):
         else:
             registros_tipo = registros_df
 
+        # NUEVO: Filtrar solo registros con Trabajar2026 = 1
+        if 'Trabajar2026' in registros_tipo.columns:
+            registros_tipo = registros_tipo[registros_tipo['Trabajar2026'].astype(str).str.strip() == '1']
+
         if registros_tipo.empty:
             return resultados
 
+        # NUEVO: Contar SOLO PUBLICADOS por Trimestre proyectado
+        if 'Trimestre proyectado' in registros_tipo.columns and 'Publicación' in registros_tipo.columns:
+            trimestre_map = {'Q1': '1', 'Q2': '2', 'Q3': '3', 'Q4': '4'}
+
+            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+                # Mapear Q1->1, Q2->2, etc.
+                trimestre_numero = trimestre_map[trimestre]
+
+                # Filtrar registros del trimestre específico
+                registros_trimestre = registros_tipo[
+                    registros_tipo['Trimestre proyectado'].astype(str).str.strip() == trimestre_numero
+                ]
+
+                # Contar SOLO los PUBLICADOS (tienen fecha en Publicación)
+                publicados = len(registros_trimestre[
+                    registros_trimestre['Publicación'].apply(lambda x: es_fecha_valida(x))
+                ])
+
+                # Asignar el mismo valor a todos los hitos (porque la meta es para publicación)
+                resultados['Publicación'][trimestre] = publicados
+                resultados['Estándares'][trimestre] = 0
+                resultados['Análisis y cronograma'][trimestre] = 0
+                resultados['Acuerdo de compromiso'][trimestre] = 0
+
+        # TOTALES HISTÓRICOS (todos los tiempos)
+        # PUBLICACIÓN
+        if 'Publicación' in registros_tipo.columns:
+            resultados['Publicación']['total'] = len(registros_tipo[
+                registros_tipo['Publicación'].apply(lambda x: es_fecha_valida(x))
+            ])
+
+        # ESTÁNDARES
+        if 'Estándares' in registros_tipo.columns:
+            resultados['Estándares']['total'] = len(registros_tipo[
+                registros_tipo['Estándares'].apply(lambda x: es_fecha_valida(x))
+            ])
+
+        # ANÁLISIS Y CRONOGRAMA
+        if 'Análisis y cronograma' in registros_tipo.columns:
+            resultados['Análisis y cronograma']['total'] = len(registros_tipo[
+                registros_tipo['Análisis y cronograma'].apply(lambda x: es_fecha_valida(x))
+            ])
+
         # ACUERDO DE COMPROMISO
-        # Total histórico
         if 'Acuerdo de compromiso' in registros_tipo.columns:
             resultados['Acuerdo de compromiso']['total'] = len(registros_tipo[
                 registros_tipo['Acuerdo de compromiso'].astype(str).str.upper().isin(
                     ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])
             ])
-
-        # Avance 2026 por trimestre (acumulado)
-        if 'Suscripción acuerdo de compromiso' in registros_tipo.columns:
-            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
-                resultados['Acuerdo de compromiso'][trimestre] = len(registros_tipo[
-                    (registros_tipo['Acuerdo de compromiso'].astype(str).str.upper().isin(['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO'])) &
-                    (registros_tipo['Suscripción acuerdo de compromiso'].apply(lambda x: es_fecha_trimestre_2026(x, trimestre)))
-                ])
-
-        # ANÁLISIS Y CRONOGRAMA
-        if 'Análisis y cronograma' in registros_tipo.columns:
-            # Total histórico
-            resultados['Análisis y cronograma']['total'] = len(registros_tipo[
-                registros_tipo['Análisis y cronograma'].apply(lambda x: es_fecha_valida(x))
-            ])
-
-            # Avance 2026 por trimestre (acumulado)
-            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
-                resultados['Análisis y cronograma'][trimestre] = len(registros_tipo[
-                    registros_tipo['Análisis y cronograma'].apply(lambda x: es_fecha_trimestre_2026(x, trimestre))
-                ])
-
-        # ESTÁNDARES
-        if 'Estándares' in registros_tipo.columns:
-            # Total histórico
-            resultados['Estándares']['total'] = len(registros_tipo[
-                registros_tipo['Estándares'].apply(lambda x: es_fecha_valida(x))
-            ])
-
-            # Avance 2026 por trimestre (acumulado)
-            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
-                resultados['Estándares'][trimestre] = len(registros_tipo[
-                    registros_tipo['Estándares'].apply(lambda x: es_fecha_trimestre_2026(x, trimestre))
-                ])
-
-        # PUBLICACIÓN
-        if 'Publicación' in registros_tipo.columns:
-            # Total histórico
-            resultados['Publicación']['total'] = len(registros_tipo[
-                registros_tipo['Publicación'].apply(lambda x: es_fecha_valida(x))
-            ])
-
-            # Avance 2026 por trimestre (acumulado)
-            for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
-                resultados['Publicación'][trimestre] = len(registros_tipo[
-                    registros_tipo['Publicación'].apply(lambda x: es_fecha_trimestre_2026(x, trimestre))
-                ])
 
         return resultados
 
@@ -129,7 +130,7 @@ def calcular_avance_por_hito_2026(registros_df, tipo_dato):
 
 def extraer_metas_por_hito_2026(meta_df):
     """
-    NUEVA FUNCIÓN: Extrae las metas trimestrales de 2026 por hito
+    Extrae las metas trimestrales de 2026 por hito
     Retorna metas acumuladas para cada trimestre
     """
     try:
@@ -144,19 +145,19 @@ def extraer_metas_por_hito_2026(meta_df):
             'Q4': ['31/12/2026']
         }
 
-        # Estructura de metas por hito y trimestre
+        # Estructura de metas por hito y trimestre (orden reorganizado)
         metas_hitos = {
             'nuevos': {
-                'Acuerdo de compromiso': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
-                'Análisis y cronograma': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Publicación': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
                 'Estándares': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
-                'Publicación': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
+                'Análisis y cronograma': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Acuerdo de compromiso': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
             },
             'actualizar': {
-                'Acuerdo de compromiso': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
-                'Análisis y cronograma': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Publicación': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
                 'Estándares': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
-                'Publicación': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
+                'Análisis y cronograma': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Acuerdo de compromiso': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
             }
         }
 
@@ -172,7 +173,7 @@ def extraer_metas_por_hito_2026(meta_df):
                             fecha_buscar_date = fecha_buscar.date() if hasattr(fecha_buscar, 'date') else fecha_buscar
 
                             if fecha_disponible_date == fecha_buscar_date:
-                                for hito in ['Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación']:
+                                for hito in ['Publicación', 'Estándares', 'Análisis y cronograma', 'Acuerdo de compromiso']:
                                     if hito in metas_nuevas_df.columns:
                                         valor = metas_nuevas_df.loc[fecha_disponible, hito]
                                         metas_hitos['nuevos'][hito][trimestre] = int(float(valor)) if pd.notna(valor) else 0
@@ -184,7 +185,7 @@ def extraer_metas_por_hito_2026(meta_df):
                             fecha_buscar_date = fecha_buscar.date() if hasattr(fecha_buscar, 'date') else fecha_buscar
 
                             if fecha_disponible_date == fecha_buscar_date:
-                                for hito in ['Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación']:
+                                for hito in ['Publicación', 'Estándares', 'Análisis y cronograma', 'Acuerdo de compromiso']:
                                     if hito in metas_actualizar_df.columns:
                                         valor = metas_actualizar_df.loc[fecha_disponible, hito]
                                         metas_hitos['actualizar'][hito][trimestre] = int(float(valor)) if pd.notna(valor) else 0
@@ -198,84 +199,179 @@ def extraer_metas_por_hito_2026(meta_df):
         st.warning(f"Error extrayendo metas por hito: {e}")
         return {
             'nuevos': {
-                'Acuerdo de compromiso': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
-                'Análisis y cronograma': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Publicación': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
                 'Estándares': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
-                'Publicación': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
+                'Análisis y cronograma': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Acuerdo de compromiso': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
             },
             'actualizar': {
-                'Acuerdo de compromiso': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
-                'Análisis y cronograma': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Publicación': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
                 'Estándares': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
-                'Publicación': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
+                'Análisis y cronograma': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0},
+                'Acuerdo de compromiso': {'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0}
             }
         }
 
 
-def mostrar_tabla_por_hito(hito_nombre, avances, metas, tipo):
+def obtener_registros_por_trimestre(registros_df, trimestre, tipo_dato):
     """
-    NUEVA FUNCIÓN: Muestra tabla con Total, Meta y Avance por trimestre para un hito
+    Obtiene los registros que tienen el trimestre especificado en el campo 'Trimestre proyectado'
+    FILTRADO: Solo registros con Trabajar2026 = 1 Y Trimestre proyectado = 1/2/3/4
     """
-    st.markdown(f"### {hito_nombre} - {tipo}")
+    try:
+        # Mapear Q1->1, Q2->2, Q3->3, Q4->4
+        trimestre_map = {'Q1': '1', 'Q2': '2', 'Q3': '3', 'Q4': '4'}
+        trimestre_numero = trimestre_map.get(trimestre, trimestre)
 
-    # Crear datos para la tabla
-    datos_tabla = []
+        # Filtrar por tipo de dato
+        if 'TipoDato' in registros_df.columns:
+            registros_tipo = registros_df[registros_df['TipoDato'].astype(str).str.upper() == tipo_dato.upper()]
+        else:
+            registros_tipo = registros_df
 
-    # Fila de Total
-    datos_tabla.append({
-        'Concepto': 'Total Histórico',
-        'Q1 2026': avances['total'],
-        'Q2 2026': '',
-        'Q3 2026': '',
-        'Q4 2026': ''
-    })
+        # NUEVO: Filtrar solo registros con Trabajar2026 = 1
+        if 'Trabajar2026' in registros_tipo.columns:
+            registros_tipo = registros_tipo[registros_tipo['Trabajar2026'].astype(str).str.strip() == '1']
 
-    # Fila de Meta Acumulada
-    meta_row = {'Concepto': 'Meta Acumulada 2026'}
-    for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
-        meta_row[f'{trimestre} 2026'] = metas[trimestre]
-    datos_tabla.append(meta_row)
+        if registros_tipo.empty:
+            return pd.DataFrame()
 
-    # Fila de Avance Acumulado 2026
-    avance_row = {'Concepto': 'Avance Acumulado 2026'}
-    for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
-        avance_row[f'{trimestre} 2026'] = avances[trimestre]
-    datos_tabla.append(avance_row)
+        # Filtrar por trimestre proyectado (valores 1, 2, 3, 4)
+        if 'Trimestre proyectado' in registros_tipo.columns:
+            registros_trimestre = registros_tipo[
+                registros_tipo['Trimestre proyectado'].astype(str).str.strip() == trimestre_numero
+            ]
+            return registros_trimestre
+        else:
+            return pd.DataFrame()
 
-    # Fila de Porcentaje de Cumplimiento
-    porcentaje_row = {'Concepto': '% Cumplimiento'}
-    for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
-        meta_val = metas[trimestre]
-        avance_val = avances[trimestre]
-        porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
-        porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
-    datos_tabla.append(porcentaje_row)
+    except Exception as e:
+        st.error(f"Error obteniendo registros por trimestre: {e}")
+        return pd.DataFrame()
 
-    # Crear DataFrame y mostrar
-    df_tabla = pd.DataFrame(datos_tabla)
 
-    # Aplicar estilos
-    def aplicar_estilos(row):
-        if row['Concepto'] == 'Total Histórico':
-            return ['background-color: #e3f2fd'] * len(row)
-        elif row['Concepto'] == 'Meta Acumulada 2026':
-            return ['background-color: #fff3e0'] * len(row)
-        elif row['Concepto'] == 'Avance Acumulado 2026':
-            return ['background-color: #e8f5e9'] * len(row)
-        elif row['Concepto'] == '% Cumplimiento':
-            return ['background-color: #f3e5f5'] * len(row)
-        return [''] * len(row)
+def calcular_porcentaje_hito(row, hito):
+    """Calcula si un hito está completado (100%) o no (0%)"""
+    from data_utils import es_fecha_valida
 
-    st.dataframe(
-        df_tabla.style.apply(aplicar_estilos, axis=1),
-        use_container_width=True,
-        hide_index=True
-    )
+    try:
+        if hito == 'Acuerdo de compromiso':
+            # Acceder al valor de la columna
+            if hito in row.index:
+                valor = str(row[hito]).upper()
+                return 100 if valor in ['SI', 'SÍ', 'S', 'YES', 'Y', 'COMPLETO', '1'] else 0
+            return 0
+        else:
+            # Para otros hitos, verificar si hay fecha válida
+            if hito in row.index:
+                valor = row[hito]
+                return 100 if es_fecha_valida(valor) else 0
+            return 0
+    except Exception as e:
+        return 0
+
+
+def mostrar_tarjeta_trimestre(trimestre, avances_dict, metas_dict, registros_df, tipo_dato):
+    """
+    Muestra una tarjeta para un trimestre específico
+    Calcula: registros PUBLICADOS del trimestre / meta del trimestre
+    """
+    # Obtener registros del trimestre
+    registros_trimestre = obtener_registros_por_trimestre(registros_df, trimestre, tipo_dato)
+
+    # Contar registros PUBLICADOS (tienen fecha en campo Publicación)
+    registros_publicados = 0
+    if not registros_trimestre.empty and 'Publicación' in registros_trimestre.columns:
+        from data_utils import es_fecha_valida
+        registros_publicados = len(registros_trimestre[
+            registros_trimestre['Publicación'].apply(lambda x: es_fecha_valida(x))
+        ])
+
+    # Meta del trimestre para PUBLICACIÓN específicamente
+    meta_publicacion = metas_dict.get('Publicación', {}).get(trimestre, 0)
+
+    # Porcentaje = publicados / meta de publicación
+    porcentaje = (registros_publicados / meta_publicacion * 100) if meta_publicacion > 0 else 0
+
+    # Determinar color según porcentaje
+    if porcentaje >= 80:
+        color = "#16a34a"
+    elif porcentaje >= 50:
+        color = "#f59e0b"
+    else:
+        color = "#dc2626"
+
+    with st.container():
+        # Encabezado de la tarjeta
+        col1, col2, col3 = st.columns([2, 1, 1])
+
+        with col1:
+            st.markdown(f"### {trimestre} 2026")
+
+        with col2:
+            st.metric("Publicados", f"{registros_publicados}/{meta_publicacion}")
+
+        with col3:
+            st.markdown(f"<h3 style='color: {color};'>{porcentaje:.1f}%</h3>", unsafe_allow_html=True)
+
+        # Expander para mostrar registros (sin causar recarga)
+        with st.expander(f"Ver registros de {trimestre}", expanded=False):
+            if not registros_trimestre.empty:
+                st.markdown(f"**Registros programados para {trimestre}:** {len(registros_trimestre)}")
+
+                # Resetear índice para evitar problemas
+                registros_reset = registros_trimestre.reset_index(drop=True).copy()
+
+                # Crear DataFrame con columnas específicas
+                datos_detalle = []
+
+                for idx, row in registros_reset.iterrows():
+                    fila = {}
+
+                    # Entidad
+                    if 'Entidad' in row.index:
+                        fila['Entidad'] = str(row['Entidad'])
+                    else:
+                        fila['Entidad'] = ''
+
+                    # Nivel de Información - probar TODAS las variantes posibles
+                    nivel = ''
+                    posibles_nombres = ['Nivel Información ', 'Nivel de Información', 'Nivel Información',
+                                       'nivel información ', 'nivel de información', 'Nivel informacion',
+                                       'Nivel de informacion']
+
+                    for nombre in posibles_nombres:
+                        if nombre in row.index:
+                            nivel = str(row[nombre]) if pd.notna(row[nombre]) else ''
+                            if nivel and nivel not in ['', 'nan', 'None']:
+                                break
+
+                    fila['Nivel de Información'] = nivel
+
+                    # Calcular % de avance por hito
+                    fila['% Acuerdo'] = calcular_porcentaje_hito(row, 'Acuerdo de compromiso')
+                    fila['% Análisis'] = calcular_porcentaje_hito(row, 'Análisis y cronograma')
+                    fila['% Estándares'] = calcular_porcentaje_hito(row, 'Estándares')
+                    fila['% Publicación'] = calcular_porcentaje_hito(row, 'Publicación')
+
+                    # % Avance Total
+                    if 'Porcentaje Avance' in row.index:
+                        fila['% Avance Total'] = row['Porcentaje Avance']
+                    else:
+                        fila['% Avance Total'] = 0
+
+                    datos_detalle.append(fila)
+
+                # Crear DataFrame y mostrar
+                df_detalle = pd.DataFrame(datos_detalle)
+                st.dataframe(df_detalle, use_container_width=True, hide_index=True)
+            else:
+                st.info(f"No hay registros programados para {trimestre}")
 
 
 def mostrar_seguimiento_trimestral(registros_df, meta_df):
     """
-    MODIFICADO: Seguimiento trimestral por hito con avance 2026
+    REORGANIZADO: Muestra primero el gráfico resumen, luego las 4 tarjetas por trimestre
     """
     st.subheader("Seguimiento Trimestral 2026 por Hito")
 
@@ -299,81 +395,191 @@ def mostrar_seguimiento_trimestral(registros_df, meta_df):
     with tab1:
         st.markdown("## Registros NUEVOS")
 
-        # Mostrar tabla para cada hito
-        for hito in ['Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación']:
-            with st.expander(f"📊 {hito}", expanded=True):
-                mostrar_tabla_por_hito(
-                    hito,
-                    avances_nuevos[hito],
-                    metas_hitos['nuevos'][hito],
-                    'NUEVOS'
-                )
-
-        # Gráfico resumen
-        st.markdown("---")
-        st.markdown("### Gráfico Resumen - NUEVOS")
+        # GRÁFICO RESUMEN PRIMERO - SOLO PUBLICACIÓN
+        st.markdown("### Gráfico Resumen - Registros Publicados por Trimestre")
 
         fig = go.Figure()
 
-        for hito in ['Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación']:
-            avances_valores = [avances_nuevos[hito][q] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
-            fig.add_trace(go.Bar(
-                name=hito,
-                x=['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'],
-                y=avances_valores,
-                text=avances_valores,
-                textposition='auto'
-            ))
+        # Solo mostrar Publicación (los otros hitos están en 0)
+        avances_publicacion = [avances_nuevos['Publicación'][q] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
+        metas_publicacion = [metas_hitos['nuevos']['Publicación'][q] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
+
+        # Barras de avance
+        fig.add_trace(go.Bar(
+            name='Publicados',
+            x=['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'],
+            y=avances_publicacion,
+            text=avances_publicacion,
+            textposition='auto',
+            marker_color='#10B981'
+        ))
+
+        # Línea de meta
+        fig.add_trace(go.Scatter(
+            name='Meta',
+            x=['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'],
+            y=metas_publicacion,
+            mode='lines+markers+text',
+            text=metas_publicacion,
+            textposition='top center',
+            line=dict(color='#DC2626', width=2, dash='dash'),
+            marker=dict(size=10)
+        ))
 
         fig.update_layout(
-            barmode='group',
-            title='Avance Acumulado 2026 por Hito - NUEVOS',
+            title='Registros Publicados vs Meta por Trimestre - NUEVOS',
             xaxis_title='Trimestre',
-            yaxis_title='Cantidad',
-            height=500
+            yaxis_title='Cantidad de Registros',
+            height=500,
+            showlegend=True
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
+        # TARJETAS POR TRIMESTRE
+        st.markdown("---")
+        st.markdown("### Detalle por Trimestre")
+
+        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+            mostrar_tarjeta_trimestre(trimestre, avances_nuevos, metas_hitos['nuevos'], registros_df, 'NUEVO')
+            st.markdown("---")
+
+        # DETALLE SOLO PARA PUBLICACIÓN
+        st.markdown("---")
+        st.markdown("### Detalle de Publicación por Trimestre")
+
+        # Crear datos para la tabla solo de Publicación
+        datos_tabla = []
+
+        # Fila de Meta
+        meta_row = {'Concepto': 'Meta'}
+        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+            meta_row[f'{trimestre} 2026'] = metas_hitos['nuevos']['Publicación'][trimestre]
+        datos_tabla.append(meta_row)
+
+        # Fila de Publicados
+        avance_row = {'Concepto': 'Publicados'}
+        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+            avance_row[f'{trimestre} 2026'] = avances_nuevos['Publicación'][trimestre]
+        datos_tabla.append(avance_row)
+
+        # Fila de Porcentaje
+        porcentaje_row = {'Concepto': '% Cumplimiento'}
+        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+            meta_val = metas_hitos['nuevos']['Publicación'][trimestre]
+            avance_val = avances_nuevos['Publicación'][trimestre]
+            porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
+            porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
+        datos_tabla.append(porcentaje_row)
+
+        # Crear DataFrame y mostrar
+        df_tabla = pd.DataFrame(datos_tabla)
+
+        # Aplicar estilos
+        def aplicar_estilos(row):
+            if row['Concepto'] == 'Meta':
+                return ['background-color: #fff3e0'] * len(row)
+            elif row['Concepto'] == 'Publicados':
+                return ['background-color: #e8f5e9'] * len(row)
+            elif row['Concepto'] == '% Cumplimiento':
+                return ['background-color: #f3e5f5'] * len(row)
+            return [''] * len(row)
+
+        st.dataframe(
+            df_tabla.style.apply(aplicar_estilos, axis=1),
+            use_container_width=True,
+            hide_index=True
+        )
 
     with tab2:
         st.markdown("## Registros a ACTUALIZAR")
 
-        # Mostrar tabla para cada hito
-        for hito in ['Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación']:
-            with st.expander(f"📊 {hito}", expanded=True):
-                mostrar_tabla_por_hito(
-                    hito,
-                    avances_actualizar[hito],
-                    metas_hitos['actualizar'][hito],
-                    'ACTUALIZAR'
-                )
-
-        # Gráfico resumen
-        st.markdown("---")
-        st.markdown("### Gráfico Resumen - ACTUALIZAR")
+        # GRÁFICO RESUMEN PRIMERO - SOLO PUBLICACIÓN
+        st.markdown("### Gráfico Resumen - Registros Publicados por Trimestre")
 
         fig = go.Figure()
 
-        for hito in ['Acuerdo de compromiso', 'Análisis y cronograma', 'Estándares', 'Publicación']:
-            avances_valores = [avances_actualizar[hito][q] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
-            fig.add_trace(go.Bar(
-                name=hito,
-                x=['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'],
-                y=avances_valores,
-                text=avances_valores,
-                textposition='auto'
-            ))
+        # Solo mostrar Publicación
+        avances_publicacion = [avances_actualizar['Publicación'][q] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
+        metas_publicacion = [metas_hitos['actualizar']['Publicación'][q] for q in ['Q1', 'Q2', 'Q3', 'Q4']]
+
+        # Barras de avance
+        fig.add_trace(go.Bar(
+            name='Publicados',
+            x=['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'],
+            y=avances_publicacion,
+            text=avances_publicacion,
+            textposition='auto',
+            marker_color='#10B981'
+        ))
+
+        # Línea de meta
+        fig.add_trace(go.Scatter(
+            name='Meta',
+            x=['Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'],
+            y=metas_publicacion,
+            mode='lines+markers+text',
+            text=metas_publicacion,
+            textposition='top center',
+            line=dict(color='#DC2626', width=2, dash='dash'),
+            marker=dict(size=10)
+        ))
 
         fig.update_layout(
-            barmode='group',
-            title='Avance Acumulado 2026 por Hito - ACTUALIZAR',
+            title='Registros Publicados vs Meta por Trimestre - ACTUALIZAR',
             xaxis_title='Trimestre',
-            yaxis_title='Cantidad',
-            height=500
+            yaxis_title='Cantidad de Registros',
+            height=500,
+            showlegend=True
         )
 
         st.plotly_chart(fig, use_container_width=True)
 
+        # TARJETAS POR TRIMESTRE
+        st.markdown("---")
+        st.markdown("### Detalle por Trimestre")
+
+        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+            mostrar_tarjeta_trimestre(trimestre, avances_actualizar, metas_hitos['actualizar'], registros_df, 'ACTUALIZAR')
+            st.markdown("---")
+
+        # DETALLE SOLO PARA PUBLICACIÓN
+        st.markdown("---")
+        st.markdown("### Detalle de Publicación por Trimestre")
+
+        # Crear datos para la tabla solo de Publicación
+        datos_tabla = []
+
+        # Fila de Meta
+        meta_row = {'Concepto': 'Meta'}
+        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+            meta_row[f'{trimestre} 2026'] = metas_hitos['actualizar']['Publicación'][trimestre]
+        datos_tabla.append(meta_row)
+
+        # Fila de Publicados
+        avance_row = {'Concepto': 'Publicados'}
+        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+            avance_row[f'{trimestre} 2026'] = avances_actualizar['Publicación'][trimestre]
+        datos_tabla.append(avance_row)
+
+        # Fila de Porcentaje
+        porcentaje_row = {'Concepto': '% Cumplimiento'}
+        for trimestre in ['Q1', 'Q2', 'Q3', 'Q4']:
+            meta_val = metas_hitos['actualizar']['Publicación'][trimestre]
+            avance_val = avances_actualizar['Publicación'][trimestre]
+            porcentaje = (avance_val / meta_val * 100) if meta_val > 0 else 0
+            porcentaje_row[f'{trimestre} 2026'] = f'{porcentaje:.1f}%'
+        datos_tabla.append(porcentaje_row)
+
+        # Crear DataFrame y mostrar
+        df_tabla = pd.DataFrame(datos_tabla)
+
+        st.dataframe(
+            df_tabla.style.apply(aplicar_estilos, axis=1),
+            use_container_width=True,
+            hide_index=True
+        )
+
 
 if __name__ == "__main__":
-    print("Módulo Seguimiento Trimestral - MODIFICADO: Seguimiento por hito 2026")
+    print("Módulo Seguimiento Trimestral - REORGANIZADO: Gráfico primero, tarjetas por trimestre")

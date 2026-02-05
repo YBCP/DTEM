@@ -271,6 +271,7 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
     # ===== MÉTRICAS GENERALES =====
     st.markdown('<div class="subtitle">Métricas Generales</div>', unsafe_allow_html=True)
 
+    # Primera fila: Métricas generales totales
     total_registros = len(df_filtrado)
     avance_promedio = df_filtrado['Porcentaje Avance'].mean() if not df_filtrado.empty else 0
     registros_completados = len(df_filtrado[df_filtrado['Porcentaje Avance'] == 100])
@@ -287,8 +288,34 @@ def mostrar_dashboard(df_filtrado, metas_nuevas_df, metas_actualizar_df, registr
     with col4:
         st.markdown(crear_metrica_card("% Completados", f"{porcentaje_completados:.1f}%", "#BE185D"), unsafe_allow_html=True)
 
+    # Segunda fila: Métricas para registros proyectados 2026
+    st.markdown('<div style="margin-top: 10px; margin-bottom: 5px; font-weight: 600; color: #374151;">Proyectados para 2026</div>', unsafe_allow_html=True)
+
+    # Filtrar registros con "Trabajar2026" = 1
+    df_2026 = df_filtrado.copy()
+    if 'Trabajar2026' in df_2026.columns:
+        df_2026 = df_2026[df_2026['Trabajar2026'].astype(str).str.strip() == '1']
+    else:
+        df_2026 = pd.DataFrame()  # Si no existe la columna, usar DataFrame vacío
+
+    total_registros_2026 = len(df_2026)
+    avance_promedio_2026 = df_2026['Porcentaje Avance'].mean() if not df_2026.empty else 0
+    registros_completados_2026 = len(df_2026[df_2026['Porcentaje Avance'] == 100]) if not df_2026.empty else 0
+    porcentaje_completados_2026 = (registros_completados_2026 / total_registros_2026 * 100) if total_registros_2026 > 0 else 0
+
+    col1_2026, col2_2026, col3_2026, col4_2026 = st.columns(4)
+
+    with col1_2026:
+        st.markdown(crear_metrica_card("Total Registros", total_registros_2026, "#3B82F6"), unsafe_allow_html=True)
+    with col2_2026:
+        st.markdown(crear_metrica_card("Avance Promedio", f"{avance_promedio_2026:.1f}%", "#10B981"), unsafe_allow_html=True)
+    with col3_2026:
+        st.markdown(crear_metrica_card("Completados", registros_completados_2026, "#F59E0B"), unsafe_allow_html=True)
+    with col4_2026:
+        st.markdown(crear_metrica_card("% Completados", f"{porcentaje_completados_2026:.1f}%", "#EC4899"), unsafe_allow_html=True)
+
     # ===== COMPARACIÓN CON METAS =====
-    st.markdown('<div class="subtitle">Comparación con Metas Quincenales</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Comparación con Metas Trimestrales</div>', unsafe_allow_html=True)
 
     try:
         comparacion_nuevos, comparacion_actualizar, fecha_meta = comparar_avance_metas(
@@ -562,7 +589,7 @@ def validar_dashboard_funcionando():
     """Función para verificar que todas las funcionalidades del dashboard están presentes"""
     funcionalidades = [
         "Métricas generales (4 tarjetas)",
-        "Comparación con metas quincenales", 
+        "Comparación con metas trimestrales",
         "Gráficos de barras de cumplimiento",
         "Tabla con gradiente personalizado",
         "Diagrama de Gantt condicional",
